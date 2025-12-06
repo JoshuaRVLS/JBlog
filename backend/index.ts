@@ -2,9 +2,11 @@ import express from 'express';
 import cors from 'cors';
 import UsersRouter from './routes/users.router';
 import db from './lib/db';
+import morgan from 'morgan';
 
 const app = express();
 
+app.use(morgan('dev'));
 app.use(cors({
     credentials: true,
     allowedHeaders: ['*'],
@@ -15,7 +17,7 @@ app.use(express.json());
 app.use(express.urlencoded({extended: true}));
 app.use('/api/users/', UsersRouter);
 
-// db.$connect().then(() => console.log('Database connected'));
+db.$connect().then(() => console.log('Database connected'));
 app.listen(8000, () => console.log('Server is running'));
 
 
