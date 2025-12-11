@@ -139,7 +139,19 @@ export const refreshToken = async (req: Request, res: Response) => {
 
 export const validate = async (req: Request, res: Response) => {
   console.log(req.cookies);
-  const { accessToken } = req.cookies;
+  const { accessToken, refreshToken } = req.cookies;
+
+  try {
+    const token = await db.refreshToken.findFirst({
+      where: {
+        value: refreshToken,
+      },
+    });
+    if (!token) return res.json({ userId: null });
+  } catch (error) {
+    console.log(error);
+  }
+
   if (!accessToken) {
     return res.status(401).json({ tokenValid: false });
   }
