@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { Toaster } from "react-hot-toast";
+import AuthProvider from "../providers/AuthProvider";
+import ThemeProvider from "@/providers/ThemeProvider";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,11 +26,68 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <ThemeProvider
+          attribute="class"
+          enableSystem
+          disableTransitionOnChange
+          defaultTheme="system"
+        >
+          <Toaster
+            toastOptions={{
+              // Use style instead of className for more reliable theming
+              style: {
+                background: "hsl(var(--card))",
+                color: "hsl(var(--card-foreground))",
+                border: "1px solid hsl(var(--primary))",
+                borderRadius: "0.375rem",
+                padding: "1rem",
+              },
+              // Success toasts
+              success: {
+                style: {
+                  background: "hsl(var(--card))",
+                  color: "hsl(var(--card-foreground))",
+                  border: "1px solid hsl(var(--primary))",
+                },
+                iconTheme: {
+                  primary: "hsl(var(--primary))",
+                  secondary: "hsl(var(--card))",
+                },
+              },
+              // Error toasts
+              error: {
+                style: {
+                  background: "hsl(var(--card))",
+                  color: "hsl(var(--card-foreground))",
+                  border: "1px solid hsl(var(--destructive))",
+                },
+                iconTheme: {
+                  primary: "hsl(var(--destructive))",
+                  secondary: "hsl(var(--card))",
+                },
+              },
+              // Loading toasts
+              loading: {
+                style: {
+                  background: "hsl(var(--card))",
+                  color: "hsl(var(--card-foreground))",
+                  border: "1px solid hsl(var(--primary))",
+                },
+                iconTheme: {
+                  primary: "hsl(var(--primary))",
+                  secondary: "hsl(var(--card))",
+                },
+              },
+            }}
+            reverseOrder={false}
+            position="bottom-right"
+          />
+          <AuthProvider>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
