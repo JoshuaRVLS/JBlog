@@ -20,6 +20,10 @@ model User {
   password  String 
   refreshToken RefreshToken?
   posts Post[]
+  verificationCode VerificationCode?
+  isOwner Boolean @default(false)
+  isAdmin Boolean @default(false)
+  isVerified Boolean @default(false)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -38,4 +42,16 @@ model Post {
   content  String
   authorId String
   author   User    @relation(fields: [authorId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VerificationCode {
+  id  String @id @default(cuid())
+  value String @unique
+  userId String @unique
+  user User @relation(fields: [userId], references: [id])
+  expiredAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
