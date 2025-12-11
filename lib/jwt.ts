@@ -14,7 +14,9 @@ export const decrypt = async (token: string): Promise<{ id: string }> => {
   return decoded as { id: string };
 };
 
-export const verify = async (token: string): Promise<boolean> => {
+export const verify = async (token: string): Promise<string> => {
+  console.log(token);
   const decoded = await decrypt(token);
-  return decoded.id ? true : false;
+  console.log(decoded);
+  return decoded.id;
 };
