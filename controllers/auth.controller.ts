@@ -13,7 +13,7 @@ export const loginUser = async (req: Request, res: Response) => {
     if (!result.success) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
-        .json({ errors: z.treeifyError(result.error) });
+        .json({ errors: z.treeifyError(result.error), msg: "Login Gagal" });
     }
 
     const { email, password } = result.data;
@@ -128,7 +128,7 @@ export const refreshToken = async (req: Request, res: Response) => {
       maxAge: 15 * 60 * 1000,
     });
 
-    res.json({ msg: "Refresh token refreshed" });
+    res.json({ userId: storedRefreshToken.userId });
   } catch (error) {
     console.log(error);
     res
@@ -138,7 +138,11 @@ export const refreshToken = async (req: Request, res: Response) => {
 };
 
 export const validate = async (req: Request, res: Response) => {
-  const { accessToken, refreshToken } = req.body;
-  const isTokenValid = await verify(accessToken);
-  return isTokenValid;
+  console.log(req.cookies);
+  const { accessToken } = req.cookies;
+  if (!accessToken) {
+    return res.status(401).json({ tokenValid: false });
+  }
+  const userId = await verify(accessToken);
+  return res.json({ userId });
 };
