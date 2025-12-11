@@ -1,40 +1,67 @@
-'use client';
+"use client";
 
+import { AuthContext } from "@/providers/AuthProvider";
 import AxiosInstance from "@/utils/api";
 import axios from "axios";
-import React, { FormEvent, useState } from "react";
-import { FieldValues, useForm } from 'react-hook-form';
+import React, { FormEvent, useContext, useState } from "react";
+import { FieldValues, useForm } from "react-hook-form";
+import { Button } from "@/components/ui/button";
+import {
+  Field,
+  FieldContent,
+  FieldDescription,
+  FieldGroup,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+  FieldTitle,
+} from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 
 export default function Page() {
-    const { register, handleSubmit } = useForm();
-    const [data, setData] = useState('');
+  const { login } = useContext(AuthContext);
+  const { register, handleSubmit } = useForm();
 
-    const login = async (data: FieldValues) => {
-        const { email, password } = data;
-        console.log(email, password);
-        try {
-            const response = await AxiosInstance.post('http://localhost:8000/api/users/login', {
-                email,
-                password
-            })
-            alert(response.data);
-        } catch (error) {
-            if (axios.isAxiosError(error)) {
-                alert(JSON.stringify(error.response?.data));
-            }
-        }
-    }
-
-    return (
-        <div>   
-            <h1>Login Page</h1>
-            <form className="flex flex-col justify-center items-center h-full" onSubmit={handleSubmit(login)}>
-                <input type="email"  {...register('email')} placeholder="Email" required />
-                <input type="password" {...register('password')} placeholder="Password" required />
-                <button type="submit" className="cursor-pointer">
-                    Login
-                </button>
-            </form>
-        </div>
-    );
+  return (
+    <form
+      onSubmit={handleSubmit((data) => login(data))}
+      className="justify-center flex items-center w-dvw h-dvh"
+    >
+      <FieldGroup className="flex justify-center items-center">
+        <FieldSet>
+          <FieldContent>
+            <FieldTitle className="text-3xl font-black">Login</FieldTitle>
+            <FieldDescription>
+              Login untuk bisa like dan comment di postingan.
+            </FieldDescription>
+          </FieldContent>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="email">Email</FieldLabel>
+              <Input
+                {...register("email")}
+                type="email"
+                placeholder="apaaja@gmail.com"
+                required
+              />
+            </Field>
+          </FieldGroup>
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="password">Password</FieldLabel>
+              <Input
+                {...register("password")}
+                type="password"
+                placeholder="********"
+                required
+              />
+            </Field>
+          </FieldGroup>
+          <FieldGroup>
+            <Button type="submit">Login</Button>
+          </FieldGroup>
+        </FieldSet>
+      </FieldGroup>
+    </form>
+  );
 }
