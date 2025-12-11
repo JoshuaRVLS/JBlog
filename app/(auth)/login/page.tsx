@@ -17,6 +17,7 @@ import {
   FieldTitle,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import Link from "next/link";
 
 export default function Page() {
   const { login } = useContext(AuthContext);
@@ -25,12 +26,13 @@ export default function Page() {
   return (
     <form
       onSubmit={handleSubmit((data) => login(data))}
-      className="justify-center flex items-center w-dvw h-dvh"
+      className="justify-center flex flex-col gap-8 items-center w-dvw h-dvh p-4"
     >
-      <FieldGroup className="flex justify-center items-center">
+      <h1 className="text-4xl font-bold">JBlog</h1>
+      <FieldGroup className="flex justify-center items-center shadow-xl ">
         <FieldSet>
           <FieldContent>
-            <FieldTitle className="text-3xl font-black">Login</FieldTitle>
+            <FieldTitle className="text-xl font-black">Login</FieldTitle>
             <FieldDescription>
               Login untuk bisa like dan comment di postingan.
             </FieldDescription>
@@ -40,7 +42,7 @@ export default function Page() {
               <FieldLabel htmlFor="email">Email</FieldLabel>
               <Input
                 {...register("email")}
-                type="email"
+                type="text"
                 placeholder="apaaja@gmail.com"
                 required
               />
@@ -59,6 +61,11 @@ export default function Page() {
           </FieldGroup>
           <FieldGroup>
             <Button type="submit">Login</Button>
+          </FieldGroup>
+          <FieldGroup>
+            <Button>
+              <Link href={"/register"}>Daftar akun baru</Link>
+            </Button>
           </FieldGroup>
         </FieldSet>
       </FieldGroup>
