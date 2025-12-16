@@ -56,7 +56,7 @@ interface Message {
 }
 
 export default function GroupChatPage() {
-  const { authenticated, userId } = useContext(AuthContext);
+  const { authenticated, userId, isSuspended } = useContext(AuthContext);
   const router = useRouter();
   const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<GroupChat | null>(null);
@@ -128,12 +128,19 @@ export default function GroupChatPage() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (!authenticated) {
+    if (!authenticated && !isSuspended) {
       router.push("/login");
       return;
     }
-    fetchGroupChats();
-  }, [authenticated]);
+    if (isSuspended) {
+      toast.error("Akun Anda telah di-suspend. Anda tidak dapat mengakses group chat.");
+      router.push("/");
+      return;
+    }
+    if (authenticated && !isSuspended) {
+      fetchGroupChats();
+    }
+  }, [authenticated, isSuspended, router]);
 
   // Fetch group details to ensure members are loaded
   const fetchGroupDetails = async (groupId: string) => {
@@ -980,7 +987,7 @@ export default function GroupChatPage() {
 
           <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
             {/* Group List - Hidden on mobile when group is selected */}
-            <div className={`${selectedGroup ? "hidden lg:block" : "block"} lg:col-span-1 bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-4 overflow-y-auto shadow-lg`}>
+            <div className={`${selectedGroup ? "hidden lg:block" : "block"} lg:col-span-1 bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-4 overflow-y-auto shadow-lg overscroll-contain`} data-lenis-prevent="true">
               <div className="flex items-center justify-between mb-4">
                 <h2 className="font-bold text-lg text-gradient">Group Chats</h2>
                 <div className="flex items-center gap-2">
@@ -1119,7 +1126,12 @@ export default function GroupChatPage() {
                   {/* Messages */}
                   <div
                     ref={messagesContainerRef}
-                    className="flex-1 overflow-y-auto p-4 space-y-4"
+                    className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 overscroll-contain"
+                    data-lenis-prevent="true"
+                    style={{ 
+                      WebkitOverflowScrolling: 'touch',
+                      scrollBehavior: 'smooth'
+                    }}
                   >
                     {messages.map((message) => {
                       const isOwnMessage = message.user.id === userId;

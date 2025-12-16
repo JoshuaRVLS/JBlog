@@ -18,6 +18,12 @@ export default function UserManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [suspendModal, setSuspendModal] = useState<{ open: boolean; userId: string | null; userName: string }>({
+    open: false,
+    userId: null,
+    userName: "",
+  });
+  const [suspendDays, setSuspendDays] = useState<string>("");
 
   useEffect(() => {
     if (!authenticated) {
@@ -82,13 +88,30 @@ export default function UserManagement() {
       if (isSuspended) {
         await AxiosInstance.post(`/admin/users/${userId}/unsuspend`);
         toast.success("User di-unsuspend");
+        fetchUsers();
       } else {
-        await AxiosInstance.post(`/admin/users/${userId}/suspend`);
-        toast.success("User di-suspend");
+        const user = users.find((u) => u.id === userId);
+        setSuspendModal({ open: true, userId, userName: user?.name || "" });
       }
-      fetchUsers();
     } catch (error: any) {
       toast.error(error.response?.data?.msg || "Gagal suspend/unsuspend user");
+    }
+  };
+
+  const handleConfirmSuspend = async () => {
+    if (!suspendModal.userId) return;
+
+    try {
+      const days = suspendDays.trim() === "" ? undefined : parseInt(suspendDays);
+      await AxiosInstance.post(`/admin/users/${suspendModal.userId}/suspend`, {
+        days: days || undefined,
+      });
+      toast.success(days ? `User di-suspend selama ${days} hari` : "User di-suspend secara permanen");
+      setSuspendModal({ open: false, userId: null, userName: "" });
+      setSuspendDays("");
+      fetchUsers();
+    } catch (error: any) {
+      toast.error(error.response?.data?.msg || "Gagal suspend user");
     }
   };
 
@@ -198,9 +221,16 @@ export default function UserManagement() {
                           </td>
                           <td className="px-6 py-4">
                             {user.isSuspended ? (
-                              <span className="px-2 py-1 text-xs font-medium bg-red-500/10 text-red-500 rounded">
-                                Suspended
-                              </span>
+                              <div className="flex flex-col gap-1">
+                                <span className="px-2 py-1 text-xs font-medium bg-red-500/10 text-red-500 rounded">
+                                  Suspended
+                                </span>
+                                {user.suspendedUntil && (
+                                  <span className="text-xs text-muted-foreground">
+                                    Sampai: {new Date(user.suspendedUntil).toLocaleDateString("id-ID")}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <span className="px-2 py-1 text-xs font-medium bg-green-500/10 text-green-500 rounded">
                                 Active
@@ -288,6 +318,58 @@ export default function UserManagement() {
           )}
         </div>
       </main>
+
+      {/* Suspend Modal */}
+      {suspendModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border/50 rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <h2 className="text-2xl font-bold mb-2">Suspend User</h2>
+              <p className="text-muted-foreground mb-6">
+                Suspend user <span className="font-semibold text-foreground">{suspendModal.userName}</span>
+              </p>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Durasi Suspend (hari)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="365"
+                    value={suspendDays}
+                    onChange={(e) => setSuspendDays(e.target.value)}
+                    placeholder="Kosongkan untuk suspend permanen"
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Kosongkan untuk suspend permanen, atau masukkan jumlah hari (1-365)
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-4">
+                  <button
+                    onClick={() => {
+                      setSuspendModal({ open: false, userId: null, userName: "" });
+                      setSuspendDays("");
+                    }}
+                    className="flex-1 px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-accent transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleConfirmSuspend}
+                    className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+                  >
+                    Suspend
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

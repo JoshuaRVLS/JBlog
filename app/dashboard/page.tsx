@@ -44,8 +44,15 @@ interface Post {
 }
 
 export default function Dashboard() {
-  const { userId, authenticated } = useContext(AuthContext);
+  const { userId, authenticated, isSuspended } = useContext(AuthContext);
   const router = useRouter();
+
+  useEffect(() => {
+    if (isSuspended && authenticated) {
+      toast.error("Akun Anda telah di-suspend. Anda tidak dapat mengakses dashboard.");
+      router.push("/");
+    }
+  }, [isSuspended, authenticated, router]);
   const [user, setUser] = useState<{ isOwner?: boolean; isAdmin?: boolean } | null>(null);
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);

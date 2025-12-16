@@ -302,12 +302,15 @@ export default function Home() {
     const setupAnimations = () => {
       loadGSAP().then(({ gsap, ScrollTrigger }) => {
         const ctx = gsap.context(() => {
-          // Hobbies Section - Ensure visible first, then add animation
+          // Hobbies Section - Enhanced animations with parallax and stagger
           if (hobbiesSectionRef.current) {
             const hobbyCards = hobbiesSectionRef.current.querySelectorAll(".hobby-card");
             const hobbyTitle = hobbiesSectionRef.current.querySelector("h2");
+            const hobbyIcons = hobbiesSectionRef.current.querySelectorAll(".hobby-icon");
+            const hobbyTexts = hobbiesSectionRef.current.querySelectorAll(".hobby-text");
+            const bgGradient = hobbiesSectionRef.current.querySelector(".hobby-bg-gradient");
             
-            // CRITICAL: Set all elements to visible state FIRST (no animation)
+            // Set initial state
             gsap.set(hobbiesSectionRef.current, { 
               opacity: 1, 
               visibility: "visible",
@@ -315,34 +318,77 @@ export default function Home() {
             });
             
             if (hobbyTitle) {
-              gsap.set(hobbyTitle, { opacity: 1, y: 0, visibility: "visible" });
+              gsap.set(hobbyTitle, { opacity: 0, y: 50, scale: 0.9 });
             }
             
             if (hobbyCards.length > 0) {
-              gsap.set(hobbyCards, { opacity: 1, scale: 1, y: 0, visibility: "visible" });
-            }
-            
-            // Title animation - faster
-            if (hobbyTitle) {
-              gsap.from(hobbyTitle, {
-                scrollTrigger: {
-                  trigger: hobbiesSectionRef.current,
-                  scroller: document.body,
-                  start: "top 85%",
-                  toggleActions: "play none none reverse",
-                  once: true,
-                },
-                opacity: 0,
-                y: 30,
-                duration: 0.5,
-                ease: "power2.out",
+              gsap.set(hobbyCards, { 
+                opacity: 0, 
+                scale: 0.8, 
+                y: 60,
+                rotationY: -15,
+                transformOrigin: "center center"
               });
             }
             
-            // Cards with simpler, faster animations
+            if (hobbyIcons.length > 0) {
+              gsap.set(hobbyIcons, { 
+                scale: 0,
+                rotation: -180,
+                opacity: 0
+              });
+            }
+            
+            if (hobbyTexts.length > 0) {
+              gsap.set(hobbyTexts, { 
+                opacity: 0,
+                y: 20
+              });
+            }
+            
+            // Parallax background effect
+            if (bgGradient) {
+              gsap.to(bgGradient, {
+                scrollTrigger: {
+                  trigger: hobbiesSectionRef.current,
+                  scroller: document.body,
+                  start: "top bottom",
+                  end: "bottom top",
+                  scrub: 1,
+                },
+                y: -50,
+                opacity: 0.8,
+                ease: "none",
+              });
+            }
+            
+            // Title animation with scale and blur effect
+            if (hobbyTitle) {
+              gsap.to(hobbyTitle, {
+                scrollTrigger: {
+                  trigger: hobbiesSectionRef.current,
+                  scroller: document.body,
+                  start: "top 80%",
+                  toggleActions: "play none none reverse",
+                  once: true,
+                },
+                opacity: 1,
+                y: 0,
+                scale: 1,
+                duration: 1,
+                ease: "back.out(1.7)",
+              });
+            }
+            
+            // Cards stagger animation with 3D rotation and scale
             hobbyCards.forEach((card, index) => {
-              // Initial entrance animation - faster
-              gsap.from(card, {
+              const icon = card.querySelector(".hobby-icon");
+              const title = card.querySelector("h3");
+              const text = card.querySelector(".hobby-text");
+              const sparkle = card.querySelector(".hobby-sparkle");
+              
+              // Main card animation
+              gsap.to(card, {
                 scrollTrigger: {
                   trigger: card,
                   scroller: document.body,
@@ -350,12 +396,123 @@ export default function Home() {
                   toggleActions: "play none none reverse",
                   once: true,
                 },
-                opacity: 0,
-                scale: 0.8,
-                y: 30,
-                duration: 0.6,
-                ease: "power2.out",
-                delay: index * 0.1,
+                opacity: 1,
+                scale: 1,
+                y: 0,
+                rotationY: 0,
+                duration: 0.8,
+                ease: "power3.out",
+                delay: index * 0.2,
+              });
+              
+              // Icon animation with bounce
+              if (icon) {
+                gsap.to(icon, {
+                  scrollTrigger: {
+                    trigger: card,
+                    scroller: document.body,
+                    start: "top 85%",
+                    toggleActions: "play none none reverse",
+                    once: true,
+                  },
+                  scale: 1,
+                  rotation: 0,
+                  opacity: 1,
+                  duration: 0.8,
+                  ease: "elastic.out(1, 0.5)",
+                  delay: index * 0.2 + 0.2,
+                });
+              }
+              
+              // Title reveal
+              if (title) {
+                gsap.to(title, {
+                  scrollTrigger: {
+                    trigger: card,
+                    scroller: document.body,
+                    start: "top 85%",
+                    toggleActions: "play none none reverse",
+                    once: true,
+                  },
+                  opacity: 1,
+                  y: 0,
+                  duration: 0.6,
+                  ease: "power2.out",
+                  delay: index * 0.2 + 0.3,
+                });
+              }
+              
+              // Text reveal
+              if (text) {
+                gsap.to(text, {
+                  scrollTrigger: {
+                    trigger: card,
+                    scroller: document.body,
+                    start: "top 85%",
+                    toggleActions: "play none none reverse",
+                    once: true,
+                  },
+                  opacity: 1,
+                  y: 0,
+                  duration: 0.6,
+                  ease: "power2.out",
+                  delay: index * 0.2 + 0.4,
+                });
+              }
+              
+              // Sparkle animation
+              if (sparkle) {
+                gsap.to(sparkle, {
+                  scrollTrigger: {
+                    trigger: card,
+                    scroller: document.body,
+                    start: "top 85%",
+                    toggleActions: "play none none reverse",
+                    once: true,
+                  },
+                  opacity: 1,
+                  scale: 1,
+                  duration: 0.5,
+                  ease: "power2.out",
+                  delay: index * 0.2 + 0.5,
+                });
+              }
+              
+              // Hover interaction with GSAP
+              card.addEventListener("mouseenter", () => {
+                gsap.to(card, {
+                  scale: 1.05,
+                  y: -10,
+                  rotationY: 5,
+                  duration: 0.4,
+                  ease: "power2.out",
+                });
+                if (icon) {
+                  gsap.to(icon, {
+                    scale: 1.2,
+                    rotation: 360,
+                    duration: 0.6,
+                    ease: "power2.out",
+                  });
+                }
+              });
+              
+              card.addEventListener("mouseleave", () => {
+                gsap.to(card, {
+                  scale: 1,
+                  y: 0,
+                  rotationY: 0,
+                  duration: 0.4,
+                  ease: "power2.out",
+                });
+                if (icon) {
+                  gsap.to(icon, {
+                    scale: 1,
+                    rotation: 0,
+                    duration: 0.4,
+                    ease: "power2.out",
+                  });
+                }
               });
             });
           }
@@ -919,47 +1076,47 @@ export default function Home() {
 
         {/* Hobbies Section */}
         <section ref={hobbiesSectionRef} id="hobbies" className="py-16 sm:py-24 md:py-32 relative overflow-hidden bg-background" style={{ opacity: 1, visibility: "visible" }}>
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5"></div>
+          <div className="hobby-bg-gradient absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/5"></div>
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <h2 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-8 sm:mb-12 md:mb-16 text-center text-gradient px-4">Hobi Saya</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-12 max-w-4xl mx-auto">
               {/* Basketball Hobby */}
-              <div className="hobby-card bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 hover:border-primary/50 transition-all group">
+              <div className="hobby-card bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 hover:border-primary/50 transition-all group cursor-pointer">
                 <div className="flex items-center justify-center mb-4 sm:mb-6">
                   <div className="relative">
                     <div className="absolute inset-0 bg-primary/20 blur-2xl rounded-full animate-pulse"></div>
-                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-primary/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="hobby-icon relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-primary/10 rounded-full flex items-center justify-center">
                       <Target className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-primary" />
                     </div>
                   </div>
                 </div>
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4 text-center group-hover:text-primary transition-colors">Basketball</h3>
-                <p className="text-sm sm:text-base text-muted-foreground text-center leading-relaxed">
+                <p className="hobby-text text-sm sm:text-base text-muted-foreground text-center leading-relaxed">
                   Saya suka bermain basketball untuk menjaga kesehatan dan melatih teamwork. 
                   Olahraga ini membantu saya tetap aktif dan fokus dalam coding.
                 </p>
-                <div className="mt-4 sm:mt-6 flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                <div className="hobby-sparkle mt-4 sm:mt-6 flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
                   <Sparkles className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span>Passion & Teamwork</span>
                 </div>
               </div>
               
               {/* Coding Hobby */}
-              <div className="hobby-card bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 hover:border-primary/50 transition-all group">
+              <div className="hobby-card bg-card/80 backdrop-blur-sm border border-border/50 rounded-2xl p-4 sm:p-6 md:p-8 hover:border-primary/50 transition-all group cursor-pointer">
                 <div className="flex items-center justify-center mb-4 sm:mb-6">
                   <div className="relative">
                     <div className="absolute inset-0 bg-accent/20 blur-2xl rounded-full animate-pulse"></div>
-                    <div className="relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-accent/10 rounded-full flex items-center justify-center group-hover:scale-110 transition-transform">
+                    <div className="hobby-icon relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-accent/10 rounded-full flex items-center justify-center">
                       <Code className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-accent" />
                     </div>
                   </div>
                 </div>
                 <h3 className="text-xl sm:text-2xl md:text-3xl font-bold mb-3 sm:mb-4 text-center group-hover:text-primary transition-colors">Ngoding</h3>
-                <p className="text-sm sm:text-base text-muted-foreground text-center leading-relaxed">
+                <p className="hobby-text text-sm sm:text-base text-muted-foreground text-center leading-relaxed">
                   Coding adalah passion utama saya. Saya senang membangun aplikasi web, 
                   memecahkan masalah kompleks, dan terus belajar teknologi terbaru.
                 </p>
-                <div className="mt-4 sm:mt-6 flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                <div className="hobby-sparkle mt-4 sm:mt-6 flex items-center justify-center gap-2 text-xs sm:text-sm text-muted-foreground">
                   <Sparkles className="h-3 w-3 sm:h-4 sm:w-4" />
                   <span>Innovation & Learning</span>
                 </div>

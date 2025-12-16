@@ -8,6 +8,7 @@ import toast from "react-hot-toast";
 export default function ReportBugButton() {
   const [isOpen, setIsOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
   const [formData, setFormData] = useState({
     title: "",
     description: "",
@@ -49,13 +50,52 @@ export default function ReportBugButton() {
   return (
     <>
       {/* Floating Button */}
-      <button
-        onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center group glow-sm hover:glow"
-        aria-label="Report Bug"
+      <div 
+        className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3"
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
       >
-        <Bug className="h-6 w-6 group-hover:rotate-12 transition-transform" />
-      </button>
+        {/* Tooltip/Label */}
+        <div 
+          className={`hidden md:block transition-all duration-300 pointer-events-none ${
+            isHovered 
+              ? "opacity-100 translate-y-0" 
+              : "opacity-0 translate-y-2"
+          }`}
+        >
+          <div className="bg-card border border-border/50 rounded-lg px-4 py-2 shadow-xl backdrop-blur-sm">
+            <p className="text-sm font-semibold text-foreground whitespace-nowrap">
+              Report Bug / Feedback
+            </p>
+          </div>
+        </div>
+        
+        {/* Button */}
+        <button
+          onClick={() => setIsOpen(true)}
+          className="group relative w-16 h-16 bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground rounded-2xl shadow-2xl hover:shadow-primary/50 hover:scale-110 active:scale-95 transition-all duration-300 flex items-center justify-center overflow-hidden"
+          aria-label="Report Bug"
+        >
+          {/* Animated background glow */}
+          <div className="absolute inset-0 bg-primary/30 rounded-2xl animate-pulse"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-transparent rounded-2xl"></div>
+          
+          {/* Ripple effect on hover */}
+          <div className="absolute inset-0 rounded-2xl bg-primary/20 scale-0 group-hover:scale-150 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
+          
+          {/* Shine effect */}
+          <div className="absolute inset-0 rounded-2xl bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"></div>
+          
+          {/* Icon */}
+          <div className="relative z-10">
+            <Bug className="h-7 w-7 group-hover:rotate-12 group-hover:scale-110 transition-all duration-300" />
+          </div>
+          
+          {/* Notification dot */}
+          <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-background animate-ping"></div>
+          <div className="absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-background"></div>
+        </button>
+      </div>
 
       {/* Modal */}
       {isOpen && (

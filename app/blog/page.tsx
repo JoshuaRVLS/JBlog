@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useContext, useMemo, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
@@ -53,7 +54,15 @@ interface RecommendedUser {
 }
 
 export default function BlogPage() {
-  const { authenticated, userId } = useContext(AuthContext);
+  const { authenticated, userId, isSuspended } = useContext(AuthContext);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isSuspended && authenticated) {
+      toast.error("Akun Anda telah di-suspend. Anda tidak dapat mengakses halaman ini.");
+      router.push("/");
+    }
+  }, [isSuspended, authenticated, router]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [popularPosts, setPopularPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);

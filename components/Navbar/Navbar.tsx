@@ -163,7 +163,7 @@ interface NavItem {
 }
 
 export default function Navbar() {
-  const { authenticated, logout, userId, loading } = useContext(AuthContext);
+  const { authenticated, logout, userId, loading, isSuspended } = useContext(AuthContext);
   const router = useRouter();
   const pathname = usePathname();
   const { theme, setTheme } = useTheme();
@@ -181,16 +181,16 @@ export default function Navbar() {
   }, []);
 
   useEffect(() => {
-    // Only fetch user data if authenticated and not loading
-    if (userId && authenticated && !loading) {
+    // Fetch user data if authenticated or suspended (to show profile)
+    if (userId && (authenticated || isSuspended) && !loading) {
       AxiosInstance.get(`/users/${userId}`)
         .then((res) => setUser(res.data))
         .catch(() => {});
-    } else if (!authenticated) {
-      // Clear user data when not authenticated
+    } else if (!authenticated && !isSuspended) {
+      // Clear user data when not authenticated and not suspended
       setUser(null);
     }
-  }, [userId, authenticated, loading]);
+  }, [userId, authenticated, isSuspended, loading]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -216,8 +216,8 @@ export default function Navbar() {
 
   const navItems: NavItem[] = [
     { name: "Home", href: "/", icon: Home },
-    { name: "Blog", href: "/blog", icon: BookOpen },
-    ...(authenticated
+    ...(isSuspended ? [] : [{ name: "Blog", href: "/blog", icon: BookOpen }]),
+    ...(authenticated && !isSuspended
       ? [
           { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
           { name: "Group Chat", href: "/groupchat", icon: MessageCircle },
@@ -355,10 +355,11 @@ export default function Navbar() {
 
              {/* Right Side - Auth, Theme Toggle & Mobile Menu */}
              <div className="flex items-center gap-3">
-               {authenticated ? (
+               {(authenticated || isSuspended) ? (
                  <>
-                   {/* Notifications */}
-                   <NotificationsDropdown />
+                   {!isSuspended && (
+                     <NotificationsDropdown />
+                   )}
                    
                    {/* Profile Dropdown */}
                 <div className="hidden md:block relative profile-dropdown">
