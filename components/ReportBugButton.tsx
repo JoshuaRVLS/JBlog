@@ -1,0 +1,170 @@
+"use client";
+
+import { useState } from "react";
+import { Bug, X, Send, Loader2 } from "lucide-react";
+import AxiosInstance from "@/utils/api";
+import toast from "react-hot-toast";
+
+export default function ReportBugButton() {
+  const [isOpen, setIsOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    title: "",
+    description: "",
+    type: "bug",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.title || !formData.description) {
+      toast.error("Judul dan deskripsi harus diisi");
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      const pageUrl = typeof window !== "undefined" ? window.location.href : null;
+
+      await AxiosInstance.post("/reports", {
+        ...formData,
+        pageUrl,
+      });
+
+      toast.success("Report berhasil dikirim! Terima kasih atas feedbacknya.");
+      setIsOpen(false);
+      setFormData({
+        title: "",
+        description: "",
+        type: "bug",
+      });
+    } catch (error: any) {
+      console.error("Error submitting report:", error);
+      toast.error(error.response?.data?.msg || "Gagal mengirim report");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <>
+      {/* Floating Button */}
+      <button
+        onClick={() => setIsOpen(true)}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-primary text-primary-foreground rounded-full shadow-lg hover:shadow-xl hover:scale-110 transition-all flex items-center justify-center group glow-sm hover:glow"
+        aria-label="Report Bug"
+      >
+        <Bug className="h-6 w-6 group-hover:rotate-12 transition-transform" />
+      </button>
+
+      {/* Modal */}
+      {isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border/50 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-sm">
+            {/* Header */}
+            <div className="flex items-center justify-between p-6 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Bug className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground">Report Bug</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Laporkan bug atau berikan feedback
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="w-8 h-8 rounded-lg hover:bg-accent flex items-center justify-center transition-colors"
+                aria-label="Close"
+              >
+                <X className="h-5 w-5 text-muted-foreground" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {/* Type */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">
+                  Tipe Report
+                </label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+                  className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                >
+                  <option value="bug">Bug</option>
+                  <option value="feature">Feature Request</option>
+                  <option value="other">Lainnya</option>
+                </select>
+              </div>
+
+              {/* Title */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">
+                  Judul <span className="text-destructive">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  placeholder="Contoh: Tombol tidak berfungsi di halaman dashboard"
+                  className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  required
+                />
+              </div>
+
+              {/* Description */}
+              <div className="space-y-2">
+                <label className="text-sm font-semibold text-foreground">
+                  Deskripsi <span className="text-destructive">*</span>
+                </label>
+                <textarea
+                  value={formData.description}
+                  onChange={(e) =>
+                    setFormData({ ...formData, description: e.target.value })
+                  }
+                  placeholder="Jelaskan secara detail tentang bug atau feature yang ingin dilaporkan..."
+                  rows={6}
+                  className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
+                  required
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex gap-4 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setIsOpen(false)}
+                  className="flex-1 px-6 py-3 bg-muted text-foreground rounded-lg font-medium hover:bg-accent transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {submitting ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Mengirim...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="h-5 w-5" />
+                      <span>Kirim Report</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+

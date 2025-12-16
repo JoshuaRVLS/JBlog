@@ -1,14 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono, JetBrains_Mono } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "react-hot-toast";
 import AuthProvider from "../providers/AuthProvider";
 import ThemeProvider from "@/providers/ThemeProvider";
+import SmoothScroll from "@/components/SmoothScroll";
+import ReportBugButton from "@/components/ReportBugButton";
 
-const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
 });
+
+const jetbrainsMono = {
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+};
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -22,12 +29,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${jetbrainsMono.variable} antialiased`}>
+      <body
+        className={`${inter.variable} ${jetbrainsMono.variable} antialiased`}
+      >
         <ThemeProvider
           attribute="class"
           enableSystem
           disableTransitionOnChange
           defaultTheme="system"
+          storageKey="jblog-theme"
         >
           <Toaster
             toastOptions={{
@@ -79,7 +89,12 @@ export default function RootLayout({
             reverseOrder={false}
             position="bottom-right"
           />
-          <AuthProvider>{children}</AuthProvider>
+          <SmoothScroll>
+            <AuthProvider>
+              {children}
+              <ReportBugButton />
+            </AuthProvider>
+          </SmoothScroll>
         </ThemeProvider>
       </body>
     </html>

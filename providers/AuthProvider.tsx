@@ -35,21 +35,29 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const checkAuth = async () => {
     setLoading(true);
-    // Check access Token
     try {
       const response = await AxiosInstance.post("/auth/validate");
-      if (response.data.userId) {
+      if (response.data.authenticated && response.data.userId) {
         setUserId(response.data.userId);
         setAuthenticated(true);
       } else {
-        await logout();
+        setUserId("");
+        setAuthenticated(false);
       }
     } catch (error) {
-      // Refresh Token
-      const response = await AxiosInstance.post("/auth/refresh");
-      if (response.data.userId) {
-        setUserId(response.data.userId);
-        setAuthenticated(true);
+      // If validate fails, try refresh
+      try {
+        const refreshResponse = await AxiosInstance.post("/auth/refresh");
+        if (refreshResponse.data.userId) {
+          setUserId(refreshResponse.data.userId);
+          setAuthenticated(true);
+        } else {
+          setUserId("");
+          setAuthenticated(false);
+        }
+      } catch (refreshError) {
+        setUserId("");
+        setAuthenticated(false);
       }
     }
     setLoading(false);
@@ -64,6 +72,10 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         password,
       });
       toast.success("Login Berhasil");
+      
+      // Update auth state setelah login berhasil
+      await checkAuth();
+      
       router.push("/");
     } catch (error) {
       if (error instanceof AxiosError) {
@@ -82,28 +94,51 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         confirmPassword,
       });
       toast.success(response.data.msg);
-      router.push(`/verify-email/${response.data.userId}`);
+      
+      // Update auth state setelah register berhasil (auto login)
+      setAuthenticated(true);
+      setUserId(response.data.user.id);
+      
+      // Check auth untuk memastikan state ter-update dengan benar
+      await checkAuth();
+      
+      // Redirect ke finalisation
+      if (response.data.redirectTo) {
+        router.push(response.data.redirectTo);
+      } else {
+        router.push("/profile/finalisation");
+      }
     } catch (error) {
       if (error instanceof AxiosError) {
         console.log(error.response?.data);
-        toast.error(error.response?.data.msg);
+        toast.error(error.response?.data?.msg || error.response?.data?.error || "Gagal registrasi");
       }
     }
   };
 
   const logout = async () => {
     try {
-      const response = await AxiosInstance.delete("/auth/logout");
+      await AxiosInstance.delete("/auth/logout");
+      setUserId("");
+      setAuthenticated(false);
     } catch (error) {
       console.log(error);
+      // Even if logout fails, clear local state
+      setUserId("");
+      setAuthenticated(false);
     }
   };
 
   const verifyEmail = async (data: FieldValues) => {
     try {
       const response = await AxiosInstance.get(`/email/verify/${data.code}`);
-      toast(response.data.msg);
-      router.push("/login");
+      toast.success(response.data.msg);
+      // Redirect ke profile finalisation setelah verifikasi berhasil
+      if (response.data.redirectTo) {
+        router.push(response.data.redirectTo);
+      } else {
+        router.push("/profile/finalisation");
+      }
     } catch (error) {
       if (error instanceof AxiosError) {
         toast.error(error.response?.data.msg);
@@ -112,7 +147,9 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
-    const intervalId = setInterval(checkAuth, 1000);
+    checkAuth();
+    // Check auth every 5 minutes
+    const intervalId = setInterval(checkAuth, 5 * 60 * 1000);
     return () => clearInterval(intervalId);
   }, []);
 

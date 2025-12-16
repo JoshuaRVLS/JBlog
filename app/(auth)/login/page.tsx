@@ -60,6 +60,16 @@ export default function Page() {
             </Field>
           </FieldGroup>
           <FieldGroup>
+            <div className="flex items-center justify-between w-full">
+              <Link
+                href="/forgot-password"
+                className="text-sm text-muted-foreground hover:text-primary transition-colors"
+              >
+                Forgot password?
+              </Link>
+            </div>
+          </FieldGroup>
+          <FieldGroup>
             <Button type="submit">Login</Button>
           </FieldGroup>
           <FieldGroup>

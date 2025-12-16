@@ -7,9 +7,6 @@ export default function middleware(req: NextRequest) {
   const accessToken = req.cookies.get("accessToken");
   const path = req.nextUrl.pathname;
 
-  if (path === "/") {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
-  }
 
   // If user is on a public route (login/register) and has a token, redirect to home
   if (publicRoutes.includes(path) && accessToken) {
