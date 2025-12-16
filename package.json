@@ -4,7 +4,11 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "tsx --watch index.ts"
+    "dev": "tsx --watch index.ts",
+    "db:push": "prisma db push",
+    "db:migrate": "prisma migrate dev",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio"
   },
   "devDependencies": {
     "@types/bun": "latest",
@@ -42,6 +46,7 @@
     "nodemailer": "^7.0.11",
     "pg": "^8.16.3",
     "prisma": "^7.1.0",
+    "socket.io": "^4.8.1",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "tsx": "^4.21.0",

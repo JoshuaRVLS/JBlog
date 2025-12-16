@@ -14,44 +14,295 @@ datasource db {
 }
 
 model User {
-  id        String      @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String 
-  refreshToken RefreshToken?
-  posts Post[]
-  verificationCode VerificationCode?
-  isOwner Boolean @default(false)
-  isAdmin Boolean @default(false)
-  isVerified Boolean @default(false)
+  id             String  @id @default(cuid())
+  name           String
+  email          String  @unique
+  password       String
+  bio            String?
+  description    String? // Extended description/bio
+  profilePicture String?
+
+  refreshToken        RefreshToken?
+  posts               Post[]
+  verificationCode    VerificationCode?
+  passwordResetTokens PasswordResetToken[]
+  claps               Clap[]
+  comments            Comment[]
+  reports             Report[]
+  messages            Message[]
+  groupChatMembers    GroupChatMember[]
+  createdGroupChats   GroupChat[]          @relation("GroupChatCreator")
+  notifications       Notification[]       @relation("UserNotifications")
+  actorNotifications  Notification[]       @relation("ActorNotifications")
+  mentions            MessageMention[]     @relation("UserMentions")
+  customLinks         CustomLink[]
+
+  // Followers relationship
+  followers Follow[] @relation("UserFollowers")
+  following Follow[] @relation("UserFollowing")
+
+  isOwner     Boolean @default(false)
+  isAdmin     Boolean @default(false)
+  isVerified  Boolean @default(false)
+  isSuspended Boolean @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model RefreshToken {
+model Follow {
   id String @id @default(cuid())
-  value String
-  userId String @unique
-  user User @relation(fields: [userId], references: [id])
+
+  followerId String
+  follower   User   @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+
+  followingId String
+  following   User   @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  value     String
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
 }
 
 model Post {
-  id       String     @id @default(cuid())
-  title    String
-  content  String
+  id          String  @id @default(cuid())
+  title       String
+  content     String // Markdown content
+  excerpt     String?
+  coverImage  String?
+  published   Boolean @default(false)
+  readingTime Int     @default(0) // in minutes
+  views       Int     @default(0) // Total views count
+
   authorId String
-  author   User    @relation(fields: [authorId], references: [id])
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  tags          PostTag[]
+  claps         Clap[]
+  comments      Comment[]
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([published])
+  @@index([createdAt])
+}
+
+model Tag {
+  id          String  @id @default(cuid())
+  name        String  @unique
+  slug        String  @unique
+  description String?
+
+  posts PostTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model PostTag {
+  id     String @id @default(cuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tagId  String
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, tagId])
+  @@index([postId])
+  @@index([tagId])
+}
+
+model Clap {
+  id     String @id @default(cuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId])
+  @@index([postId])
+  @@index([userId])
+}
+
+model Comment {
+  id            String         @id @default(cuid())
+  content       String
+  postId        String
+  post          Post           @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parentId      String? // For nested comments
+  parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies       Comment[]      @relation("CommentReplies")
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([postId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+model VerificationCode {
+  id        String   @id @default(cuid())
+  value     String   @unique
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiredAt DateTime
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model VerificationCode {
-  id  String @id @default(cuid())
-  value String @unique
-  userId String @unique
-  user User @relation(fields: [userId], references: [id])
-  expiredAt DateTime
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([token])
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  title       String
+  description String
+  type        String   @default("bug") // bug, feature, other
+  status      String   @default("pending") // pending, in_progress, resolved, closed
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  pageUrl     String? // URL where bug was found
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+}
+
+model GroupChat {
+  id            String            @id @default(cuid())
+  name          String
+  description   String?
+  logo          String? // Logo/avatar group chat
+  isPublic      Boolean           @default(true)
+  createdBy     String
+  creator       User              @relation("GroupChatCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  members       GroupChatMember[]
+  messages      Message[]
+  notifications Notification[]
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  @@index([createdBy])
+  @@index([isPublic])
+}
+
+model GroupChatMember {
+  id          String    @id @default(cuid())
+  groupChatId String
+  groupChat   GroupChat @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        String    @default("member") // member, admin
+  joinedAt    DateTime  @default(now())
+
+  @@unique([groupChatId, userId])
+  @@index([groupChatId])
+  @@index([userId])
+}
+
+model Message {
+  id             String           @id @default(cuid())
+  content        String
+  groupChatId    String
+  groupChat      GroupChat        @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type           String           @default("text") // text, image, video, audio
+  mediaUrl       String? // URL untuk photo, video, audio
+  mediaThumbnail String? // Thumbnail untuk video
+  mentions       MessageMention[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  notifications  Notification[]
+
+  @@index([groupChatId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id          String     @id @default(cuid())
+  type        String // like, comment, mention, reply
+  userId      String // User yang menerima notifikasi
+  user        User       @relation("UserNotifications", fields: [userId], references: [id], onDelete: Cascade)
+  actorId     String // User yang melakukan aksi (yang like/comment/mention)
+  actor       User       @relation("ActorNotifications", fields: [actorId], references: [id], onDelete: Cascade)
+  postId      String? // Post yang terkait (untuk like/comment)
+  post        Post?      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  commentId   String? // Comment yang terkait (untuk comment/reply)
+  comment     Comment?   @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  messageId   String? // Message yang terkait (untuk mention)
+  message     Message?   @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  groupChatId String? // Group chat yang terkait (untuk mention)
+  groupChat   GroupChat? @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  read        Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+
+  @@index([userId])
+  @@index([read])
+  @@index([createdAt])
+  @@index([postId])
+  @@index([type])
+}
+
+model MessageMention {
+  id              String   @id @default(cuid())
+  messageId       String
+  message         Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  mentionedUserId String
+  mentionedUser   User     @relation("UserMentions", fields: [mentionedUserId], references: [id], onDelete: Cascade)
+  createdAt       DateTime @default(now())
+
+  @@unique([messageId, mentionedUserId])
+  @@index([messageId])
+  @@index([mentionedUserId])
+}
+
+model CustomLink {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String // e.g., "Website", "Twitter", "GitHub"
+  url       String // The actual URL
+  order     Int      @default(0) // For ordering links
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }

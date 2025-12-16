@@ -24,11 +24,11 @@ export const loginUser = async (req: Request, res: Response) => {
       },
     });
 
-    // Check if user exists and password is correct
+    // Cek apakah user ada dan password benar
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
-        .json({ msg: "Wrong Email or Password" });
+        .json({ msg: "Email atau password salah" });
     }
 
     const accessToken = await encrypt({ id: user.id }, "15m");
@@ -61,11 +61,12 @@ export const loginUser = async (req: Request, res: Response) => {
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
-    res.status(StatusCodes.OK).json({ msg: "Login successful" });
+    console.log(`✅ Login berhasil - User: ${user.email}`);
+    res.status(StatusCodes.OK).json({ msg: "Login berhasil" });
   } catch (error) {
-    console.error("Login error:", error);
+    console.error("❌ Error login:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      error: "Login failed",
+      error: "Gagal login, coba lagi nanti",
     });
   }
 };
@@ -84,12 +85,13 @@ export const logout = async (req: Request, res: Response) => {
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
 
+    console.log("✅ Logout berhasil");
     res.json({ msg: "Logout berhasil" });
   } catch (error) {
-    console.log(error);
+    console.error("❌ Error logout:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ msg: "Internal Server Error" });
+      .json({ msg: "Terjadi kesalahan saat logout" });
   }
 };
 
@@ -107,13 +109,13 @@ export const refreshToken = async (req: Request, res: Response) => {
     if (!storedRefreshToken) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
-        .json({ msg: "Refresh Token Expired" });
+        .json({ msg: "Refresh token sudah kadaluarsa" });
     }
 
     if (refreshToken !== storedRefreshToken.value) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
-        .json({ msg: "Refresh Token Invalid" });
+        .json({ msg: "Refresh token tidak valid" });
     }
 
     const newAccessToken = await encrypt(
@@ -128,33 +130,135 @@ export const refreshToken = async (req: Request, res: Response) => {
       maxAge: 15 * 60 * 1000,
     });
 
+    console.log("✅ Refresh token berhasil");
     res.json({ userId: storedRefreshToken.userId });
   } catch (error) {
-    console.log(error);
+    console.error("❌ Error refresh token:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ msg: "Internal Server Error" });
+      .json({ msg: "Terjadi kesalahan saat refresh token" });
   }
 };
 
 export const validate = async (req: Request, res: Response) => {
-  console.log(req.cookies);
-  const { accessToken, refreshToken } = req.cookies;
-
   try {
-    const token = await db.refreshToken.findFirst({
-      where: {
-        value: refreshToken,
-      },
-    });
-    if (!token) return res.json({ userId: null });
-  } catch (error) {
-    console.log(error);
-  }
+    const { accessToken, refreshToken } = req.cookies;
 
-  if (!accessToken) {
-    return res.status(401).json({ tokenValid: false });
+    if (!accessToken && !refreshToken) {
+      return res.json({ userId: null, authenticated: false });
+    }
+
+    // Try to validate access token first
+    if (accessToken) {
+      try {
+        const userId = await verify(accessToken);
+        return res.json({ userId, authenticated: true });
+      } catch (error) {
+        // Access token invalid, try refresh token
+      }
+    }
+
+    // Try to refresh using refresh token
+    if (refreshToken) {
+      const storedRefreshToken = await db.refreshToken.findFirst({
+        where: {
+          value: refreshToken,
+          expiresAt: { gt: new Date() },
+        },
+      });
+
+      if (storedRefreshToken) {
+        const newAccessToken = await encrypt(
+          { id: storedRefreshToken.userId },
+          "15m"
+        );
+
+        res.cookie("accessToken", newAccessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "prod",
+          sameSite: "lax",
+          maxAge: 15 * 60 * 1000,
+        });
+
+        return res.json({
+          userId: storedRefreshToken.userId,
+          authenticated: true,
+        });
+      }
+    }
+
+    return res.json({ userId: null, authenticated: false });
+  } catch (error) {
+    console.error("❌ Error validasi token:", error);
+    return res.json({ userId: null, authenticated: false });
   }
-  const userId = await verify(accessToken);
-  return res.json({ userId });
+};
+
+// Get token for socket.io connection
+export const getSocketToken = async (req: Request, res: Response) => {
+  try {
+    const { accessToken, refreshToken } = req.cookies;
+
+    if (!accessToken && !refreshToken) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ 
+        msg: "Token tidak ditemukan, silakan login ulang",
+        token: null 
+      });
+    }
+
+    // Try to validate access token first
+    if (accessToken) {
+      try {
+        const userId = await verify(accessToken);
+        return res.json({ 
+          token: accessToken,
+          userId,
+          authenticated: true 
+        });
+      } catch (error) {
+        // Access token invalid, try refresh token
+      }
+    }
+
+    // Try to refresh using refresh token
+    if (refreshToken) {
+      const storedRefreshToken = await db.refreshToken.findFirst({
+        where: {
+          value: refreshToken,
+          expiresAt: { gt: new Date() },
+        },
+      });
+
+      if (storedRefreshToken) {
+        const newAccessToken = await encrypt(
+          { id: storedRefreshToken.userId },
+          "15m"
+        );
+
+        res.cookie("accessToken", newAccessToken, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "prod",
+          sameSite: "lax",
+          maxAge: 15 * 60 * 1000,
+        });
+
+        return res.json({
+          token: newAccessToken,
+          userId: storedRefreshToken.userId,
+          authenticated: true,
+        });
+      }
+    }
+
+    return res.status(StatusCodes.UNAUTHORIZED).json({ 
+      msg: "Token tidak ditemukan, silakan login ulang",
+      token: null 
+    });
+  } catch (error) {
+    console.error("❌ Error getting socket token:", error);
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      msg: "Gagal mendapatkan token",
+      token: null,
+    });
+  }
 };

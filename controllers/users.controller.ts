@@ -1,11 +1,12 @@
 import type { Request, Response } from "express";
+import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
 import { RegisterSchema } from "../schemas/register.schema";
-import { sendVerification } from "./email.controller";
 import bcrypt from "bcryptjs";
 import { generateVerificationToken } from "../lib/generator";
+import { encrypt } from "../lib/jwt";
 
 export const createUser = async (req: Request, res: Response) => {
   try {
@@ -15,25 +16,15 @@ export const createUser = async (req: Request, res: Response) => {
         .status(StatusCodes.UNAUTHORIZED)
         .json({ errors: z.treeifyError(result.error) });
     }
-    console.log(result.data);
-    const { email, name, password, confirmPassword } = result.data;
 
+    const { email, name, password } = result.data;
     const hashedPassword = await bcrypt.hash(password, await bcrypt.genSalt());
 
-    console.log(hashedPassword);
-
     const user = await db.user.create({
-      data: {
-        email,
-        name,
-        password: hashedPassword,
-      },
+      data: { email, name, password: hashedPassword },
     });
 
-    // Send Verification Code
-
     const verificationCode = generateVerificationToken();
-
     await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
       headers: {
@@ -42,16 +33,8 @@ export const createUser = async (req: Request, res: Response) => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        sender: {
-          name: "JCorp",
-          email: "jravaellnew@gmail.com",
-        },
-        to: [
-          {
-            email: user.email,
-            name: user.name,
-          },
-        ],
+        sender: { name: "JCorp", email: "jravaellnew@gmail.com" },
+        to: [{ email: user.email, name: user.name }],
         subject: "JBlog Kode Verifikasi",
         htmlContent: `Ini kode verifikasi kamu: ${verificationCode} atau melalui link: http://localhost:3000/verify-email?code=${verificationCode}`,
       }),
@@ -72,14 +55,541 @@ export const createUser = async (req: Request, res: Response) => {
       },
     });
 
-    res.json({
-      msg: "Register behasil dan Verifikasi kode terkirim",
-      userId: user.id,
+    // Auto login setelah register berhasil
+    const accessToken = await encrypt({ id: user.id }, "15m");
+    const refreshToken = await encrypt({ id: user.id }, "7d");
+
+    await db.refreshToken.upsert({
+      create: {
+        value: refreshToken,
+        userId: user.id,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        value: refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      where: {
+        userId: user.id,
+      },
     });
+
+    // Set cookies untuk auto login
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "prod",
+      maxAge: 15 * 60 * 1000,
+      sameSite: "lax",
+    });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "prod",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    console.log(`✅ User berhasil dibuat dan auto login - User: ${user.email}`);
+    res.status(StatusCodes.CREATED).json({
+      msg: "Registrasi berhasil! Selamat datang!",
+      user: { id: user.id, email: user.email, name: user.name },
+      redirectTo: "/profile/finalisation",
+    });
+  } catch (error: any) {
+    // Handle unique constraint violation (email already exists)
+    if (error.code === "P2002") {
+      console.log(`⚠️ Email sudah terdaftar: ${req.body?.email || "unknown"}`);
+      return res
+        .status(StatusCodes.CONFLICT)
+        .json({ msg: "Email sudah terdaftar", error: "Email sudah terdaftar" });
+    }
+    
+    console.error("❌ Error membuat user:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ msg: "Gagal membuat user", error: "Gagal membuat user" });
+  }
+};
+
+export const getUserProfile = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const user = await db.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        bio: true,
+        profilePicture: true,
+        isOwner: true,
+        isAdmin: true,
+        isVerified: true,
+        isSuspended: true,
+        createdAt: true,
+        customLinks: {
+          orderBy: { order: "asc" },
+          select: {
+            id: true,
+            label: true,
+            url: true,
+            order: true,
+          },
+        },
+        _count: {
+          select: {
+            posts: true,
+            followers: true,
+            following: true,
+          },
+        },
+      },
+    });
+
+    if (!user) {
+      return res.status(StatusCodes.NOT_FOUND).json({ error: "User tidak ditemukan" });
+    }
+
+    res.json(user);
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      error: "Login failed",
+    console.error("❌ Error mengambil user:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal mengambil user" });
+  }
+};
+
+export const updateUserProfile = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, bio, profilePicture } = req.body;
+
+    const user = await db.user.update({
+      where: { id },
+      data: {
+        name,
+        bio,
+        profilePicture,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        bio: true,
+        profilePicture: true,
+      },
     });
+
+    res.json({ msg: "Profile berhasil diupdate", user });
+  } catch (error) {
+    console.error("❌ Error update profile:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal mengupdate profile" });
+  }
+};
+
+export const changePassword = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    const user = await db.user.findUnique({ where: { id } });
+    if (!user) {
+      return res.status(StatusCodes.NOT_FOUND).json({ error: "User tidak ditemukan" });
+    }
+
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ error: "Password saat ini salah" });
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, await bcrypt.genSalt());
+    await db.user.update({
+      where: { id },
+      data: { password: hashedPassword },
+    });
+
+    res.json({ msg: "Password berhasil diubah" });
+  } catch (error) {
+    console.error("❌ Error mengubah password:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal mengubah password" });
+  }
+};
+
+export const changeEmail = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { newEmail } = req.body;
+
+    const user = await db.user.update({
+      where: { id },
+      data: { email: newEmail },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    res.json({ msg: "Email berhasil diubah", user });
+  } catch (error: any) {
+    // Handle unique constraint violation (email already exists)
+    if (error.code === "P2002") {
+      console.log(`⚠️ Email sudah terdaftar: ${req.body?.newEmail || "unknown"}`);
+      return res
+        .status(StatusCodes.CONFLICT)
+        .json({ msg: "Email sudah terdaftar", error: "Email sudah terdaftar" });
+    }
+    
+    console.error("❌ Error mengubah email:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ msg: "Gagal mengubah email", error: "Gagal mengubah email" });
+  }
+};
+
+// Get follow status between current user and target user
+export const getUserActivity = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { days = 30 } = req.query;
+    const daysCount = Math.min(Number(days), 90); // Max 90 days
+
+    // Use the authenticated user's ID if available, otherwise use the param
+    const targetUserId = req.userId || id;
+
+    // Get today's date at midnight
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Calculate start date: daysCount days ago (including today, so daysCount - 1 days back)
+    const startDate = new Date(today);
+    startDate.setDate(startDate.getDate() - (daysCount - 1));
+    startDate.setHours(0, 0, 0, 0);
+
+    // Get posts created by user
+    const posts = await db.post.findMany({
+      where: {
+        authorId: targetUserId,
+        createdAt: {
+          gte: startDate,
+        },
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    // Get comments made by user
+    const comments = await db.comment.findMany({
+      where: {
+        userId: targetUserId,
+        createdAt: {
+          gte: startDate,
+        },
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    // Get claps given by user
+    const claps = await db.clap.findMany({
+      where: {
+        userId: targetUserId,
+        createdAt: {
+          gte: startDate,
+        },
+      },
+      select: {
+        createdAt: true,
+      },
+    });
+
+    console.log(`📊 Activity for user ${targetUserId}:`, {
+      posts: posts.length,
+      comments: comments.length,
+      claps: claps.length,
+      days: daysCount,
+    });
+
+    // Group by date
+    const activityMap = new Map<string, { date: string; posts: number; comments: number; claps: number }>();
+
+    // Initialize all dates in range (from startDate to today, inclusive)
+    // This gives us exactly daysCount days including today
+    for (let i = 0; i < daysCount; i++) {
+      const date = new Date(startDate);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split("T")[0];
+      activityMap.set(dateStr, { date: dateStr, posts: 0, comments: 0, claps: 0 });
+    }
+
+    // Count posts per day
+    posts.forEach((post) => {
+      const dateStr = post.createdAt.toISOString().split("T")[0];
+      const existing = activityMap.get(dateStr);
+      if (existing) {
+        existing.posts++;
+      }
+    });
+
+    // Count comments per day
+    comments.forEach((comment) => {
+      const dateStr = comment.createdAt.toISOString().split("T")[0];
+      const existing = activityMap.get(dateStr);
+      if (existing) {
+        existing.comments++;
+      }
+    });
+
+    // Count claps per day
+    claps.forEach((clap) => {
+      const dateStr = clap.createdAt.toISOString().split("T")[0];
+      const existing = activityMap.get(dateStr);
+      if (existing) {
+        existing.claps++;
+      }
+    });
+
+    // Convert to array and sort by date
+    const activity = Array.from(activityMap.values()).sort((a, b) => 
+      a.date.localeCompare(b.date)
+    );
+
+    console.log(`📊 Activity response for user ${targetUserId}:`, {
+      totalDays: activity.length,
+      totalPosts: posts.length,
+      totalComments: comments.length,
+      totalClaps: claps.length,
+      sampleData: activity.slice(0, 3),
+      daysWithActivity: activity.filter(a => a.posts > 0 || a.comments > 0 || a.claps > 0).length,
+    });
+
+    res.json({ activity });
+  } catch (error) {
+    console.error("❌ Error mengambil activity:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal mengambil activity" });
+  }
+};
+
+export const getFollowStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id: targetUserId } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res.json({
+        isFollowing: false,
+        isFollowedBy: false,
+        isFriend: false,
+        shouldFollowBack: false,
+      });
+    }
+
+    const [isFollowing, isFollowedBy] = await Promise.all([
+      db.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: userId,
+            followingId: targetUserId,
+          },
+        },
+      }),
+      db.follow.findUnique({
+        where: {
+          followerId_followingId: {
+            followerId: targetUserId,
+            followingId: userId,
+          },
+        },
+      }),
+    ]);
+
+    const following = !!isFollowing;
+    const followedBy = !!isFollowedBy;
+    const isFriend = following && followedBy;
+    const shouldFollowBack = followedBy && !following;
+
+    res.json({
+      isFollowing: following,
+      isFollowedBy: followedBy,
+      isFriend,
+      shouldFollowBack,
+    });
+  } catch (error: any) {
+    console.error("❌ Error get follow status:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal mengambil follow status",
+      details: error.message,
+    });
+  }
+};
+
+export const followUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id: targetUserId } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Harus login dulu" });
+    }
+
+    if (userId === targetUserId) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ msg: "Tidak bisa follow diri sendiri" });
+    }
+
+    // Check if already following
+    const existingFollow = await db.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: userId,
+          followingId: targetUserId,
+        },
+      },
+    });
+
+    if (existingFollow) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Sudah follow user ini" });
+    }
+
+    const follow = await db.follow.create({
+      data: {
+        followerId: userId,
+        followingId: targetUserId,
+      },
+    });
+
+    // Check if they are now friends (mutual follow)
+    const reverseFollow = await db.follow.findUnique({
+      where: {
+        followerId_followingId: {
+          followerId: targetUserId,
+          followingId: userId,
+        },
+      },
+    });
+
+    const isFriend = !!reverseFollow;
+
+    console.log(`✅ User ${userId} follow user ${targetUserId}${isFriend ? " (now friends!)" : ""}`);
+    res.json({
+      msg: isFriend ? "Berhasil follow! Sekarang kalian sudah berteman!" : "Berhasil follow user",
+      follow,
+      isFriend,
+    });
+  } catch (error: any) {
+    console.error("❌ Error follow user:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal follow user",
+      details: error.message,
+    });
+  }
+};
+
+export const unfollowUser = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id: targetUserId } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Harus login dulu" });
+    }
+
+    await db.follow.delete({
+      where: {
+        followerId_followingId: {
+          followerId: userId,
+          followingId: targetUserId,
+        },
+      },
+    });
+
+    console.log(`✅ User ${userId} unfollow user ${targetUserId}`);
+    res.json({ msg: "Berhasil unfollow user" });
+  } catch (error: any) {
+    console.error("❌ Error unfollow user:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal unfollow user",
+      details: error.message,
+    });
+  }
+};
+
+export const getFollowers = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { sort = "recent" } = req.query; // recent, name
+
+    let orderBy: any = { createdAt: "desc" };
+    if (sort === "name") {
+      orderBy = { follower: { name: "asc" } };
+    }
+
+    const followers = await db.follow.findMany({
+      where: { followingId: id },
+      include: {
+        follower: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            bio: true,
+          },
+        },
+      },
+      orderBy,
+    });
+
+    res.json(followers);
+  } catch (error) {
+    console.error("Get followers error:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Failed to get followers" });
+  }
+};
+
+export const getFollowing = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { sort = "recent" } = req.query; // recent, name
+
+    let orderBy: any = { createdAt: "desc" };
+    if (sort === "name") {
+      orderBy = { following: { name: "asc" } };
+    }
+
+    const following = await db.follow.findMany({
+      where: { followerId: id },
+      include: {
+        following: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            bio: true,
+          },
+        },
+      },
+      orderBy,
+    });
+
+    res.json(following);
+  } catch (error) {
+    console.error("Get following error:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Failed to get following" });
   }
 };
