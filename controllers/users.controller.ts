@@ -255,10 +255,37 @@ export const getUserActivity = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
     const { days = 30 } = req.query;
-    const daysCount = Math.min(Number(days), 90); // Max 90 days
+    
+    // Validate and parse days parameter
+    const daysNum = Number(days);
+    if (isNaN(daysNum) || daysNum < 1) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ 
+        error: "Parameter days harus berupa angka positif" 
+      });
+    }
+    
+    const daysCount = Math.min(Math.max(daysNum, 1), 90); // Min 1, Max 90 days
 
-    // Use the authenticated user's ID if available, otherwise use the param
-    const targetUserId = req.userId || id;
+    // Use the param id, or authenticated user's ID if param is not provided
+    const targetUserId = id || req.userId;
+    
+    if (!targetUserId) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ 
+        error: "User ID tidak ditemukan" 
+      });
+    }
+
+    // Verify user exists
+    const userExists = await db.user.findUnique({
+      where: { id: targetUserId },
+      select: { id: true },
+    });
+
+    if (!userExists) {
+      return res.status(StatusCodes.NOT_FOUND).json({ 
+        error: "User tidak ditemukan" 
+      });
+    }
 
     // Get today's date at midnight
     const today = new Date();
@@ -369,11 +396,20 @@ export const getUserActivity = async (req: AuthRequest, res: Response) => {
     });
 
     res.json({ activity });
-  } catch (error) {
+  } catch (error: any) {
     console.error("❌ Error mengambil activity:", error);
+    console.error("❌ Error details:", {
+      message: error.message,
+      stack: error.stack,
+      userId: req.userId,
+      paramId: req.params.id,
+    });
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
-      .json({ error: "Gagal mengambil activity" });
+      .json({ 
+        error: "Gagal mengambil activity",
+        msg: error.message || "Terjadi kesalahan saat mengambil data activity"
+      });
   }
 };
 

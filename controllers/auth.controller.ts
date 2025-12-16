@@ -148,13 +148,33 @@ export const validate = async (req: Request, res: Response) => {
       return res.json({ userId: null, authenticated: false });
     }
 
-    // Try to validate access token first
     if (accessToken) {
       try {
         const userId = await verify(accessToken);
-        return res.json({ userId, authenticated: true });
+        const user = await db.user.findUnique({
+          where: { id: userId },
+          select: { isSuspended: true, suspendedUntil: true },
+        });
+
+        if (user?.isSuspended) {
+          const now = new Date();
+          if (user.suspendedUntil && user.suspendedUntil < now) {
+            await db.user.update({
+              where: { id: userId },
+              data: { isSuspended: false, suspendedUntil: null },
+            });
+            return res.json({ userId, authenticated: true, isSuspended: false });
+          }
+          return res.json({ 
+            userId, 
+            authenticated: false, 
+            isSuspended: true,
+            suspendedUntil: user.suspendedUntil 
+          });
+        }
+
+        return res.json({ userId, authenticated: true, isSuspended: false });
       } catch (error) {
-        // Access token invalid, try refresh token
       }
     }
 
@@ -168,6 +188,28 @@ export const validate = async (req: Request, res: Response) => {
       });
 
       if (storedRefreshToken) {
+        const user = await db.user.findUnique({
+          where: { id: storedRefreshToken.userId },
+          select: { isSuspended: true, suspendedUntil: true },
+        });
+
+        if (user?.isSuspended) {
+          const now = new Date();
+          if (user.suspendedUntil && user.suspendedUntil < now) {
+            await db.user.update({
+              where: { id: storedRefreshToken.userId },
+              data: { isSuspended: false, suspendedUntil: null },
+            });
+          } else {
+            return res.json({
+              userId: storedRefreshToken.userId,
+              authenticated: false,
+              isSuspended: true,
+              suspendedUntil: user.suspendedUntil,
+            });
+          }
+        }
+
         const newAccessToken = await encrypt(
           { id: storedRefreshToken.userId },
           "15m"
@@ -183,6 +225,7 @@ export const validate = async (req: Request, res: Response) => {
         return res.json({
           userId: storedRefreshToken.userId,
           authenticated: true,
+          isSuspended: false,
         });
       }
     }

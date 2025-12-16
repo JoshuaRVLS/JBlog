@@ -41,10 +41,11 @@ model User {
   followers Follow[] @relation("UserFollowers")
   following Follow[] @relation("UserFollowing")
 
-  isOwner     Boolean @default(false)
-  isAdmin     Boolean @default(false)
-  isVerified  Boolean @default(false)
-  isSuspended Boolean @default(false)
+  isOwner       Boolean   @default(false)
+  isAdmin       Boolean   @default(false)
+  isVerified    Boolean   @default(false)
+  isSuspended   Boolean   @default(false)
+  suspendedUntil DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

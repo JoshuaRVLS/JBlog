@@ -43,16 +43,30 @@ export const requireAuth = async (
 
     const userId = await verify(accessToken);
     
-    // Check if user is suspended
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { isSuspended: true },
+      select: { isSuspended: true, suspendedUntil: true },
     });
 
     if (user?.isSuspended) {
-      return res.status(StatusCodes.FORBIDDEN).json({ 
-        msg: "Akun Anda telah di-suspend. Silakan hubungi admin untuk informasi lebih lanjut." 
-      });
+      const now = new Date();
+      const suspendedUntil = user.suspendedUntil;
+      
+      if (suspendedUntil && suspendedUntil < now) {
+        await db.user.update({
+          where: { id: userId },
+          data: { isSuspended: false, suspendedUntil: null },
+        });
+      } else {
+        const message = suspendedUntil
+          ? `Akun Anda di-suspend hingga ${new Date(suspendedUntil).toLocaleString("id-ID")}. Silakan hubungi admin untuk informasi lebih lanjut.`
+          : "Akun Anda telah di-suspend. Silakan hubungi admin untuk informasi lebih lanjut.";
+        
+        return res.status(StatusCodes.FORBIDDEN).json({ 
+          msg: message,
+          suspendedUntil: suspendedUntil || null
+        });
+      }
     }
 
     req.userId = userId;

@@ -30,6 +30,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
           isAdmin: true,
           isVerified: true,
           isSuspended: true,
+          suspendedUntil: true,
           createdAt: true,
           _count: {
             select: {
@@ -237,10 +238,10 @@ export const removeAdmin = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Suspend/Unsuspend User
 export const suspendUser = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
+    const { days, reason } = req.body;
 
     const user = await db.user.findUnique({ where: { id } });
     if (!user) {
@@ -255,19 +256,35 @@ export const suspendUser = async (req: AuthRequest, res: Response) => {
         .json({ msg: "Tidak bisa suspend owner" });
     }
 
+    let suspendedUntil: Date | null = null;
+    if (days && days > 0) {
+      const daysCount = Math.min(Number(days), 365);
+      suspendedUntil = new Date();
+      suspendedUntil.setDate(suspendedUntil.getDate() + daysCount);
+    }
+
     const updatedUser = await db.user.update({
       where: { id },
-      data: { isSuspended: true },
+      data: { 
+        isSuspended: true,
+        suspendedUntil: suspendedUntil,
+      },
       select: {
         id: true,
         name: true,
         email: true,
         isSuspended: true,
+        suspendedUntil: true,
       },
     });
 
-    console.log(`✅ User di-suspend - ID: ${id}`);
-    res.json({ msg: "User berhasil di-suspend", user: updatedUser });
+    console.log(`✅ User di-suspend - ID: ${id}, Until: ${suspendedUntil || "Permanent"}`);
+    res.json({ 
+      msg: suspendedUntil 
+        ? `User berhasil di-suspend selama ${days} hari` 
+        : "User berhasil di-suspend secara permanen",
+      user: updatedUser 
+    });
   } catch (error) {
     console.error("❌ Error suspend user:", error);
     res
@@ -289,12 +306,16 @@ export const unsuspendUser = async (req: AuthRequest, res: Response) => {
 
     const updatedUser = await db.user.update({
       where: { id },
-      data: { isSuspended: false },
+      data: { 
+        isSuspended: false,
+        suspendedUntil: null,
+      },
       select: {
         id: true,
         name: true,
         email: true,
         isSuspended: true,
+        suspendedUntil: true,
       },
     });
 
