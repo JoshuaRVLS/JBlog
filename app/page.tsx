@@ -794,7 +794,17 @@ export default function Home() {
         const projectsData = await projectsRes.json();
         setProjects(projectsData);
       } else {
-        console.error("Error fetching projects:", projectsRes.statusText);
+        const errorText = projectsRes.statusText || `Status: ${projectsRes.status}`;
+        console.error("Error fetching projects:", errorText);
+        try {
+          const errorData = await projectsRes.json();
+          if (errorData.message) {
+            console.error("GitHub API error:", errorData.message);
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
+        setProjects([]);
       }
 
       // Fetch organizations
@@ -811,13 +821,23 @@ export default function Home() {
         const orgsData = await orgsRes.json();
         setOrganizations(orgsData);
       } else {
-        console.error("Error fetching organizations:", orgsRes.statusText);
+        const errorText = orgsRes.statusText || `Status: ${orgsRes.status}`;
+        console.error("Error fetching organizations:", errorText);
+        try {
+          const errorData = await orgsRes.json();
+          if (errorData.message) {
+            console.error("GitHub API error:", errorData.message);
+          }
+        } catch (e) {
+          // Ignore JSON parsing errors
+        }
         // Set empty array to ensure section is still visible
         setOrganizations([]);
       }
     } catch (error) {
       console.error("Error fetching GitHub data:", error);
-      // Set empty array on error to ensure section is visible
+      // Set empty arrays on error to prevent UI issues
+      setProjects([]);
       setOrganizations([]);
     }
   };

@@ -1,9 +1,11 @@
 "use client";
 
 import { forwardRef } from "react";
+import { Icon } from "lucide-react";
+import { basketball } from "@lucide/lab";
 import ShimmerCard from "@/components/ShimmerCard";
 import SectionTitle from "@/components/SectionTitle";
-import { Heart, Target, Code, Sparkles } from "lucide-react";
+import { Heart, Code, Sparkles } from "lucide-react";
 
 interface HobbiesSectionProps {
   // No props needed for now, but keeping for future extensibility
@@ -29,7 +31,7 @@ const HobbiesSection = forwardRef<HTMLElement, HobbiesSectionProps>(
                 <div className="relative">
                   <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full animate-pulse" style={{ willChange: "opacity" }}></div>
                   <div className="hobby-icon relative w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 bg-primary/10 rounded-full flex items-center justify-center">
-                    <Target className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-primary" />
+                    <Icon iconNode={basketball} className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 text-primary" />
                   </div>
                 </div>
               </div>

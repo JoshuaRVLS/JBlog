@@ -70,7 +70,6 @@ export default function GroupChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   
-  // Mention autocomplete states
   const [mentionQuery, setMentionQuery] = useState("");
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionPosition, setMentionPosition] = useState(0);
@@ -78,7 +77,6 @@ export default function GroupChatPage() {
   const [showEveryoneWarning, setShowEveryoneWarning] = useState(false);
   const messageInputRef = useRef<HTMLInputElement>(null);
   
-  // Mention hover states
   const [hoveredMention, setHoveredMention] = useState<{
     username: string;
     userId: string;
@@ -87,7 +85,6 @@ export default function GroupChatPage() {
   } | null>(null);
   const mentionHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  // Media upload states
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<{
     type: "image" | "video" | "audio";
@@ -103,17 +100,14 @@ export default function GroupChatPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   
-  // Image viewer state
   const [viewingImage, setViewingImage] = useState<string | null>(null);
   
-  // Create group states
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creatingGroup, setCreatingGroup] = useState(false);
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDescription, setNewGroupDescription] = useState("");
   const [newGroupIsPublic, setNewGroupIsPublic] = useState(true);
   
-  // Settings and members states
   const [showSettings, setShowSettings] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [members, setMembers] = useState<any[]>([]);
@@ -121,28 +115,24 @@ export default function GroupChatPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isCreator, setIsCreator] = useState(false);
   
-  // Settings form states
   const [editingName, setEditingName] = useState("");
   const [editingDescription, setEditingDescription] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   
-  // Explore states
   const [showExplore, setShowExplore] = useState(false);
   const [exploreGroups, setExploreGroups] = useState<GroupChat[]>([]);
   const [loadingExplore, setLoadingExplore] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   
-  // Media menu state (for mobile)
   const [showMediaMenu, setShowMediaMenu] = useState(false);
   const mediaMenuRef = useRef<HTMLDivElement>(null);
   
-  // Typing indicator states
   const [typingUsers, setTypingUsers] = useState<Map<string, { name: string; timeout: NodeJS.Timeout }>>(new Map());
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    if (authLoading) return; // Wait for auth check to complete
+    if (authLoading) return;
     if (!authenticated && !isSuspended) {
       router.push("/login");
       return;
@@ -157,7 +147,6 @@ export default function GroupChatPage() {
     }
   }, [authenticated, isSuspended, router]);
 
-  // Fetch group details to ensure members are loaded
   const fetchGroupDetails = async (groupId: string) => {
     try {
       const response = await AxiosInstance.get(`/groupchat/${groupId}`);
@@ -177,10 +166,8 @@ export default function GroupChatPage() {
 
   useEffect(() => {
     if (selectedGroup) {
-      // Always fetch messages (even if not authenticated) for public groups
       fetchMessages();
       
-      // If members is not available, fetch group details to get members
       if (!selectedGroup.members || !Array.isArray(selectedGroup.members)) {
         fetchGroupDetails(selectedGroup.id);
       }
@@ -194,16 +181,13 @@ export default function GroupChatPage() {
             socket.emit("leave-group", selectedGroup.id);
             socket.disconnect();
           }
-          // Cleanup typing timeout
           if (typingTimeoutRef.current) {
             clearTimeout(typingTimeoutRef.current);
           }
-          // Cleanup typing users timeouts
           typingUsers.forEach((user) => {
             clearTimeout(user.timeout);
           });
           setTypingUsers(new Map());
-          // Cleanup mention hover timeout
           if (mentionHoverTimeoutRef.current) {
             clearTimeout(mentionHoverTimeoutRef.current);
           }
@@ -220,7 +204,6 @@ export default function GroupChatPage() {
       return;
     }
     
-    // Use optional chaining for members
     const member = selectedGroup.members?.find((m) => m.userId === userId);
     setIsAdmin(member?.role === "admin" || false);
     setIsCreator(selectedGroup.createdBy === userId);
@@ -371,11 +354,9 @@ export default function GroupChatPage() {
     if (!selectedGroup) return [];
     if (!selectedGroup.members || !Array.isArray(selectedGroup.members)) return [];
     
-    // Add @everyone option at the beginning if query is empty or matches "everyone"
     const showEveryone = !mentionQuery || mentionQuery.toLowerCase().includes("everyone") || mentionQuery.toLowerCase().includes("semua");
     const everyoneOption = showEveryone ? [{ id: "everyone", name: "everyone", profilePicture: null, isEveryone: true }] : [];
     
-    // If query is empty, show everyone + top 4 members
     if (!mentionQuery) {
       const topMembers = selectedGroup.members
         .filter((member) => member.userId !== userId)
@@ -385,7 +366,6 @@ export default function GroupChatPage() {
       return [...everyoneOption, ...topMembers];
     }
     
-    // Filter members by query
     const query = mentionQuery.toLowerCase();
     const filteredMembers = selectedGroup.members
       .filter((member) => {
@@ -403,37 +383,31 @@ export default function GroupChatPage() {
     const value = e.target.value;
     setMessageInput(value);
 
-    // Emit typing event
     if (socket && selectedGroup && value.trim().length > 0) {
       socket.emit("typing", { groupId: selectedGroup.id });
       
-      // Clear existing timeout
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
-      
-      // Set timeout to stop typing after 1 second of inactivity
+
       typingTimeoutRef.current = setTimeout(() => {
         if (socket && selectedGroup) {
           socket.emit("stop-typing", { groupId: selectedGroup.id });
         }
       }, 1000);
     } else if (socket && selectedGroup && value.trim().length === 0) {
-      // Stop typing if input is empty
       socket.emit("stop-typing", { groupId: selectedGroup.id });
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
       }
     }
 
-    // Check for @ mention
     const cursorPosition = e.target.selectionStart || 0;
     const textBeforeCursor = value.substring(0, cursorPosition);
     const lastAtIndex = textBeforeCursor.lastIndexOf("@");
 
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      // Check if there's a space or newline after @ (meaning mention is complete)
       if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
         setMentionQuery(textAfterAt);
         setShowMentionSuggestions(true);
@@ -449,7 +423,6 @@ export default function GroupChatPage() {
 
   const insertMention = (username: string, isEveryone: boolean = false) => {
     if (isEveryone && username === "everyone") {
-      // Show warning modal for @everyone
       setShowEveryoneWarning(true);
       return;
     }
@@ -466,7 +439,6 @@ export default function GroupChatPage() {
     setMentionQuery("");
     setSelectedMentionIndex(0);
 
-    // Focus back to input and set cursor position
     setTimeout(() => {
       if (messageInputRef.current) {
         const newPosition = mentionPosition + username.length + 2; // +2 for @ and space
@@ -490,7 +462,6 @@ export default function GroupChatPage() {
     setMentionQuery("");
     setSelectedMentionIndex(0);
 
-    // Focus back to input and set cursor position
     setTimeout(() => {
       if (messageInputRef.current) {
         const newPosition = mentionPosition + "everyone".length + 2; // +2 for @ and space
@@ -544,7 +515,6 @@ export default function GroupChatPage() {
     if (!selectedGroup || !authenticated) return;
 
     try {
-      // Get token from backend endpoint (since cookies are httpOnly)
       let token: string | null = null;
       
       try {
@@ -559,7 +529,6 @@ export default function GroupChatPage() {
           router.push("/login");
           return;
         }
-        // Try refresh as fallback
         try {
           await AxiosInstance.post("/auth/refresh");
           const retryResponse = await AxiosInstance.get("/auth/socket-token");
@@ -613,29 +582,22 @@ export default function GroupChatPage() {
 
     socketInstance.on("new-message", (message: Message) => {
       setMessages((prev) => {
-        // Remove optimistic message if exists (by checking if message with same content from same user exists)
         const filtered = prev.filter((msg) => {
-          // Remove temp messages that match the new message from the same user
           if (msg.id.startsWith("temp-") && msg.user.id === message.user.id) {
-            // For text messages, check if content matches
             if (message.type === "text" && msg.type === "text") {
               return msg.content !== message.content;
             }
-            // For media messages, check if mediaUrl matches (if available)
             if (message.type !== "text" && msg.type !== "text" && message.mediaUrl) {
               return msg.mediaUrl !== message.mediaUrl;
             }
-            // If types don't match or mediaUrl not available, keep the temp message for now
             return true;
           }
           return true;
         });
-        // Check if message already exists (avoid duplicates)
         const messageExists = filtered.some((msg) => msg.id === message.id);
         if (messageExists) {
           return filtered;
         }
-        // Add the real message from server
         return [...filtered, message];
       });
     });
@@ -664,16 +626,13 @@ export default function GroupChatPage() {
       }
     });
 
-    // Typing indicator handlers
     socketInstance.on("user-typing", (data: { userId: string; userName: string }) => {
       if (data.userId !== userId) {
         setTypingUsers((prev) => {
           const newMap = new Map(prev);
-          // Clear existing timeout for this user
           if (newMap.has(data.userId)) {
             clearTimeout(newMap.get(data.userId)!.timeout);
           }
-          // Set new timeout to remove typing indicator after 3 seconds
           const timeout = setTimeout(() => {
             setTypingUsers((prev) => {
               const updated = new Map(prev);
@@ -732,10 +691,8 @@ export default function GroupChatPage() {
     }
   };
 
-  // Check if user is a member of the selected group
   const isUserMember = useMemo(() => {
     if (!selectedGroup || !userId) return false;
-    // Use optional chaining and ensure members is an array
     if (!selectedGroup.members || !Array.isArray(selectedGroup.members)) return false;
     return selectedGroup.members.some((m) => m.userId === userId);
   }, [selectedGroup, userId]);
@@ -744,14 +701,12 @@ export default function GroupChatPage() {
     e?.preventDefault();
     if ((!messageInput.trim() && !selectedMedia) || !socket || !selectedGroup) return;
 
-    // Check if user is a member
     if (!isUserMember) {
       toast.error("Anda harus bergabung ke grup terlebih dahulu untuk mengirim pesan");
       return;
     }
 
-    // Stop typing indicator
-    if (socket && selectedGroup) {
+      if (socket && selectedGroup) {
       socket.emit("stop-typing", { groupId: selectedGroup.id });
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -761,11 +716,9 @@ export default function GroupChatPage() {
     try {
       setSending(true);
 
-      // If there's media, upload it first
       if (selectedMedia) {
         await handleUploadAndSendMedia(selectedMedia);
       } else {
-        // Optimistic UI update - add message immediately
         const tempId = `temp-${Date.now()}`;
         const optimisticMessage: Message = {
           id: tempId,
@@ -779,11 +732,9 @@ export default function GroupChatPage() {
           },
         };
 
-        // Add optimistic message immediately
         setMessages((prev) => [...prev, optimisticMessage]);
         setMessageInput("");
 
-        // Send text message
         socket.emit("send-message", {
           groupId: selectedGroup.id,
           content: messageInput.trim(),
@@ -793,7 +744,6 @@ export default function GroupChatPage() {
     } catch (error: any) {
       console.error("Error sending message:", error);
       toast.error("Gagal mengirim pesan");
-      // Remove optimistic message on error
       setMessages((prev) => prev.filter((msg) => !msg.id.startsWith("temp-")));
     } finally {
       setSending(false);
@@ -803,7 +753,6 @@ export default function GroupChatPage() {
   const handleUploadAndSendMedia = useCallback(async (media: { type: "image" | "video" | "audio"; file: File }) => {
     if (!socket || !selectedGroup) return;
 
-    // Check if user is a member
     if (!isUserMember) {
       toast.error("Anda harus bergabung ke grup terlebih dahulu untuk mengirim pesan");
       setSelectedMedia(null);
@@ -837,12 +786,10 @@ export default function GroupChatPage() {
         },
       };
 
-      // Add optimistic message immediately
       setMessages((prev) => [...prev, optimisticMessage]);
       setMessageInput("");
       setSelectedMedia(null);
 
-      // Send message with media
       socket.emit("send-message", {
         groupId: selectedGroup.id,
         content: messageInput.trim() || "",
@@ -855,7 +802,6 @@ export default function GroupChatPage() {
     } catch (error: any) {
       console.error("Error uploading media:", error);
       toast.error("Gagal upload media");
-      // Remove optimistic message on error
       setMessages((prev) => prev.filter((msg) => !msg.id.startsWith("temp-")));
     } finally {
       setUploadingMedia(false);
@@ -1309,7 +1255,6 @@ export default function GroupChatPage() {
                                               });
                                             } else if (mentionedUser?.user) {
                                               mentionHoverTimeoutRef.current = setTimeout(() => {
-                                                // Get fresh rect in case element moved
                                                 const freshRect = target.getBoundingClientRect();
                                                 setHoveredMention({
                                                   username: mentionedUser.user.name,

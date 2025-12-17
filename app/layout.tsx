@@ -41,7 +41,6 @@ export default function RootLayout({
         >
           <Toaster
             toastOptions={{
-              // Use style instead of className for more reliable theming
               style: {
                 background: "hsl(var(--card))",
                 color: "hsl(var(--card-foreground))",
@@ -54,7 +53,6 @@ export default function RootLayout({
                 maxWidth: "500px",
                 boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
               },
-              // Success toasts
               success: {
                 style: {
                   background: "hsl(var(--card))",
@@ -73,7 +71,6 @@ export default function RootLayout({
                   secondary: "hsl(var(--card))",
                 },
               },
-              // Error toasts
               error: {
                 style: {
                   background: "hsl(var(--card))",
@@ -92,7 +89,6 @@ export default function RootLayout({
                   secondary: "hsl(var(--card))",
                 },
               },
-              // Loading toasts
               loading: {
                 style: {
                   background: "hsl(var(--card))",

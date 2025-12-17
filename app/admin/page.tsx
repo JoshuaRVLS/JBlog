@@ -44,7 +44,6 @@ export default function AdminDashboard() {
         return;
       }
 
-      // Fetch stats
       try {
         const [usersRes, adminsRes, postsRes] = await Promise.all([
           AxiosInstance.get("/admin/users?limit=1"),
@@ -61,7 +60,6 @@ export default function AdminDashboard() {
         });
       } catch (statsError) {
         console.error("Error fetching stats:", statsError);
-        // Continue even if stats fail
       }
     } catch (error: any) {
       console.error(error);

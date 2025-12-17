@@ -28,28 +28,23 @@ export default function Tooltip({ children, content, delay = 200 }: TooltipProps
     const triggerRect = triggerRef.current.getBoundingClientRect();
     const tooltipRect = tooltipRef.current.getBoundingClientRect();
     
-    // Position above the trigger, centered horizontally
     const top = triggerRect.top - tooltipRect.height - 10;
     const left = triggerRect.left + (triggerRect.width / 2) - (tooltipRect.width / 2);
 
-    // Ensure tooltip doesn't go off screen
     const padding = 8;
     let finalLeft = left;
     let finalTop = top;
     
-    // Check left boundary
     if (finalLeft < padding) {
       finalLeft = padding;
     }
     
-    // Check right boundary
     if (finalLeft + tooltipRect.width > window.innerWidth - padding) {
       finalLeft = window.innerWidth - tooltipRect.width - padding;
     }
 
-    // Check top boundary
     if (finalTop < padding) {
-      finalTop = triggerRect.bottom + 10; // Position below if no space above
+      finalTop = triggerRect.bottom + 10;
     }
 
     setPosition({
@@ -75,17 +70,15 @@ export default function Tooltip({ children, content, delay = 200 }: TooltipProps
     setIsVisible(false);
   };
 
-  // Update position when tooltip becomes visible
   useEffect(() => {
     if (!isVisible || !tooltipRef.current) return;
 
-    // Wait for tooltip to be rendered, then calculate position
     const timer1 = setTimeout(() => {
       updatePosition();
     }, 0);
 
     const timer2 = setTimeout(() => {
-      updatePosition(); // Update again after render
+      updatePosition();
     }, 50);
 
     const handleResize = () => {
@@ -125,7 +118,6 @@ export default function Tooltip({ children, content, delay = 200 }: TooltipProps
           className="px-3 py-1.5 text-sm font-medium text-foreground bg-card/95 backdrop-blur-md border border-border/50 rounded-lg shadow-xl whitespace-nowrap"
         >
           {content}
-          {/* Arrow */}
           <div
             className="absolute top-full left-1/2 -translate-x-1/2 w-2 h-2 bg-card/95 border-r border-b border-border/50 rotate-45 -mt-0.5"
           />

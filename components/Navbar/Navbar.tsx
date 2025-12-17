@@ -178,23 +178,19 @@ export default function Navbar() {
 
   useEffect(() => {
     setMounted(true);
-    // Set hasAnimated langsung saat mount untuk mencegah animasi reset
     hasAnimatedRef.current = true;
   }, []);
 
   useEffect(() => {
-    // Fetch user data if authenticated or suspended (to show profile)
     if (userId && (authenticated || isSuspended) && !loading) {
       AxiosInstance.get(`/users/${userId}`)
         .then((res) => setUser(res.data))
         .catch(() => {});
     } else if (!authenticated && !isSuspended) {
-      // Clear user data when not authenticated and not suspended
       setUser(null);
     }
   }, [userId, authenticated, isSuspended, loading]);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as HTMLElement;
@@ -233,7 +229,6 @@ export default function Navbar() {
       : []),
   ];
 
-  // Track active labels untuk animasi yang smooth
   useEffect(() => {
     const newActiveLabels = new Set<string>();
     navItems.forEach((item) => {
@@ -245,7 +240,6 @@ export default function Navbar() {
     setActiveLabels(newActiveLabels);
   }, [pathname, authenticated, user]);
 
-  // Track active labels untuk animasi yang smooth
   useEffect(() => {
     const newActiveLabels = new Set<string>();
     navItems.forEach((item) => {
@@ -257,7 +251,6 @@ export default function Navbar() {
     setActiveLabels(newActiveLabels);
   }, [pathname, authenticated, user]);
 
-  // Wait for mount and auth loading to complete before rendering
   if (!mounted || loading) {
     return (
       <nav className="fixed top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 shadow-sm">

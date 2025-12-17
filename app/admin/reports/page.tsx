@@ -68,7 +68,6 @@ export default function AdminReports() {
         return;
       }
 
-      // Fetch reports
       const params = new URLSearchParams({
         page: page.toString(),
         limit: "20",
