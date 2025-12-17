@@ -191,6 +191,90 @@ export const getMostRecentPosts = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Get search suggestions (popular posts titles and tags)
+export const getSearchSuggestions = async (req: AuthRequest, res: Response) => {
+  try {
+    const { limit = 10 } = req.query;
+    const suggestionsLimit = Math.min(Number(limit), 15);
+
+    // Get popular posts titles (by claps + views)
+    const allPosts = await db.post.findMany({
+      where: {
+        published: true,
+      },
+      select: {
+        title: true,
+        views: true,
+        createdAt: true,
+        _count: {
+          select: {
+            claps: true,
+            comments: true,
+          },
+        },
+      },
+      take: 100, // Get more to sort properly
+    });
+
+    // Sort by score (claps + comments*2 + views)
+    const popularPosts = allPosts
+      .map((post) => ({
+        title: post.title,
+        score: post._count.claps + post._count.comments * 2 + post.views,
+        views: post.views,
+        createdAt: post.createdAt,
+      }))
+      .sort((a, b) => {
+        const scoreDiff = b.score - a.score;
+        if (scoreDiff !== 0) return scoreDiff;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      })
+      .slice(0, suggestionsLimit);
+
+    // Get popular tags (by post count)
+    const popularTags = await db.tag.findMany({
+      include: {
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
+      },
+      orderBy: {
+        posts: {
+          _count: "desc",
+        },
+      },
+      take: suggestionsLimit,
+    });
+
+    // Combine and format suggestions
+    const suggestions = [
+      ...popularPosts.map((post) => ({
+        type: "post" as const,
+        text: post.title,
+        score: post.score,
+      })),
+      ...popularTags.map((tag) => ({
+        type: "tag" as const,
+        text: tag.name,
+        score: tag._count.posts,
+      })),
+    ]
+      .sort((a, b) => b.score - a.score)
+      .slice(0, suggestionsLimit)
+      .map((s) => s.text);
+
+    res.json({ suggestions });
+  } catch (error: any) {
+    console.error("❌ Error mengambil search suggestions:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal mengambil suggestions",
+      details: error.message,
+    });
+  }
+};
+
 // Get recommended users (users with most followers, excluding current user and already followed)
 export const getRecommendedUsers = async (req: AuthRequest, res: Response) => {
   try {

@@ -12,7 +12,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
     }
 
-    const { name, bio, profilePicture, customLinks } = req.body;
+    const { name, bio, profilePicture, country, customLinks } = req.body;
 
     // Update user basic info
     const user = await db.user.update({
@@ -21,6 +21,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         ...(name && { name }),
         ...(bio !== undefined && { bio }),
         ...(profilePicture !== undefined && { profilePicture }),
+        ...(country !== undefined && { country }),
       },
       select: {
         id: true,
@@ -107,47 +108,95 @@ export const getCurrentProfile = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
     }
 
-    const user = await db.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        name: true,
-        email: true,
-        bio: true,
-        profilePicture: true,
-        isVerified: true,
-        isOwner: true,
-        isAdmin: true,
-        createdAt: true,
-        customLinks: {
-          orderBy: { order: "asc" },
-          select: {
-            id: true,
-            label: true,
-            url: true,
-            order: true,
+    console.log(`🔍 Fetching profile for userId: ${userId}`);
+    
+    let user;
+    try {
+      user = await db.user.findUnique({
+        where: { id: userId },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          bio: true,
+          profilePicture: true,
+          country: true,
+          isVerified: true,
+          isOwner: true,
+          isAdmin: true,
+          createdAt: true,
+          customLinks: {
+            orderBy: { order: "asc" },
+            select: {
+              id: true,
+              label: true,
+              url: true,
+              order: true,
+            },
+          },
+          _count: {
+            select: {
+              posts: true,
+              followers: true,
+              following: true,
+            },
           },
         },
-        _count: {
-          select: {
-            posts: true,
-            followers: true,
-            following: true,
-          },
-        },
-      },
-    });
+      });
+      console.log(`✅ User found: ${user ? user.email : "NOT FOUND"}`);
+    } catch (queryError: any) {
+      console.error("❌ Prisma query error:", queryError);
+      throw queryError;
+    }
 
     if (!user) {
       return res.status(StatusCodes.NOT_FOUND).json({ msg: "User tidak ditemukan" });
     }
 
-    res.json(user);
+    try {
+      const responseData = {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        bio: user.bio ?? null,
+        profilePicture: user.profilePicture ?? null,
+        country: user.country ?? null,
+        isVerified: user.isVerified ?? false,
+        isOwner: user.isOwner ?? false,
+        isAdmin: user.isAdmin ?? false,
+        createdAt: user.createdAt,
+        customLinks: Array.isArray(user.customLinks) ? user.customLinks : [],
+        _count: {
+          posts: user._count?.posts ?? 0,
+          followers: user._count?.followers ?? 0,
+          following: user._count?.following ?? 0,
+        },
+      };
+
+      res.json(responseData);
+    } catch (serializeError: any) {
+      console.error("❌ Error serializing response:", serializeError);
+      throw serializeError;
+    }
   } catch (error: any) {
     console.error("❌ Error get profile:", error);
+    console.error("Error details:", {
+      name: error.name,
+      message: error.message,
+      code: error.code,
+      stack: error.stack,
+    });
+    
+    if (error.code === "P2002") {
+      return res.status(StatusCodes.CONFLICT).json({
+        error: "Konflik data",
+        msg: "Terjadi konflik saat mengambil data",
+      });
+    }
+
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil profile",
-      details: error.message,
+      msg: error.message || "Terjadi kesalahan saat mengambil data profile",
     });
   }
 };
@@ -201,6 +250,144 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
     console.error("❌ Error change password:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengubah password",
+      details: error.message,
+    });
+  }
+};
+
+// Change email
+export const changeEmail = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
+    }
+
+    const { newEmail, password } = req.body;
+
+    if (!newEmail || !password) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Email baru dan password diperlukan" });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Format email tidak valid" });
+    }
+
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, password: true },
+    });
+
+    if (!user) {
+      return res.status(StatusCodes.NOT_FOUND).json({ msg: "User tidak ditemukan" });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Password salah" });
+    }
+
+    if (user.email === newEmail) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Email baru sama dengan email saat ini" });
+    }
+
+    const updatedUser = await db.user.update({
+      where: { id: userId },
+      data: { email: newEmail },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+      },
+    });
+
+    console.log(`✅ Email diubah - User: ${user.email} -> ${newEmail}`);
+    res.json({ msg: "Email berhasil diubah", user: updatedUser });
+  } catch (error: any) {
+    if (error.code === "P2002") {
+      return res.status(StatusCodes.CONFLICT).json({ msg: "Email sudah terdaftar" });
+    }
+    console.error("❌ Error change email:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal mengubah email",
+      details: error.message,
+    });
+  }
+};
+
+// Change country
+export const changeCountry = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
+    }
+
+    const { country } = req.body;
+
+    const user = await db.user.update({
+      where: { id: userId },
+      data: { country: country || null },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        country: true,
+      },
+    });
+
+    console.log(`✅ Country diubah - User: ${user.email} -> ${country || "null"}`);
+    res.json({ msg: "Negara berhasil diubah", user });
+  } catch (error: any) {
+    console.error("❌ Error change country:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal mengubah negara",
+      details: error.message,
+    });
+  }
+};
+
+// Delete own account
+export const deleteOwnAccount = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
+    }
+
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Password diperlukan untuk menghapus akun" });
+    }
+
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, password: true, isOwner: true },
+    });
+
+    if (!user) {
+      return res.status(StatusCodes.NOT_FOUND).json({ msg: "User tidak ditemukan" });
+    }
+
+    if (user.isOwner) {
+      return res.status(StatusCodes.FORBIDDEN).json({ msg: "Tidak bisa menghapus akun owner" });
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Password salah" });
+    }
+
+    await db.user.delete({ where: { id: userId } });
+
+    console.log(`✅ Akun dihapus - User: ${user.email}`);
+    res.json({ msg: "Akun berhasil dihapus" });
+  } catch (error: any) {
+    console.error("❌ Error delete account:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal menghapus akun",
       details: error.message,
     });
   }

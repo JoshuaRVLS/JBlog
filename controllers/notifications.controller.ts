@@ -5,7 +5,7 @@ import { StatusCodes } from "http-status-codes";
 
 // Helper function to create notification
 export const createNotification = async (data: {
-  type: "like" | "comment" | "reply" | "mention";
+  type: "like" | "comment" | "reply" | "mention" | "repost" | "share" | "direct_message";
   userId: string; // User yang menerima notifikasi
   actorId: string; // User yang melakukan aksi
   postId?: string;
@@ -139,6 +139,8 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
       
       if (notification.type === "like" && notification.postId) {
         groupKey = `like-post-${notification.postId}`;
+      } else if (notification.type === "repost" && notification.postId) {
+        groupKey = `repost-post-${notification.postId}`;
       } else if (notification.type === "comment" && notification.postId) {
         groupKey = `comment-post-${notification.postId}`;
       } else if (notification.type === "reply" && notification.commentId) {

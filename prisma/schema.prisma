@@ -21,6 +21,7 @@ model User {
   bio            String?
   description    String? // Extended description/bio
   profilePicture String?
+  country        String? // User's country for globe visualization
 
   refreshToken        RefreshToken?
   posts               Post[]
@@ -36,6 +37,10 @@ model User {
   actorNotifications  Notification[]       @relation("ActorNotifications")
   mentions            MessageMention[]     @relation("UserMentions")
   customLinks         CustomLink[]
+  bookmarks           Bookmark[]
+  reposts             Repost[]
+  sentDirectMessages  DirectMessage[]      @relation("DirectMessageSender")
+  receivedDirectMessages DirectMessage[]   @relation("DirectMessageReceiver")
 
   // Followers relationship
   followers Follow[] @relation("UserFollowers")
@@ -92,6 +97,8 @@ model Post {
   claps         Clap[]
   comments      Comment[]
   notifications Notification[]
+  bookmarks     Bookmark[]
+  reposts       Repost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -306,4 +313,51 @@ model CustomLink {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@index([createdAt])
+}
+
+model Repost {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId])
+  @@index([postId])
+  @@index([createdAt])
+}
+
+model DirectMessage {
+  id          String   @id @default(cuid())
+  senderId    String
+  sender      User     @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId  String
+  receiver    User     @relation("DirectMessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  content     String
+  type        String   @default("text") // text, image, video, audio
+  mediaUrl    String? // URL untuk photo, video, audio
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([read])
+  @@index([createdAt])
 }

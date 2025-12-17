@@ -12,11 +12,13 @@ import {
   getFollowing,
   getFollowStatus,
   getUserActivity,
+  getUserLocations,
 } from "../controllers/users.controller";
 
 const router = Router();
 
 router.post("/", createUser);
+router.get("/locations", getUserLocations);
 router.get("/:id", getUserProfile);
 router.get("/:id/activity", requireAuth, getUserActivity);
 router.put("/:id", updateUserProfile);

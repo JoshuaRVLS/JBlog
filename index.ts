@@ -15,6 +15,10 @@ import ReportRoutes from "./routes/report.route";
 import SearchRoutes from "./routes/search.route";
 import GroupChatRoutes from "./routes/groupchat.route";
 import NotificationsRoutes from "./routes/notifications.route";
+import BookmarksRoutes from "./routes/bookmarks.route";
+import RepostsRoutes from "./routes/reposts.route";
+import DirectMessagesRoutes from "./routes/directMessages.route";
+import FeedRoutes from "./routes/feed.route";
 import db from "./lib/db";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -32,8 +36,11 @@ app.set("trust proxy", 1);
 app.use(
   cors({
     credentials: true,
-    origin: ["http://localhost:3000"],
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
+    origin: process.env.NODE_ENV === "production" && process.env.FRONTEND_URL
+      ? [process.env.FRONTEND_URL]
+      : ["http://localhost:3000", "http://127.0.0.1:3000"],
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   })
 );
 
@@ -77,6 +84,10 @@ app.use("/api/profile/", ProfileRoutes);
 app.use("/api/search/", SearchRoutes);
 app.use("/api/groupchat/", GroupChatRoutes);
 app.use("/api/notifications/", NotificationsRoutes);
+app.use("/api/bookmarks/", BookmarksRoutes);
+app.use("/api/reposts/", RepostsRoutes);
+app.use("/api/direct-messages/", DirectMessagesRoutes);
+app.use("/api/feed/", FeedRoutes);
 
 // Create HTTP server
 const httpServer = createServer(app);

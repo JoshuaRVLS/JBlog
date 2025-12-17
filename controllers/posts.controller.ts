@@ -232,6 +232,7 @@ export const getPost = async (req: AuthRequest, res: Response) => {
           select: {
             claps: true,
             comments: true,
+            reposts: true,
           },
         },
         claps: userId
@@ -247,6 +248,32 @@ export const getPost = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.NOT_FOUND).json({ msg: "Post tidak ditemukan" });
     }
 
+    // Check bookmark and repost status
+    let isBookmarked = false;
+    let isReposted = false;
+    if (userId) {
+      const [bookmark, repost] = await Promise.all([
+        db.bookmark.findUnique({
+          where: {
+            userId_postId: {
+              userId,
+              postId: id,
+            },
+          },
+        }),
+        db.repost.findUnique({
+          where: {
+            userId_postId: {
+              userId,
+              postId: id,
+            },
+          },
+        }),
+      ]);
+      isBookmarked = !!bookmark;
+      isReposted = !!repost;
+    }
+
     // Increment views count
     await db.post.update({
       where: { id },
@@ -257,6 +284,8 @@ export const getPost = async (req: AuthRequest, res: Response) => {
       ...post,
       views: post.views + 1, // Return incremented value
       hasClapped: userId ? post.claps.length > 0 : false,
+      isBookmarked,
+      isReposted,
     });
   } catch (error) {
     console.error("❌ Error mengambil post:", error);
@@ -312,6 +341,7 @@ export const getAllPosts = async (req: AuthRequest, res: Response) => {
             select: {
               claps: true,
               comments: true,
+              reposts: true,
             },
           },
         },
@@ -322,8 +352,57 @@ export const getAllPosts = async (req: AuthRequest, res: Response) => {
       db.post.count({ where }),
     ]);
 
+    // Get user ID from request if authenticated
+    const userId = (req as AuthRequest).userId;
+
+    // Check bookmark and repost status for each post if user is authenticated
+    const postsWithStatus = userId
+      ? await Promise.all(
+          posts.map(async (post) => {
+            const [hasClapped, isBookmarked, isReposted] = await Promise.all([
+              db.clap.findUnique({
+                where: {
+                  postId_userId: {
+                    postId: post.id,
+                    userId,
+                  },
+                },
+              }),
+              db.bookmark.findUnique({
+                where: {
+                  userId_postId: {
+                    userId,
+                    postId: post.id,
+                  },
+                },
+              }),
+              db.repost.findUnique({
+                where: {
+                  userId_postId: {
+                    userId,
+                    postId: post.id,
+                  },
+                },
+              }),
+            ]);
+
+            return {
+              ...post,
+              hasClapped: !!hasClapped,
+              isBookmarked: !!isBookmarked,
+              isReposted: !!isReposted,
+            };
+          })
+        )
+      : posts.map((post) => ({
+          ...post,
+          hasClapped: false,
+          isBookmarked: false,
+          isReposted: false,
+        }));
+
     res.json({
-      posts,
+      posts: postsWithStatus,
       pagination: {
         page: Number(page),
         limit: Number(limit),

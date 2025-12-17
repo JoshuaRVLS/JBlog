@@ -14,7 +14,7 @@ export const requireAdmin = async (
         .status(StatusCodes.UNAUTHORIZED)
         .json({ msg: "Harus login dulu" });
     }
-
+    
     const user = await db.user.findUnique({ where: { id: req.userId } });
     if (!user?.isAdmin && !user?.isOwner) {
       return res

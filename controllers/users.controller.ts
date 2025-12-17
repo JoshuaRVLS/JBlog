@@ -629,3 +629,44 @@ export const getFollowing = async (req: Request, res: Response) => {
       .json({ error: "Failed to get following" });
   }
 };
+
+export const getUserLocations = async (req: Request, res: Response) => {
+  try {
+    const users = await db.user.findMany({
+      where: {
+        country: {
+          not: null,
+        },
+      },
+      select: {
+        country: true,
+      },
+    });
+
+    const locationCounts = new Map<string, number>();
+    
+    users.forEach((user) => {
+      if (user.country) {
+        const count = locationCounts.get(user.country) || 0;
+        locationCounts.set(user.country, count + 1);
+      }
+    });
+
+    const locations = Array.from(locationCounts.entries()).map(([country, count]) => ({
+      country,
+      count,
+    }));
+
+    const totalUsers = users.length;
+
+    res.json({
+      locations,
+      totalUsers,
+    });
+  } catch (error) {
+    console.error("❌ Error mengambil user locations:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal mengambil user locations" });
+  }
+};
