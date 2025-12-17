@@ -525,75 +525,127 @@ export default function Navbar() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3 }}
-              className="md:hidden border-t border-border overflow-hidden"
+              className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl overflow-hidden"
             >
-              <div className="py-4 space-y-2">
-                {navItems.map((item: NavItem, index: number) => {
-                  const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
-                  return (
-                    <motion.div
-                      key={item.name}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      whileHover={{ x: 8 }}
-                    >
+              <div className="px-4 py-6">
+                {/* Main Navigation - Grid Layout */}
+                <div className="grid grid-cols-2 gap-3 mb-6">
+                  {navItems.map((item: NavItem, index: number) => {
+                    const Icon = item.icon;
+                    const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+                    return (
                       <motion.div
-                        whileTap={{ scale: 0.97, x: 4 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
+                        key={item.name}
+                        initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ 
+                          duration: 0.3, 
+                          delay: index * 0.05,
+                          ease: [0.4, 0, 0.2, 1]
+                        }}
+                        whileTap={{ scale: 0.95 }}
                       >
                         <Link
                           href={item.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className={`block px-4 py-3 text-base font-medium rounded-md transition-all ${
+                          className={`group relative flex flex-col items-center justify-center gap-2 p-4 rounded-xl border transition-all duration-200 ${
                             isActive
-                              ? "text-primary bg-primary/10"
-                              : "text-foreground/80 hover:text-primary hover:bg-accent/50"
+                              ? "bg-primary/10 border-primary/30 text-primary shadow-lg shadow-primary/10"
+                              : "bg-card/50 border-border/50 text-foreground/70 hover:bg-accent/50 hover:border-primary/20 hover:text-primary hover:shadow-md"
                           }`}
                         >
-                          {item.name}
+                          {/* Active indicator */}
+                          {isActive && (
+                            <motion.div
+                              layoutId="mobileActiveIndicator"
+                              className="absolute inset-0 rounded-xl bg-primary/5 border-2 border-primary/30"
+                              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                          )}
+                          
+                          {/* Icon */}
+                          <div className={`relative z-10 p-2 rounded-lg transition-all ${
+                            isActive 
+                              ? "bg-primary/20" 
+                              : "bg-muted/50 group-hover:bg-primary/10"
+                          }`}>
+                            <Icon className={`h-5 w-5 transition-colors ${
+                              isActive ? "text-primary" : "text-foreground/60 group-hover:text-primary"
+                            }`} />
+                          </div>
+                          
+                          {/* Label */}
+                          <span className={`relative z-10 text-xs font-semibold text-center transition-colors ${
+                            isActive ? "text-primary" : "text-foreground/70 group-hover:text-primary"
+                          }`}>
+                            {item.name}
+                          </span>
+                          
+                          {/* Hover glow effect */}
+                          <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br from-primary/5 to-transparent blur-xl" />
                         </Link>
                       </motion.div>
-                    </motion.div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
+
+                {/* Divider */}
+                {authenticated && (
+                  <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-border/50"></div>
+                    </div>
+                    <div className="relative flex justify-center">
+                      <span className="px-3 text-xs font-medium text-muted-foreground bg-background">
+                        Account
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Account Actions */}
                 {authenticated ? (
-                  <>
+                  <div className="space-y-2">
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: navItems.length * 0.05 }}
-                      whileTap={{ scale: 0.97, x: 4 }}
+                      whileTap={{ scale: 0.97 }}
                     >
                       <Link
                         href={`/users/${userId}`}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground/80 hover:text-primary hover:bg-accent/50 rounded-md transition-all"
+                        className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-card/50 border border-border/50 text-foreground/80 hover:text-primary hover:bg-accent/50 hover:border-primary/20 transition-all group"
                       >
-                        <User className="h-4 w-4" />
-                        <span>Profil Saya</span>
+                        <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                          <User className="h-4 w-4 text-foreground/60 group-hover:text-primary transition-colors" />
+                        </div>
+                        <span className="text-sm font-medium">Profil Saya</span>
                       </Link>
                     </motion.div>
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: (navItems.length + 1) * 0.05 }}
-                      whileTap={{ scale: 0.97, x: 4 }}
+                      whileTap={{ scale: 0.97 }}
                     >
                       <Link
                         href="/profile/settings"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground/80 hover:text-primary hover:bg-accent/50 rounded-md transition-all"
+                        className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-card/50 border border-border/50 text-foreground/80 hover:text-primary hover:bg-accent/50 hover:border-primary/20 transition-all group"
                       >
-                        <Settings className="h-4 w-4" />
-                        <span>Pengaturan</span>
+                        <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                          <Settings className="h-4 w-4 text-foreground/60 group-hover:text-primary transition-colors" />
+                        </div>
+                        <span className="text-sm font-medium">Pengaturan</span>
                       </Link>
                     </motion.div>
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: (navItems.length + 2) * 0.05 }}
-                      whileTap={{ scale: 0.97, x: 4 }}
+                      whileTap={{ scale: 0.97 }}
                     >
                       <button
                         onClick={async () => {
@@ -601,26 +653,28 @@ export default function Navbar() {
                           setMobileMenuOpen(false);
                           router.push("/");
                         }}
-                        className="flex items-center gap-3 w-full text-left px-4 py-3 text-base font-medium text-foreground/80 hover:text-destructive hover:bg-accent/50 rounded-md transition-all"
+                        className="flex items-center gap-3 w-full px-4 py-3.5 rounded-xl bg-card/50 border border-border/50 text-foreground/80 hover:text-destructive hover:bg-destructive/10 hover:border-destructive/20 transition-all group"
                       >
-                        <LogOut className="h-4 w-4" />
-                        <span>Logout</span>
+                        <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-destructive/10 transition-colors">
+                          <LogOut className="h-4 w-4 text-foreground/60 group-hover:text-destructive transition-colors" />
+                        </div>
+                        <span className="text-sm font-medium">Logout</span>
                       </button>
                     </motion.div>
-                  </>
+                  </div>
                 ) : (
                   <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3, delay: navItems.length * 0.05 }}
-                    whileTap={{ scale: 0.97, x: 4 }}
+                    whileTap={{ scale: 0.97 }}
                   >
                     <Link
                       href="/login"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="block px-4 py-3 text-base font-medium text-primary hover:bg-accent/50 rounded-md transition-all"
+                      className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/20"
                     >
-                      Sign In
+                      <span>Sign In</span>
                     </Link>
                   </motion.div>
                 )}

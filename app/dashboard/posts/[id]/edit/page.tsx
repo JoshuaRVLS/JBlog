@@ -19,6 +19,7 @@ import {
 import toast from "react-hot-toast";
 import dynamic from "next/dynamic";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
+import { FormTextarea } from "@/components/ui/FormInput";
 
 const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
 import "@uiw/react-md-editor/markdown-editor.css";
@@ -53,11 +54,10 @@ export default function EditPost() {
   useEffect(() => {
     const fetchTags = async () => {
       try {
-        const response = await fetch("/api/tags");
-        if (response.ok) {
-          const data = await response.json();
-          setAvailableTags(data.tags || []);
-          setFilteredTags(data.tags || []);
+        const response = await AxiosInstance.get("/tags");
+        if (response.data) {
+          setAvailableTags(response.data.tags || []);
+          setFilteredTags(response.data.tags || []);
         }
       } catch (error) {
         console.error("Error fetching tags:", error);
@@ -75,14 +75,10 @@ export default function EditPost() {
         (tag) => tag.name.toLowerCase().includes(tagInput.toLowerCase())
       );
       setFilteredTags(filtered);
-      // Show dropdown if there are filtered results
-      if (filtered.length > 0) {
-        setShowTagDropdown(true);
-      }
     } else {
       setFilteredTags(availableTagsFiltered);
-      // Don't automatically close dropdown when input is empty - let onFocus handle it
     }
+    // Keep dropdown open if it was already open (don't close it when typing)
   }, [tagInput, availableTags, tags]);
 
   // Close dropdown when clicking outside
@@ -410,18 +406,13 @@ export default function EditPost() {
             </div>
 
             {/* Excerpt */}
-            <div className="space-y-2">
-              <label className="block text-sm font-semibold text-foreground">
-                Ringkasan
-              </label>
-              <textarea
-                value={excerpt}
-                onChange={(e) => setExcerpt(e.target.value)}
-                placeholder="Tulis ringkasan singkat tentang post ini..."
-                rows={3}
-                className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
-              />
-            </div>
+            <FormTextarea
+              label="Ringkasan"
+              value={excerpt}
+              onChange={(e) => setExcerpt(e.target.value)}
+              placeholder="Tulis ringkasan singkat tentang post ini..."
+              rows={3}
+            />
 
             {/* Tags */}
             <div className="space-y-2">
@@ -441,9 +432,7 @@ export default function EditPost() {
                       // Show dropdown when focused, showing all available tags that aren't already selected
                       const availableTagsFiltered = availableTags.filter((tag) => !tags.includes(tag.name));
                       setFilteredTags(availableTagsFiltered);
-                      if (availableTagsFiltered.length > 0) {
-                        setShowTagDropdown(true);
-                      }
+                      setShowTagDropdown(true); // Always show dropdown when focused
                     }}
                     onKeyPress={(e) => {
                       if (e.key === "Enter") {
@@ -504,6 +493,34 @@ export default function EditPost() {
                       </button>
                     </span>
                   ))}
+                </div>
+              )}
+              
+              {/* Available Tags List - Show when input is focused */}
+              {showTagDropdown && availableTags.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-sm font-medium text-muted-foreground mb-2">
+                    Tag yang tersedia:
+                  </p>
+                  <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-3 bg-muted/30 rounded-lg border border-border/50">
+                    {availableTags
+                      .filter((tag) => !tags.includes(tag.name))
+                      .map((tag) => (
+                        <button
+                          key={tag.id}
+                          type="button"
+                          onClick={() => handleSelectTag(tag)}
+                          className="px-3 py-1.5 bg-card hover:bg-accent border border-border rounded-full text-sm text-foreground transition-all hover:border-primary/50 hover:text-primary flex items-center gap-2"
+                        >
+                          <span>{tag.name}</span>
+                          {tag._count?.posts && (
+                            <span className="text-xs text-muted-foreground">
+                              ({tag._count.posts})
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                  </div>
                 </div>
               )}
             </div>

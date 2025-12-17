@@ -1,26 +1,28 @@
 "use client";
 
+import { SkeletonRectangle, SkeletonLine, SkeletonCircle, SkeletonCard } from "@/components/ui/Skeleton";
+
 export default function PostSkeleton() {
   return (
-    <div className="bg-card rounded-xl border border-border overflow-hidden animate-pulse">
-      <div className="w-full h-48 bg-muted"></div>
+    <SkeletonCard className="overflow-hidden">
+      <SkeletonRectangle width="100%" height={192} className="w-full h-48" />
       <div className="p-6 space-y-4">
         <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded-full bg-muted"></div>
-          <div className="h-4 bg-muted rounded w-24"></div>
+          <SkeletonCircle size={24} />
+          <SkeletonLine width="96px" />
         </div>
-        <div className="h-6 bg-muted rounded w-3/4"></div>
+        <SkeletonLine width="75%" height="1.5rem" />
         <div className="space-y-2">
-          <div className="h-4 bg-muted rounded w-full"></div>
-          <div className="h-4 bg-muted rounded w-5/6"></div>
+          <SkeletonLine />
+          <SkeletonLine width="83%" />
         </div>
         <div className="flex items-center gap-4">
-          <div className="h-4 bg-muted rounded w-16"></div>
-          <div className="h-4 bg-muted rounded w-16"></div>
-          <div className="h-4 bg-muted rounded w-16"></div>
+          <SkeletonLine width="64px" />
+          <SkeletonLine width="64px" />
+          <SkeletonLine width="64px" />
         </div>
       </div>
-    </div>
+    </SkeletonCard>
   );
 }
 

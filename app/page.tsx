@@ -1,6 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { OrganizationJsonLd } from "next-seo";
 import Navbar from "@/components/Navbar/Navbar";
 import HeroSection from "@/components/sections/HeroSection";
 import ProjectsSection from "@/components/sections/ProjectsSection";
@@ -9,7 +11,10 @@ import HobbiesSection from "@/components/sections/HobbiesSection";
 import SkillsSection from "@/components/sections/SkillsSection";
 import UsersWorldChartSection from "@/components/sections/UsersWorldChartSection";
 import CTASection from "@/components/sections/CTASection";
-import { Menu, Home as HomeIcon, Briefcase, Building2, Heart, Lightbulb } from "lucide-react";
+import { Menu, X, Home as HomeIcon, Briefcase, Building2, Heart, Lightbulb, Bug, Send, Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
+import AxiosInstance from "@/utils/api";
+import toast from "react-hot-toast";
 
 interface GitHubProject {
   id: number;
@@ -43,10 +48,9 @@ const loadGSAP = async () => {
 };
 
 export default function Home() {
-  const [loading, setLoading] = useState(false); // Start with false, no loading screen
-  const [projects, setProjects] = useState<GitHubProject[]>([]);
-  const [organizations, setOrganizations] = useState<GitHubOrg[]>([]);
-  const [totalViews, setTotalViews] = useState<number>(0);
+  const [showBroadcast, setShowBroadcast] = useState(true);
+  const [countdown, setCountdown] = useState<{ days: number; hours: number; minutes: number; seconds: number } | null>(null);
+  const [countdownFinished, setCountdownFinished] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const tweenRef = useRef<any>(null);
   const hasAnimatedRef = useRef<boolean>(false);
@@ -65,11 +69,84 @@ export default function Home() {
   // Navigation menu state
   const [activeSection, setActiveSection] = useState<string>("hero");
   const [showNavMenu, setShowNavMenu] = useState(false);
+  
+  // Report Bug state
+  const [showReportBug, setShowReportBug] = useState(false);
+  const [submittingReport, setSubmittingReport] = useState(false);
+  const [reportData, setReportData] = useState({
+    title: "",
+    description: "",
+    type: "bug",
+  });
 
-  useEffect(() => {
-    fetchGitHubData();
-    fetchTotalViews();
-  }, []);
+  const { data: totalViews = 0 } = useQuery({
+    queryKey: ["totalViews"],
+    queryFn: async () => {
+      const response = await fetch("/api/posts/total-views");
+      if (!response.ok) throw new Error("Failed to fetch total views");
+      const data = await response.json();
+      return data.totalViews || 0;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: broadcast } = useQuery({
+    queryKey: ["broadcast", "active"],
+    queryFn: async () => {
+      const response = await fetch("/api/broadcast/active");
+      if (!response.ok) throw new Error("Failed to fetch broadcast");
+      const data = await response.json();
+      return data.broadcast;
+    },
+    staleTime: 30 * 1000,
+    refetchInterval: 60 * 1000,
+  });
+
+  const { data: updateLogs = [] } = useQuery({
+    queryKey: ["updateLogs"],
+    queryFn: async () => {
+      const response = await fetch("/api/updatelog/?limit=5");
+      if (!response.ok) throw new Error("Failed to fetch update logs");
+      const data = await response.json();
+      return data.logs || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const { data: githubData } = useQuery({
+    queryKey: ["githubData"],
+    queryFn: async () => {
+      const githubToken = process.env.NEXT_PUBLIC_GITHUB_TOKEN;
+      if (!githubToken) {
+        return { projects: [], organizations: [] };
+      }
+
+      const [projectsRes, orgsRes] = await Promise.all([
+        fetch("https://api.github.com/users/JoshuaRVLS/repos?sort=updated&per_page=6&type=all", {
+          headers: {
+            Authorization: `Bearer ${githubToken}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+        }),
+        fetch("https://api.github.com/users/JoshuaRVLS/orgs", {
+          headers: {
+            Authorization: `Bearer ${githubToken}`,
+            Accept: "application/vnd.github.v3+json",
+          },
+        }),
+      ]);
+
+      const projects = projectsRes.ok ? await projectsRes.json() : [];
+      const organizations = orgsRes.ok ? await orgsRes.json() : [];
+
+      return { projects, organizations };
+    },
+    staleTime: 10 * 60 * 1000,
+    retry: 1,
+  });
+
+  const projects = githubData?.projects || [];
+  const organizations = githubData?.organizations || [];
 
   // Navigation menu sections
   const navSections = [
@@ -83,25 +160,96 @@ export default function Home() {
   // Smooth scroll to section
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
-    if (element) {
-      const offset = 80; // Offset for fixed navbar
-      const elementPosition = element.getBoundingClientRect().top;
-      const offsetPosition = elementPosition + window.pageYOffset - offset;
+    if (!element) return;
 
-      window.scrollTo({
-        top: offsetPosition,
-        behavior: "smooth",
-      });
+    // Calculate offset based on screen size
+    const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
+    const navbarHeight = 64;
+    const bottomNavHeight = isMobile ? 80 : 0;
+    const padding = 16;
+    const totalOffset = navbarHeight + bottomNavHeight + padding;
+
+    // Get element's position relative to document
+    const elementTop = element.getBoundingClientRect().top + window.pageYOffset;
+    
+    // Calculate target scroll position
+    const targetScroll = Math.max(0, elementTop - totalOffset);
+
+    // Smooth scroll
+    window.scrollTo({
+      top: targetScroll,
+      behavior: "smooth",
+    });
+
+    // Update active section after a short delay to ensure scroll has started
+    setTimeout(() => {
       setActiveSection(sectionId);
+    }, 100);
+    
+    setShowNavMenu(false);
+  };
+
+  // Handle report bug submit
+  const handleReportBugSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!reportData.title || !reportData.description) {
+      toast.error("Judul dan deskripsi harus diisi");
+      return;
+    }
+
+    try {
+      setSubmittingReport(true);
+      const pageUrl = typeof window !== "undefined" ? window.location.href : null;
+
+      await AxiosInstance.post("/reports", {
+        ...reportData,
+        pageUrl,
+      });
+
+      toast.success("Report berhasil dikirim! Terima kasih atas feedbacknya.");
+      setShowReportBug(false);
+      setReportData({
+        title: "",
+        description: "",
+        type: "bug",
+      });
       setShowNavMenu(false);
+    } catch (error: any) {
+      console.error("Error submitting report:", error);
+      toast.error(error.response?.data?.msg || "Gagal mengirim report");
+    } finally {
+      setSubmittingReport(false);
     }
   };
 
-  // Track active section on scroll
   useEffect(() => {
+    let lastScrollY = 0;
+    let rafId: number | null = null;
+    let lastUpdateTime = 0;
+    const throttleMs = 50;
+
     const handleScroll = () => {
+      const now = performance.now();
+      if (now - lastUpdateTime < throttleMs) {
+        if (rafId === null) {
+          rafId = requestAnimationFrame(() => {
+            rafId = null;
+            handleScroll();
+          });
+        }
+        return;
+      }
+
+      lastUpdateTime = now;
+      const currentScrollY = window.scrollY || window.pageYOffset || document.documentElement.scrollTop;
+
+      if (Math.abs(currentScrollY - lastScrollY) < 3) {
+        return;
+      }
+
       const sectionIds = ["hero", "projects", "organizations", "hobbies", "skills"];
-      const scrollPosition = window.scrollY + 150;
+      const scrollPosition = currentScrollY + 150;
 
       for (let i = sectionIds.length - 1; i >= 0; i--) {
         const section = document.getElementById(sectionIds[i]);
@@ -113,24 +261,80 @@ export default function Home() {
           }
         }
       }
+
+      if (currentScrollY < 50) {
+        setShowBroadcast(true);
+      } else if (currentScrollY > lastScrollY && currentScrollY > 100) {
+        setShowBroadcast(false);
+      } else if (currentScrollY < lastScrollY) {
+        setShowBroadcast(true);
+      }
+
+      lastScrollY = currentScrollY;
     };
 
-    window.addEventListener("scroll", handleScroll);
-    handleScroll(); // Check on mount
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll, { passive: true, capture: false });
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll, { capture: false } as any);
+      if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+      }
+    };
   }, []);
 
-  const fetchTotalViews = async () => {
-    try {
-      const response = await fetch("/api/posts/total-views");
-      if (response.ok) {
-        const data = await response.json();
-        setTotalViews(data.totalViews || 0);
-      }
-    } catch (error) {
-      console.error("Error fetching total views:", error);
+
+  useEffect(() => {
+    if (broadcast?.hasCountdown && broadcast?.countdownEndDate) {
+      setCountdownFinished(false);
     }
-  };
+  }, [broadcast]);
+
+  useEffect(() => {
+    if (!broadcast?.hasCountdown || !broadcast?.countdownEndDate || countdownFinished) return;
+
+    let intervalId: NodeJS.Timeout;
+
+    const updateCountdown = () => {
+      const now = new Date().getTime();
+      const endDate = new Date(broadcast.countdownEndDate).getTime();
+      const distance = endDate - now;
+
+      if (distance < 0) {
+        setCountdownFinished(true);
+        setCountdown(null);
+
+        if (broadcast.actionAfterCountdown === "hide") {
+          setShowBroadcast(false);
+        } else if (broadcast.actionAfterCountdown === "redirect" && broadcast.redirectUrlAfterCountdown) {
+          window.location.href = broadcast.redirectUrlAfterCountdown;
+        }
+
+        if (intervalId) {
+          clearInterval(intervalId);
+        }
+        return;
+      }
+
+      setCountdown({
+        days: Math.floor(distance / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+        minutes: Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)),
+        seconds: Math.floor((distance % (1000 * 60)) / 1000),
+      });
+    };
+
+    updateCountdown();
+    intervalId = setInterval(updateCountdown, 1000);
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [broadcast, countdownFinished]);
+
 
   // Setup scroll trigger animations - Hero and Parallax (only once)
   useEffect(() => {
@@ -770,80 +974,16 @@ export default function Home() {
     };
   }, [projects]);
 
-  const fetchGitHubData = async () => {
-    try {
-      const githubToken = process.env.NEXT_PUBLIC_GITHUB_TOKEN;
-      if (!githubToken) {
-        console.warn("GitHub token tidak ditemukan, skip fetch GitHub data");
-        // Set organizations to empty array to ensure section is visible
-        setOrganizations([]);
-        return;
-      }
-
-      // Fetch projects
-      const projectsRes = await fetch(
-        "https://api.github.com/users/JoshuaRVLS/repos?sort=updated&per_page=6&type=all",
-        {
-          headers: {
-            Authorization: `Bearer ${githubToken}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        }
-      );
-      if (projectsRes.ok) {
-        const projectsData = await projectsRes.json();
-        setProjects(projectsData);
-      } else {
-        const errorText = projectsRes.statusText || `Status: ${projectsRes.status}`;
-        console.error("Error fetching projects:", errorText);
-        try {
-          const errorData = await projectsRes.json();
-          if (errorData.message) {
-            console.error("GitHub API error:", errorData.message);
-          }
-        } catch (e) {
-          // Ignore JSON parsing errors
-        }
-        setProjects([]);
-      }
-
-      // Fetch organizations
-      const orgsRes = await fetch(
-        "https://api.github.com/users/JoshuaRVLS/orgs",
-        {
-          headers: {
-            Authorization: `Bearer ${githubToken}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        }
-      );
-      if (orgsRes.ok) {
-        const orgsData = await orgsRes.json();
-        setOrganizations(orgsData);
-      } else {
-        const errorText = orgsRes.statusText || `Status: ${orgsRes.status}`;
-        console.error("Error fetching organizations:", errorText);
-        try {
-          const errorData = await orgsRes.json();
-          if (errorData.message) {
-            console.error("GitHub API error:", errorData.message);
-          }
-        } catch (e) {
-          // Ignore JSON parsing errors
-        }
-        // Set empty array to ensure section is still visible
-        setOrganizations([]);
-      }
-    } catch (error) {
-      console.error("Error fetching GitHub data:", error);
-      // Set empty arrays on error to prevent UI issues
-      setProjects([]);
-      setOrganizations([]);
-    }
-  };
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
+      <OrganizationJsonLd
+        name="JBlog"
+        url={siteUrl}
+        logo={`${siteUrl}/og-image.png`}
+        description="Platform blogging modern dengan fitur lengkap untuk berbagi ide, pengalaman, dan pengetahuan."
+      />
       <Navbar />
       
       {/* Floating Navigation Menu */}
@@ -879,52 +1019,250 @@ export default function Home() {
         </nav>
       </div>
 
-      {/* Mobile Navigation Menu */}
-      <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 lg:hidden">
-        <button
-          onClick={() => setShowNavMenu(!showNavMenu)}
-          className="bg-primary text-primary-foreground p-4 rounded-full shadow-lg hover:opacity-90 transition-opacity"
-          aria-label="Toggle navigation menu"
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-        
-        {showNavMenu && (
-          <>
-            <div
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm z-30"
-              onClick={() => setShowNavMenu(false)}
-            />
-            <nav className="fixed bottom-20 left-1/2 -translate-x-1/2 bg-card/95 backdrop-blur-md border border-border/50 rounded-2xl p-3 shadow-xl z-40 min-w-[200px]">
-              <ul className="flex flex-col gap-2">
-                {navSections.map((section) => {
-                  const Icon = section.icon;
-                  const isActive = activeSection === section.id;
-                  return (
-                    <li key={section.id}>
-                      <button
-                        onClick={() => scrollToSection(section.id)}
-                        className={`flex items-center gap-3 w-full px-4 py-3 rounded-xl transition-all duration-200 ${
-                          isActive
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : "text-foreground hover:bg-accent/50"
-                        }`}
-                      >
-                        <Icon className={`h-4 w-4 ${isActive ? "text-primary" : ""}`} />
-                        <span className={`text-sm font-medium ${isActive ? "text-primary" : ""}`}>
-                          {section.label}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            </nav>
-          </>
+      {/* Mobile Bottom Navigation Bar */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl">
+        <div className="flex items-center justify-around px-2 py-2 safe-area-bottom">
+          {navSections.map((section) => {
+            const Icon = section.icon;
+            const isActive = activeSection === section.id;
+            
+            return (
+              <motion.button
+                key={section.id}
+                onClick={() => scrollToSection(section.id)}
+                whileTap={{ scale: 0.9 }}
+                className={`relative flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[60px] ${
+                  isActive
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {/* Active indicator */}
+                {isActive && (
+                  <motion.div
+                    layoutId="mobileBottomNavActive"
+                    className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-primary rounded-b-full"
+                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                  />
+                )}
+                
+                {/* Icon */}
+                <div className={`relative z-10 p-1.5 rounded-lg transition-colors ${
+                  isActive 
+                    ? "bg-primary/10" 
+                    : ""
+                }`}>
+                  <Icon className={`h-5 w-5 transition-colors ${
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  }`} />
+                </div>
+                
+                {/* Label */}
+                <span className={`text-[10px] font-medium transition-colors ${
+                  isActive ? "text-primary" : "text-muted-foreground"
+                }`}>
+                  {section.label}
+                </span>
+              </motion.button>
+            );
+          })}
+        </div>
+      </nav>
+
+      {/* Report Bug Modal */}
+      <AnimatePresence>
+        {showReportBug && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+            onClick={() => setShowReportBug(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              transition={{ type: "spring", stiffness: 300, damping: 25 }}
+              className="bg-card border border-border/50 rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto backdrop-blur-sm"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-6 border-b border-border">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Bug className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-foreground">Report Bug</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Laporkan bug atau berikan feedback
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowReportBug(false)}
+                  className="w-8 h-8 rounded-lg hover:bg-accent flex items-center justify-center transition-colors"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5 text-muted-foreground" />
+                </button>
+              </div>
+
+              {/* Form */}
+              <form onSubmit={handleReportBugSubmit} className="p-6 space-y-6">
+                {/* Type */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">
+                    Tipe Report
+                  </label>
+                  <select
+                    value={reportData.type}
+                    onChange={(e) => setReportData({ ...reportData, type: e.target.value })}
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                  >
+                    <option value="bug">Bug</option>
+                    <option value="feature">Feature Request</option>
+                    <option value="other">Lainnya</option>
+                  </select>
+                </div>
+
+                {/* Title */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">
+                    Judul <span className="text-destructive">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={reportData.title}
+                    onChange={(e) => setReportData({ ...reportData, title: e.target.value })}
+                    placeholder="Contoh: Tombol tidak berfungsi di halaman dashboard"
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="space-y-2">
+                  <label className="text-sm font-semibold text-foreground">
+                    Deskripsi <span className="text-destructive">*</span>
+                  </label>
+                  <textarea
+                    value={reportData.description}
+                    onChange={(e) =>
+                      setReportData({ ...reportData, description: e.target.value })
+                    }
+                    placeholder="Jelaskan secara detail tentang bug atau feature yang ingin dilaporkan..."
+                    rows={6}
+                    className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-4 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowReportBug(false)}
+                    className="flex-1 px-6 py-3 bg-muted text-foreground rounded-lg font-medium hover:bg-accent transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingReport}
+                    className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {submittingReport ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Mengirim...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-5 w-5" />
+                        <span>Kirim Report</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </motion.div>
         )}
-      </div>
+      </AnimatePresence>
       
-      <main>
+      <main className="pb-20 lg:pb-0">
+        {broadcast && !(countdownFinished && broadcast.actionAfterCountdown === "hide") && (
+          <div
+            className={`fixed top-16 left-0 right-0 z-40 border-b backdrop-blur-sm transition-transform duration-200 ease-out ${
+              showBroadcast ? "translate-y-0" : "-translate-y-full"
+            }`}
+            style={{
+              backgroundColor: broadcast.backgroundColor
+                ? `${broadcast.backgroundColor}15`
+                : broadcast.type === "info"
+                ? "rgba(59, 130, 246, 0.1)"
+                : broadcast.type === "warning"
+                ? "rgba(234, 179, 8, 0.1)"
+                : broadcast.type === "success"
+                ? "rgba(34, 197, 94, 0.1)"
+                : "rgba(239, 68, 68, 0.1)",
+              borderColor: broadcast.borderColor
+                ? `${broadcast.borderColor}30`
+                : broadcast.type === "info"
+                ? "rgba(59, 130, 246, 0.2)"
+                : broadcast.type === "warning"
+                ? "rgba(234, 179, 8, 0.2)"
+                : broadcast.type === "success"
+                ? "rgba(34, 197, 94, 0.2)"
+                : "rgba(239, 68, 68, 0.2)",
+              color: broadcast.textColor || (broadcast.type === "info"
+                ? "#3b82f6"
+                : broadcast.type === "warning"
+                ? "#eab308"
+                : broadcast.type === "success"
+                ? "#22c55e"
+                : "#ef4444"),
+            }}
+          >
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  {broadcast.icon && (
+                    <span className="text-lg flex-shrink-0">{broadcast.icon}</span>
+                  )}
+                  <div className="font-bold whitespace-nowrap text-sm">
+                    {countdownFinished && broadcast.actionAfterCountdown === "change_message" && broadcast.messageAfterCountdown
+                      ? broadcast.messageAfterCountdown
+                      : broadcast.title}
+                  </div>
+                  <div className="text-xs opacity-80 truncate">
+                    {countdownFinished && broadcast.actionAfterCountdown === "change_message" && broadcast.messageAfterCountdown
+                      ? ""
+                      : broadcast.message}
+                  </div>
+                </div>
+                {broadcast.hasCountdown && countdown && !countdownFinished && (
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 px-2 py-1 bg-white/20 rounded backdrop-blur-sm">
+                      {countdown.days > 0 && (
+                        <span className="text-xs font-bold">
+                          {countdown.days}d
+                        </span>
+                      )}
+                      <span className="text-xs font-bold">
+                        {String(countdown.hours).padStart(2, "0")}:
+                        {String(countdown.minutes).padStart(2, "0")}:
+                        {String(countdown.seconds).padStart(2, "0")}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {/* Hero Section */}
         <HeroSection ref={heroRef} totalViews={totalViews} heroContentRef={heroContentRef} />
 
@@ -967,7 +1305,59 @@ export default function Home() {
         {/* Gradient Transition Globe to CTA */}
         <div className="h-12 sm:h-16 md:h-20 bg-gradient-to-b from-background via-background to-background"></div>
 
-        {/* CTA Section */}
+        {updateLogs.length > 0 && (
+          <>
+            <div className="h-12 sm:h-16 md:h-20 bg-gradient-to-b from-background via-background to-background"></div>
+            <section id="updates" className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
+              <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">Update Logs</h2>
+              <div className="max-w-3xl mx-auto space-y-4">
+                {updateLogs.map((log) => (
+                  <div
+                    key={log.id}
+                    className="bg-card border border-border rounded-xl p-6 hover:border-primary/50 transition-all"
+                  >
+                    <div className="flex items-start justify-between mb-3">
+                      <div>
+                        <h3 className="text-xl font-bold mb-1">{log.title}</h3>
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                          <span>v{log.version}</span>
+                          {log.author && <span>by {log.author}</span>}
+                          <span>{new Date(log.date).toLocaleDateString("id-ID")}</span>
+                        </div>
+                      </div>
+                      {log.commitUrl && (
+                        <a
+                          href={log.commitUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary hover:underline text-sm"
+                        >
+                          View Commit
+                        </a>
+                      )}
+                    </div>
+                    {log.description && (
+                      <p className="text-muted-foreground mb-3">{log.description}</p>
+                    )}
+                    {log.changes && log.changes.length > 0 && (
+                      <ul className="space-y-1">
+                        {log.changes.map((change: string, idx: number) => (
+                          <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
+                            <span className="text-primary mt-1">•</span>
+                            <span>{change}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </section>
+          </>
+        )}
+
+        <div className="h-12 sm:h-16 md:h-20 bg-gradient-to-b from-background via-background to-background"></div>
+
         <CTASection ref={ctaSectionRef} />
       </main>
     </div>

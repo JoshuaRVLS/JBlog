@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Bug, X, Send, Loader2 } from "lucide-react";
 import AxiosInstance from "@/utils/api";
 import toast from "react-hot-toast";
+import { FormInput, FormTextarea, FormSelect } from "@/components/ui/FormInput";
 
 export default function ReportBugButton() {
   const [isOpen, setIsOpen] = useState(false);
@@ -51,7 +52,7 @@ export default function ReportBugButton() {
     <>
       {/* Floating Button */}
       <div 
-        className="fixed bottom-8 right-8 z-50 flex flex-col items-end gap-3"
+        className="fixed bottom-24 right-8 z-50 flex flex-col items-end gap-3 lg:bottom-8"
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
@@ -126,52 +127,37 @@ export default function ReportBugButton() {
             {/* Form */}
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               {/* Type */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">
-                  Tipe Report
-                </label>
-                <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value })}
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                >
-                  <option value="bug">Bug</option>
-                  <option value="feature">Feature Request</option>
-                  <option value="other">Lainnya</option>
-                </select>
-              </div>
+              <FormSelect
+                label="Tipe Report"
+                value={formData.type}
+                onChange={(e) => setFormData({ ...formData, type: e.target.value })}
+              >
+                <option value="bug">Bug</option>
+                <option value="feature">Feature Request</option>
+                <option value="other">Lainnya</option>
+              </FormSelect>
 
               {/* Title */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">
-                  Judul <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  placeholder="Contoh: Tombol tidak berfungsi di halaman dashboard"
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                  required
-                />
-              </div>
+              <FormInput
+                label="Judul"
+                required
+                type="text"
+                value={formData.title}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                placeholder="Contoh: Tombol tidak berfungsi di halaman dashboard"
+              />
 
               {/* Description */}
-              <div className="space-y-2">
-                <label className="text-sm font-semibold text-foreground">
-                  Deskripsi <span className="text-destructive">*</span>
-                </label>
-                <textarea
-                  value={formData.description}
-                  onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
-                  }
-                  placeholder="Jelaskan secara detail tentang bug atau feature yang ingin dilaporkan..."
-                  rows={6}
-                  className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all"
-                  required
-                />
-              </div>
+              <FormTextarea
+                label="Deskripsi"
+                required
+                value={formData.description}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
+                placeholder="Jelaskan secara detail tentang bug atau feature yang ingin dilaporkan..."
+                rows={6}
+              />
 
               {/* Actions */}
               <div className="flex gap-4 pt-4">

@@ -68,6 +68,18 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSuspendedUntil(null);
       }
     } catch (error) {
+      // Silently handle network errors during auth check to avoid spam
+      if (error instanceof AxiosError && !error.response) {
+        // Network error - backend might not be running
+        // Don't show error, just set unauthenticated state
+        setUserId("");
+        setAuthenticated(false);
+        setIsSuspended(false);
+        setSuspendedUntil(null);
+        setLoading(false);
+        return;
+      }
+
       try {
         const refreshResponse = await AxiosInstance.post("/auth/refresh");
         if (refreshResponse.data.isSuspended) {
@@ -110,10 +122,19 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await checkAuth();
       
       router.push("/");
+      return response;
     } catch (error) {
       if (error instanceof AxiosError) {
-        toast.error(error.response?.data.msg);
+        const response = error.response?.data;
+        
+        // Handle unverified user - throw error with response data
+        if (response?.requiresVerification) {
+          throw error; // Let the page handle the redirect
+        }
+        
+        toast.error(response?.msg || "Login gagal");
       }
+      throw error;
     }
   };
 
@@ -128,24 +149,15 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
       toast.success(response.data.msg);
       
-      // Update auth state setelah register berhasil (auto login)
-      setAuthenticated(true);
-      setUserId(response.data.user.id);
-      
-      // Check auth untuk memastikan state ter-update dengan benar
-      await checkAuth();
-      
-      // Redirect ke finalisation
-      if (response.data.redirectTo) {
-        router.push(response.data.redirectTo);
-      } else {
-        router.push("/profile/finalisation");
-      }
+      // Don't auto-login, user needs to verify email first
+      // Return response so page can handle redirect
+      return response;
     } catch (error) {
       if (error instanceof AxiosError) {
         console.log(error.response?.data);
         toast.error(error.response?.data?.msg || error.response?.data?.error || "Gagal registrasi");
       }
+      throw error;
     }
   };
 
@@ -169,6 +181,10 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const response = await AxiosInstance.get(`/email/verify/${data.code}`);
       toast.success(response.data.msg);
+      
+      // Update auth state setelah verifikasi berhasil (auto login)
+      await checkAuth();
+      
       // Redirect ke profile finalisation setelah verifikasi berhasil
       if (response.data.redirectTo) {
         router.push(response.data.redirectTo);

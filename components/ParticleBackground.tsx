@@ -76,10 +76,10 @@ function ParticleBackground({ className = "" }: ParticleBackgroundProps) {
           width: 0.5,
         },
         move: {
-          direction: "none",
+          direction: "none" as const,
           enable: true,
           outModes: {
-            default: "out",
+            default: "out" as const,
           },
           random: false,
           speed: 0.5,

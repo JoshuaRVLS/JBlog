@@ -4,6 +4,7 @@ import { useState, useEffect, useContext } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { ArticleJsonLd } from "next-seo";
 import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
@@ -216,8 +217,32 @@ export default function PostDetail() {
     );
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const postUrl = `${siteUrl}/posts/${post.id}`;
+  const postImage = post.coverImage || `${siteUrl}/og-image.png`;
+  const postExcerpt = post.excerpt || post.content.substring(0, 160).replace(/[#*`]/g, "");
+
   return (
     <div className="min-h-screen bg-background">
+      <ArticleJsonLd
+        type="BlogPosting"
+        headline={post.title}
+        description={postExcerpt}
+        url={postUrl}
+        datePublished={post.createdAt}
+        dateModified={post.updatedAt}
+        author={[
+          {
+            name: post.author.name,
+            url: `${siteUrl}/users/${post.author.id}`,
+          },
+        ]}
+        image={postImage}
+        publisher={{
+          name: "JBlog",
+          url: siteUrl,
+        }}
+      />
       <Navbar />
       <article className="pt-20">
         {/* Hero Section with Cover Image */}

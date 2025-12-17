@@ -62,6 +62,12 @@ export default function ProfileSettings() {
   const [showEmailPassword, setShowEmailPassword] = useState(false);
   const [changingEmail, setChangingEmail] = useState(false);
   const [country, setCountry] = useState("");
+  const [website, setWebsite] = useState("");
+  const [location, setLocation] = useState("");
+  const [twitter, setTwitter] = useState("");
+  const [github, setGithub] = useState("");
+  const [linkedin, setLinkedin] = useState("");
+  const [instagram, setInstagram] = useState("");
   const [changingCountry, setChangingCountry] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [showDeletePassword, setShowDeletePassword] = useState(false);
@@ -87,6 +93,12 @@ export default function ProfileSettings() {
         setProfilePicture(response.data.profilePicture);
         setPreview(response.data.profilePicture || generateAvatarUrl(response.data.name));
         setCountry(response.data.country || "");
+        setWebsite(response.data.website || "");
+        setLocation(response.data.location || "");
+        setTwitter(response.data.twitter || "");
+        setGithub(response.data.github || "");
+        setLinkedin(response.data.linkedin || "");
+        setInstagram(response.data.instagram || "");
       }
     } catch (error: any) {
       console.error("Error fetching profile:", error);
@@ -151,6 +163,13 @@ export default function ProfileSettings() {
         name,
         bio,
         profilePicture: profilePicture || generateAvatarUrl(name),
+        country,
+        website,
+        location,
+        twitter,
+        github,
+        linkedin,
+        instagram,
       });
 
       toast.success("Profile berhasil diupdate");
@@ -496,7 +515,6 @@ export default function ProfileSettings() {
                         </p>
                       </div>
 
-                      {/* Bio */}
                       <div className="space-y-2">
                         <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
                           <FileText className="h-4 w-4" />
@@ -511,7 +529,93 @@ export default function ProfileSettings() {
                         />
                       </div>
 
-                      {/* Submit */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <Globe className="h-4 w-4" />
+                            Website
+                          </label>
+                          <input
+                            type="url"
+                            value={website}
+                            onChange={(e) => setWebsite(e.target.value)}
+                            placeholder="https://example.com"
+                            className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <Globe className="h-4 w-4" />
+                            Location
+                          </label>
+                          <input
+                            type="text"
+                            value={location}
+                            onChange={(e) => setLocation(e.target.value)}
+                            placeholder="Jakarta, Indonesia"
+                            className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <h3 className="text-lg font-semibold">Social Media</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-foreground">
+                              Twitter / X
+                            </label>
+                            <input
+                              type="text"
+                              value={twitter}
+                              onChange={(e) => setTwitter(e.target.value)}
+                              placeholder="@username"
+                              className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-foreground">
+                              GitHub
+                            </label>
+                            <input
+                              type="text"
+                              value={github}
+                              onChange={(e) => setGithub(e.target.value)}
+                              placeholder="username"
+                              className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-foreground">
+                              LinkedIn
+                            </label>
+                            <input
+                              type="text"
+                              value={linkedin}
+                              onChange={(e) => setLinkedin(e.target.value)}
+                              placeholder="username"
+                              className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                            />
+                          </div>
+
+                          <div className="space-y-2">
+                            <label className="text-sm font-semibold text-foreground">
+                              Instagram
+                            </label>
+                            <input
+                              type="text"
+                              value={instagram}
+                              onChange={(e) => setInstagram(e.target.value)}
+                              placeholder="username"
+                              className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
                       <div className="flex gap-4 pt-4">
                         <button
                           type="submit"
