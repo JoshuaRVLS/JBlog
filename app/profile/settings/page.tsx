@@ -21,14 +21,18 @@ import {
   Settings as SettingsIcon,
   Eye,
   EyeOff,
+  Globe,
+  Trash2,
+  AlertTriangle,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
+import CustomSelect from "@/components/ui/CustomSelect";
 
-type TabType = "profile" | "security" | "preferences";
+type TabType = "profile" | "security" | "account";
 
 export default function ProfileSettings() {
-  const { userId, authenticated } = useContext(AuthContext);
+  const { userId, authenticated, loading: authLoading } = useContext(AuthContext);
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>("profile");
   const [user, setUser] = useState<any>(null);
@@ -52,25 +56,45 @@ export default function ProfileSettings() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
 
+  // Account states
+  const [newEmail, setNewEmail] = useState("");
+  const [emailPassword, setEmailPassword] = useState("");
+  const [showEmailPassword, setShowEmailPassword] = useState(false);
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [country, setCountry] = useState("");
+  const [changingCountry, setChangingCountry] = useState(false);
+  const [deletePassword, setDeletePassword] = useState("");
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+
   useEffect(() => {
+    if (authLoading) return; // Wait for auth check to complete
     if (!authenticated) {
       router.push("/login");
       return;
     }
     fetchProfile();
-  }, [authenticated]);
+  }, [authenticated, authLoading]);
 
   const fetchProfile = async () => {
     try {
       const response = await AxiosInstance.get("/profile");
-      setUser(response.data);
-      setName(response.data.name || "");
-      setBio(response.data.bio || "");
-      setProfilePicture(response.data.profilePicture);
-      setPreview(response.data.profilePicture || generateAvatarUrl(response.data.name));
+      if (response.data) {
+        setUser(response.data);
+        setName(response.data.name || "");
+        setBio(response.data.bio || "");
+        setProfilePicture(response.data.profilePicture);
+        setPreview(response.data.profilePicture || generateAvatarUrl(response.data.name));
+        setCountry(response.data.country || "");
+      }
     } catch (error: any) {
       console.error("Error fetching profile:", error);
-      toast.error("Gagal mengambil data profile");
+      const errorMessage = error.response?.data?.error || error.response?.data?.msg || "Gagal mengambil data profile";
+      toast.error(errorMessage);
+      if (error.response?.status === 401) {
+        router.push("/login");
+      }
     } finally {
       setLoading(false);
     }
@@ -182,9 +206,160 @@ export default function ProfileSettings() {
     );
   }
 
+  const handleEmailChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!newEmail || !emailPassword) {
+      toast.error("Email baru dan password diperlukan");
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      toast.error("Format email tidak valid");
+      return;
+    }
+
+    if (newEmail === user?.email) {
+      toast.error("Email baru sama dengan email saat ini");
+      return;
+    }
+
+    try {
+      setChangingEmail(true);
+      await AxiosInstance.put("/profile/email", {
+        newEmail,
+        password: emailPassword,
+      });
+
+      toast.success("Email berhasil diubah");
+      setNewEmail("");
+      setEmailPassword("");
+      fetchProfile();
+    } catch (error: any) {
+      console.error("Error changing email:", error);
+      toast.error(error.response?.data?.msg || "Gagal mengubah email");
+    } finally {
+      setChangingEmail(false);
+    }
+  };
+
+  const handleCountryChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    try {
+      setChangingCountry(true);
+      await AxiosInstance.put("/profile/country", {
+        country: country || null,
+      });
+
+      toast.success("Negara berhasil diubah");
+      fetchProfile();
+    } catch (error: any) {
+      console.error("Error changing country:", error);
+      toast.error(error.response?.data?.error || "Gagal mengubah negara");
+    } finally {
+      setChangingCountry(false);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!deletePassword) {
+      toast.error("Password diperlukan untuk menghapus akun");
+      return;
+    }
+
+    try {
+      setDeletingAccount(true);
+      await AxiosInstance.delete("/profile", {
+        data: { password: deletePassword },
+      });
+
+      toast.success("Akun berhasil dihapus");
+      setTimeout(() => {
+        router.push("/");
+        window.location.reload();
+      }, 1000);
+    } catch (error: any) {
+      console.error("Error deleting account:", error);
+      toast.error(error.response?.data?.msg || "Gagal menghapus akun");
+      setDeletePassword("");
+    } finally {
+      setDeletingAccount(false);
+      setShowDeleteModal(false);
+    }
+  };
+
+  const countries = [
+    "Indonesia",
+    "United States",
+    "United Kingdom",
+    "India",
+    "China",
+    "Japan",
+    "Germany",
+    "France",
+    "Canada",
+    "Australia",
+    "Brazil",
+    "Russia",
+    "South Korea",
+    "Mexico",
+    "Spain",
+    "Italy",
+    "Netherlands",
+    "Singapore",
+    "Malaysia",
+    "Thailand",
+    "Philippines",
+    "Vietnam",
+    "Saudi Arabia",
+    "United Arab Emirates",
+    "Turkey",
+    "Egypt",
+    "South Africa",
+    "Argentina",
+    "Chile",
+    "Poland",
+    "Sweden",
+    "Norway",
+    "Denmark",
+    "Finland",
+    "Belgium",
+    "Switzerland",
+    "Austria",
+    "Portugal",
+    "Greece",
+    "Ireland",
+    "New Zealand",
+    "Israel",
+    "Pakistan",
+    "Bangladesh",
+    "Nigeria",
+    "Kenya",
+    "Colombia",
+    "Peru",
+    "Venezuela",
+    "Ukraine",
+    "Czechia",
+    "Romania",
+    "Hungary",
+    "Croatia",
+    "Bulgaria",
+    "Serbia",
+    "Sri Lanka",
+    "Nepal",
+    "Myanmar",
+    "Cambodia",
+    "Laos",
+    "Hong Kong",
+    "Taiwan",
+  ];
+
   const tabs = [
     { id: "profile" as TabType, label: "Profile", icon: User },
     { id: "security" as TabType, label: "Keamanan", icon: Lock },
+    { id: "account" as TabType, label: "Akun", icon: Shield },
   ];
 
   return (
@@ -247,6 +422,7 @@ export default function ProfileSettings() {
                                 src={preview}
                                 alt="Profile preview"
                                 fill
+                                sizes="128px"
                                 className="object-cover"
                               />
                             </div>
@@ -474,11 +650,214 @@ export default function ProfileSettings() {
                     </form>
                   </div>
                 )}
+
+                {/* Account Tab */}
+                {activeTab === "account" && (
+                  <div className="space-y-8">
+                    <h1 className="text-3xl font-bold">Pengaturan Akun</h1>
+
+                    {/* Change Email */}
+                    <div className="border-b border-border/50 pb-8">
+                      <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <Mail className="h-5 w-5 text-primary" />
+                        Ubah Email
+                      </h2>
+                      <form onSubmit={handleEmailChange} className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Email Saat Ini</label>
+                          <input
+                            type="email"
+                            value={user?.email || ""}
+                            disabled
+                            className="w-full px-4 py-3 rounded-lg border border-border bg-muted text-muted-foreground cursor-not-allowed"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Email Baru</label>
+                          <input
+                            type="email"
+                            value={newEmail}
+                            onChange={(e) => setNewEmail(e.target.value)}
+                            placeholder="email@example.com"
+                            className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Konfirmasi Password</label>
+                          <div className="relative">
+                            <input
+                              type={showEmailPassword ? "text" : "password"}
+                              value={emailPassword}
+                              onChange={(e) => setEmailPassword(e.target.value)}
+                              placeholder="Masukkan password untuk konfirmasi"
+                              className="w-full px-4 py-3 pr-12 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                              required
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowEmailPassword(!showEmailPassword)}
+                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                            >
+                              {showEmailPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                            </button>
+                          </div>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={changingEmail}
+                          className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {changingEmail ? (
+                            <>
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                              <span>Mengubah email...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Mail className="h-5 w-5" />
+                              <span>Ubah Email</span>
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Change Country */}
+                    <div className="border-b border-border/50 pb-8">
+                      <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+                        <Globe className="h-5 w-5 text-primary" />
+                        Ubah Negara
+                      </h2>
+                      <form onSubmit={handleCountryChange} className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-sm font-medium text-foreground">Negara</label>
+                          <CustomSelect
+                            options={countries.map((c) => ({ value: c, label: c }))}
+                            value={country}
+                            onChange={(value) => setCountry(value)}
+                            placeholder="Pilih Negara"
+                            searchable={true}
+                            className="w-full"
+                          />
+                          <p className="text-xs text-muted-foreground">
+                            Pilih negara untuk ditampilkan di globe visualization
+                          </p>
+                        </div>
+                        <button
+                          type="submit"
+                          disabled={changingCountry}
+                          className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                        >
+                          {changingCountry ? (
+                            <>
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                              <span>Menyimpan...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Save className="h-5 w-5" />
+                              <span>Simpan Negara</span>
+                            </>
+                          )}
+                        </button>
+                      </form>
+                    </div>
+
+                    {/* Delete Account */}
+                    <div className="border-b border-border/50 pb-8">
+                      <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 text-destructive">
+                        <Trash2 className="h-5 w-5" />
+                        Hapus Akun
+                      </h2>
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Menghapus akun akan menghapus semua data Anda secara permanen. Tindakan ini tidak dapat
+                        dibatalkan.
+                      </p>
+                      <button
+                        onClick={() => setShowDeleteModal(true)}
+                        className="px-6 py-3 bg-destructive text-destructive-foreground rounded-lg font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                        <span>Hapus Akun</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
       </main>
+
+      {/* Delete Account Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border/50 rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="p-6">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="p-3 bg-destructive/10 rounded-full">
+                  <AlertTriangle className="h-6 w-6 text-destructive" />
+                </div>
+                <h3 className="text-xl font-bold text-foreground">Hapus Akun</h3>
+              </div>
+              <p className="text-sm text-muted-foreground mb-6">
+                Tindakan ini akan menghapus akun Anda secara permanen. Semua data termasuk posts, comments, dan
+                informasi lainnya akan dihapus dan tidak dapat dikembalikan.
+              </p>
+              <div className="space-y-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground">Konfirmasi Password</label>
+                  <div className="relative">
+                    <input
+                      type={showDeletePassword ? "text" : "password"}
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="Masukkan password untuk konfirmasi"
+                      className="w-full px-4 py-3 pr-12 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-destructive focus:border-transparent"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDeletePassword(!showDeletePassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      {showDeletePassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    </button>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setDeletePassword("");
+                    }}
+                    className="flex-1 px-4 py-3 rounded-lg border border-border bg-card text-foreground hover:bg-accent transition-colors"
+                  >
+                    Batal
+                  </button>
+                  <button
+                    onClick={handleDeleteAccount}
+                    disabled={deletingAccount || !deletePassword}
+                    className="flex-1 px-4 py-3 bg-destructive text-destructive-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {deletingAccount ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Menghapus...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-5 w-5" />
+                        <span>Hapus Akun</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

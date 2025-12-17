@@ -45,16 +45,28 @@ export default function RootLayout({
               style: {
                 background: "hsl(var(--card))",
                 color: "hsl(var(--card-foreground))",
-                border: "1px solid hsl(var(--primary))",
-                borderRadius: "0.375rem",
-                padding: "1rem",
+                border: "2px solid hsl(var(--primary))",
+                borderRadius: "0.75rem",
+                padding: "1.25rem 1.5rem",
+                fontSize: "1rem",
+                fontWeight: "500",
+                minWidth: "300px",
+                maxWidth: "500px",
+                boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
               },
               // Success toasts
               success: {
                 style: {
                   background: "hsl(var(--card))",
                   color: "hsl(var(--card-foreground))",
-                  border: "1px solid hsl(var(--primary))",
+                  border: "2px solid hsl(var(--primary))",
+                  borderRadius: "0.75rem",
+                  padding: "1.25rem 1.5rem",
+                  fontSize: "1rem",
+                  fontWeight: "500",
+                  minWidth: "300px",
+                  maxWidth: "500px",
+                  boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
                 },
                 iconTheme: {
                   primary: "hsl(var(--primary))",
@@ -66,7 +78,14 @@ export default function RootLayout({
                 style: {
                   background: "hsl(var(--card))",
                   color: "hsl(var(--card-foreground))",
-                  border: "1px solid hsl(var(--destructive))",
+                  border: "2px solid hsl(var(--destructive))",
+                  borderRadius: "0.75rem",
+                  padding: "1.25rem 1.5rem",
+                  fontSize: "1rem",
+                  fontWeight: "500",
+                  minWidth: "300px",
+                  maxWidth: "500px",
+                  boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
                 },
                 iconTheme: {
                   primary: "hsl(var(--destructive))",
@@ -78,7 +97,14 @@ export default function RootLayout({
                 style: {
                   background: "hsl(var(--card))",
                   color: "hsl(var(--card-foreground))",
-                  border: "1px solid hsl(var(--primary))",
+                  border: "2px solid hsl(var(--primary))",
+                  borderRadius: "0.75rem",
+                  padding: "1.25rem 1.5rem",
+                  fontSize: "1rem",
+                  fontWeight: "500",
+                  minWidth: "300px",
+                  maxWidth: "500px",
+                  boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
                 },
                 iconTheme: {
                   primary: "hsl(var(--primary))",
@@ -87,7 +113,10 @@ export default function RootLayout({
               },
             }}
             reverseOrder={false}
-            position="bottom-right"
+            position="top-center"
+            containerStyle={{
+              top: 20,
+            }}
           />
           <SmoothScroll>
             <AuthProvider>

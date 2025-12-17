@@ -7,7 +7,7 @@ import Image from "next/image";
 import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
-import { User, Calendar, Heart, MessageCircle, Clock, Loader2, Sparkles, X, Settings, ExternalLink, ArrowUpDown } from "lucide-react";
+import { User, Calendar, Heart, MessageCircle, Clock, Loader2, Sparkles, X, Settings, ExternalLink, ArrowUpDown, MessageSquare } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
 
@@ -291,27 +291,37 @@ export default function UserProfile() {
                     {authenticated &&
                       params.id !== currentUserId &&
                       followStatus !== null && (
-                        <button
-                          onClick={handleFollow}
-                          disabled={followLoading}
-                          className={`px-4 md:px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 text-sm ${
-                            followStatus.isFollowing
-                              ? "bg-muted text-foreground hover:bg-accent"
-                              : "bg-primary text-primary-foreground hover:opacity-90"
-                          }`}
-                        >
-                          {followLoading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : followStatus.isFriend ? (
-                            "Friends"
-                          ) : followStatus.shouldFollowBack ? (
-                            "Follow Back"
-                          ) : followStatus.isFollowing ? (
-                            "Following"
-                          ) : (
-                            "Follow"
-                          )}
-                        </button>
+                        <>
+                          <button
+                            onClick={handleFollow}
+                            disabled={followLoading}
+                            className={`px-4 md:px-6 py-2 rounded-lg font-medium transition-colors disabled:opacity-50 text-sm ${
+                              followStatus.isFollowing
+                                ? "bg-muted text-foreground hover:bg-accent"
+                                : "bg-primary text-primary-foreground hover:opacity-90"
+                            }`}
+                          >
+                            {followLoading ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : followStatus.isFriend ? (
+                              "Friends"
+                            ) : followStatus.shouldFollowBack ? (
+                              "Follow Back"
+                            ) : followStatus.isFollowing ? (
+                              "Following"
+                            ) : (
+                              "Follow"
+                            )}
+                          </button>
+                          <Link
+                            href={`/messages?userId=${params.id}`}
+                            className="px-4 md:px-6 py-2 rounded-lg font-medium transition-colors bg-primary text-primary-foreground hover:opacity-90 text-sm flex items-center gap-2"
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                            <span className="hidden sm:inline">Message</span>
+                            <span className="sm:hidden">Chat</span>
+                          </Link>
+                        </>
                       )}
                   </div>
                 </div>

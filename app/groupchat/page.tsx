@@ -11,6 +11,7 @@ import { io, Socket } from "socket.io-client";
 import { MessageCircle, Plus, Send, Users, ArrowLeft, Loader2, Image as ImageIcon, Video, Mic, VideoIcon, X, Play, Pause, Lock, Globe, Settings, Crown, UserMinus, UserPlus, Search, Compass } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
+import ImageViewer from "@/components/ImageViewer";
 
 interface GroupChat {
   id: string;
@@ -56,7 +57,7 @@ interface Message {
 }
 
 export default function GroupChatPage() {
-  const { authenticated, userId, isSuspended } = useContext(AuthContext);
+  const { authenticated, userId, isSuspended, loading: authLoading } = useContext(AuthContext);
   const router = useRouter();
   const [groupChats, setGroupChats] = useState<GroupChat[]>([]);
   const [selectedGroup, setSelectedGroup] = useState<GroupChat | null>(null);
@@ -74,7 +75,17 @@ export default function GroupChatPage() {
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
   const [mentionPosition, setMentionPosition] = useState(0);
   const [selectedMentionIndex, setSelectedMentionIndex] = useState(0);
+  const [showEveryoneWarning, setShowEveryoneWarning] = useState(false);
   const messageInputRef = useRef<HTMLInputElement>(null);
+  
+  // Mention hover states
+  const [hoveredMention, setHoveredMention] = useState<{
+    username: string;
+    userId: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const mentionHoverTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Media upload states
   const [uploadingMedia, setUploadingMedia] = useState(false);
@@ -91,6 +102,9 @@ export default function GroupChatPage() {
   const videoPreviewRef = useRef<HTMLVideoElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
+  
+  // Image viewer state
+  const [viewingImage, setViewingImage] = useState<string | null>(null);
   
   // Create group states
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -128,6 +142,7 @@ export default function GroupChatPage() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth check to complete
     if (!authenticated && !isSuspended) {
       router.push("/login");
       return;
@@ -188,6 +203,11 @@ export default function GroupChatPage() {
             clearTimeout(user.timeout);
           });
           setTypingUsers(new Map());
+          // Cleanup mention hover timeout
+          if (mentionHoverTimeoutRef.current) {
+            clearTimeout(mentionHoverTimeoutRef.current);
+          }
+          setHoveredMention(null);
         };
       }
     }
@@ -348,18 +368,35 @@ export default function GroupChatPage() {
 
   // Mention autocomplete functions
   const getMentionSuggestions = useMemo(() => {
-    if (!selectedGroup || !mentionQuery) return [];
+    if (!selectedGroup) return [];
     if (!selectedGroup.members || !Array.isArray(selectedGroup.members)) return [];
     
+    // Add @everyone option at the beginning if query is empty or matches "everyone"
+    const showEveryone = !mentionQuery || mentionQuery.toLowerCase().includes("everyone") || mentionQuery.toLowerCase().includes("semua");
+    const everyoneOption = showEveryone ? [{ id: "everyone", name: "everyone", profilePicture: null, isEveryone: true }] : [];
+    
+    // If query is empty, show everyone + top 4 members
+    if (!mentionQuery) {
+      const topMembers = selectedGroup.members
+        .filter((member) => member.userId !== userId)
+        .map((member) => member.user)
+        .filter((user) => user)
+        .slice(0, 4);
+      return [...everyoneOption, ...topMembers];
+    }
+    
+    // Filter members by query
     const query = mentionQuery.toLowerCase();
-    return selectedGroup.members
+    const filteredMembers = selectedGroup.members
       .filter((member) => {
         const name = member.user?.name?.toLowerCase() || "";
         return name.includes(query) && member.userId !== userId;
       })
       .map((member) => member.user)
-      .filter((user) => user) // Filter out any undefined users
-      .slice(0, 5);
+      .filter((user) => user)
+      .slice(0, showEveryone ? 4 : 5); // Reserve 1 slot for everyone if showing
+    
+    return [...everyoneOption, ...filteredMembers];
   }, [selectedGroup, mentionQuery, userId]);
 
   const handleMessageInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -396,11 +433,12 @@ export default function GroupChatPage() {
 
     if (lastAtIndex !== -1) {
       const textAfterAt = textBeforeCursor.substring(lastAtIndex + 1);
-      // Check if there's a space after @ (meaning mention is complete)
+      // Check if there's a space or newline after @ (meaning mention is complete)
       if (!textAfterAt.includes(" ") && !textAfterAt.includes("\n")) {
         setMentionQuery(textAfterAt);
         setShowMentionSuggestions(true);
         setMentionPosition(lastAtIndex);
+        setSelectedMentionIndex(0);
         return;
       }
     }
@@ -409,7 +447,13 @@ export default function GroupChatPage() {
     setMentionQuery("");
   };
 
-  const insertMention = (username: string) => {
+  const insertMention = (username: string, isEveryone: boolean = false) => {
+    if (isEveryone && username === "everyone") {
+      // Show warning modal for @everyone
+      setShowEveryoneWarning(true);
+      return;
+    }
+
     if (!messageInputRef.current) return;
 
     const cursorPosition = messageInputRef.current.selectionStart || 0;
@@ -426,6 +470,30 @@ export default function GroupChatPage() {
     setTimeout(() => {
       if (messageInputRef.current) {
         const newPosition = mentionPosition + username.length + 2; // +2 for @ and space
+        messageInputRef.current.focus();
+        messageInputRef.current.setSelectionRange(newPosition, newPosition);
+      }
+    }, 0);
+  };
+
+  const confirmEveryoneMention = () => {
+    if (!messageInputRef.current) return;
+
+    const cursorPosition = messageInputRef.current.selectionStart || 0;
+    const textBeforeCursor = messageInput.substring(0, mentionPosition);
+    const textAfterCursor = messageInput.substring(cursorPosition);
+    
+    const newText = `${textBeforeCursor}@everyone ${textAfterCursor}`;
+    setMessageInput(newText);
+    setShowMentionSuggestions(false);
+    setShowEveryoneWarning(false);
+    setMentionQuery("");
+    setSelectedMentionIndex(0);
+
+    // Focus back to input and set cursor position
+    setTimeout(() => {
+      if (messageInputRef.current) {
+        const newPosition = mentionPosition + "everyone".length + 2; // +2 for @ and space
         messageInputRef.current.focus();
         messageInputRef.current.setSelectionRange(newPosition, newPosition);
       }
@@ -456,7 +524,8 @@ export default function GroupChatPage() {
       case "Tab":
         e.preventDefault();
         if (getMentionSuggestions[selectedMentionIndex]) {
-          insertMention(getMentionSuggestions[selectedMentionIndex].name);
+          const selected = getMentionSuggestions[selectedMentionIndex];
+          insertMention(selected.name, (selected as any).isEveryone || false);
         }
         break;
       case "Escape":
@@ -1152,16 +1221,28 @@ export default function GroupChatPage() {
                               className="rounded-full w-10 h-10 object-cover"
                             />
                           </div>
-                          <div className={`flex-1 ${isOwnMessage ? "text-right" : ""}`}>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-semibold text-sm">{message.user.name}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {new Date(message.createdAt).toLocaleTimeString("id-ID", {
-                                  hour: "2-digit",
-                                  minute: "2-digit",
-                                })}
-                              </span>
-                            </div>
+                          <div className={`flex-1 ${isOwnMessage ? "flex flex-col items-end max-w-[70%]" : ""}`}>
+                            {!isOwnMessage && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-semibold text-sm">{message.user.name}</span>
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(message.createdAt).toLocaleTimeString("id-ID", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                            )}
+                            {isOwnMessage && (
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-xs text-muted-foreground">
+                                  {new Date(message.createdAt).toLocaleTimeString("id-ID", {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                  })}
+                                </span>
+                              </div>
+                            )}
                             <div
                               className={`inline-block px-4 py-2 rounded-lg ${
                                 isOwnMessage
@@ -1170,13 +1251,14 @@ export default function GroupChatPage() {
                               }`}
                             >
                               {message.type === "image" && message.mediaUrl && (
-                                <div className="mb-2">
+                                <div className="mb-2 cursor-pointer" onClick={() => setViewingImage(message.mediaUrl!)}>
                                   <Image
                                     src={message.mediaUrl}
                                     alt="Shared image"
                                     width={300}
                                     height={300}
-                                    className="rounded-lg max-w-full h-auto"
+                                    className="rounded-lg max-w-full h-auto hover:opacity-90 transition-opacity"
+                                    unoptimized
                                   />
                                 </div>
                               )}
@@ -1196,16 +1278,60 @@ export default function GroupChatPage() {
                               )}
                               {message.content && (
                                 <p className="text-foreground">
-                                  {message.content.split(/(@\w+)/g).map((part, idx) => {
+                                  {message.content.split(/(@[^\s@]+|@everyone)/g).map((part, idx) => {
                                     if (part.startsWith("@")) {
                                       const username = part.substring(1);
-                                      const mentionedUser = selectedGroup.members?.find(
-                                        (m) => m.user?.name?.toLowerCase() === username.toLowerCase()
-                                      );
+                                      const isEveryone = username.toLowerCase() === "everyone";
+                                      const mentionedUser = isEveryone 
+                                        ? null 
+                                        : selectedGroup.members?.find(
+                                            (m) => m.user?.name?.toLowerCase() === username.toLowerCase()
+                                          );
+                                      
                                       return (
                                         <span
                                           key={idx}
-                                          className="text-primary font-semibold bg-primary/10 px-1 rounded"
+                                          className="text-primary font-semibold bg-primary/10 px-1 rounded cursor-pointer hover:bg-primary/20 transition-colors relative"
+                                          onMouseEnter={(e) => {
+                                            if (mentionHoverTimeoutRef.current) {
+                                              clearTimeout(mentionHoverTimeoutRef.current);
+                                            }
+                                            
+                                            const target = e.currentTarget;
+                                            const rect = target.getBoundingClientRect();
+                                            
+                                            if (isEveryone) {
+                                              setHoveredMention({
+                                                username: "everyone",
+                                                userId: "everyone",
+                                                x: rect.left,
+                                                y: rect.top,
+                                              });
+                                            } else if (mentionedUser?.user) {
+                                              mentionHoverTimeoutRef.current = setTimeout(() => {
+                                                // Get fresh rect in case element moved
+                                                const freshRect = target.getBoundingClientRect();
+                                                setHoveredMention({
+                                                  username: mentionedUser.user.name,
+                                                  userId: mentionedUser.user.id,
+                                                  x: freshRect.left,
+                                                  y: freshRect.top - 10,
+                                                });
+                                              }, 300); // Delay untuk avoid flicker
+                                            }
+                                          }}
+                                          onMouseLeave={() => {
+                                            if (mentionHoverTimeoutRef.current) {
+                                              clearTimeout(mentionHoverTimeoutRef.current);
+                                            }
+                                            setTimeout(() => setHoveredMention(null), 200);
+                                          }}
+                                          onClick={(e) => {
+                                            e.preventDefault();
+                                            if (mentionedUser?.user && mentionedUser.user.id !== userId) {
+                                              router.push(`/users/${mentionedUser.user.id}`);
+                                            }
+                                          }}
                                         >
                                           {part}
                                         </span>
@@ -1524,32 +1650,53 @@ export default function GroupChatPage() {
                         {/* Mention Suggestions */}
                         {showMentionSuggestions && getMentionSuggestions.length > 0 && (
                           <div className="absolute bottom-full left-0 mb-2 w-full bg-card border border-border rounded-lg shadow-xl overflow-hidden z-50 max-h-48 overflow-y-auto">
-                            {getMentionSuggestions.map((user, index) => (
-                              <button
-                                key={user.id}
-                                type="button"
-                                onClick={() => insertMention(user.name)}
-                                className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left ${
-                                  index === selectedMentionIndex ? "bg-accent" : ""
-                                }`}
-                              >
-                                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                                  <Image
-                                    src={
-                                      user.profilePicture ||
-                                      generateAvatarUrl(user.name)
-                                    }
-                                    alt={user.name}
-                                    width={32}
-                                    height={32}
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                                <span className="text-sm font-medium text-foreground">
-                                  {user.name}
-                                </span>
-                              </button>
-                            ))}
+                            {getMentionSuggestions.map((user, index) => {
+                              const isEveryone = (user as any).isEveryone || false;
+                              return (
+                                <button
+                                  key={user.id}
+                                  type="button"
+                                  onClick={() => insertMention(user.name, isEveryone)}
+                                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left ${
+                                    index === selectedMentionIndex ? "bg-accent" : ""
+                                  } ${isEveryone ? "border-b border-border/50" : ""}`}
+                                >
+                                  {isEveryone ? (
+                                    <>
+                                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary/10 flex items-center justify-center">
+                                        <Users className="h-4 w-4 text-primary" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <span className="text-sm font-bold text-primary">
+                                          @everyone
+                                        </span>
+                                        <p className="text-xs text-muted-foreground">
+                                          Tag semua member
+                                        </p>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                                        <Image
+                                          src={
+                                            user.profilePicture ||
+                                            generateAvatarUrl(user.name)
+                                          }
+                                          alt={user.name}
+                                          width={32}
+                                          height={32}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      </div>
+                                      <span className="text-sm font-medium text-foreground">
+                                        {user.name}
+                                      </span>
+                                    </>
+                                  )}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -1979,7 +2126,7 @@ export default function GroupChatPage() {
                                 {member.user.name}
                               </span>
                               {member.userId === selectedGroup.createdBy && (
-                                <Crown className="h-4 w-4 text-yellow-500" title="Creator" />
+                                <Crown className="h-4 w-4 text-yellow-500" />
                               )}
                               {member.role === "admin" && member.userId !== selectedGroup.createdBy && (
                                 <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
@@ -2035,6 +2182,158 @@ export default function GroupChatPage() {
           </div>
         </div>
       )}
+
+      {/* @everyone Warning Modal */}
+      {showEveryoneWarning && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-lg max-w-md w-full relative">
+            <div className="mb-4">
+              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                <Users className="h-6 w-6 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold text-center mb-2 text-gradient">Tag Everyone</h2>
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                Anda akan mengirim notifikasi ke semua member di grup ini
+              </p>
+            </div>
+            
+            <div className="bg-destructive/10 border border-destructive/20 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <div className="w-5 h-5 rounded-full bg-destructive/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-destructive text-xs font-bold">!</span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-destructive mb-1">
+                    Peringatan
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Fitur @everyone akan mengirim notifikasi ke semua member dalam grup. Gunakan dengan bijak dan hanya untuk informasi penting.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex gap-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowEveryoneWarning(false);
+                  setShowMentionSuggestions(false);
+                }}
+                className="flex-1 px-6 py-3 bg-muted/50 text-foreground rounded-lg font-medium hover:bg-accent/50 transition-colors shadow-sm hover:shadow-md"
+              >
+                Batal
+              </button>
+              <button
+                onClick={confirmEveryoneMention}
+                className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity shadow-md hover:shadow-lg"
+              >
+                Ya, Tag Everyone
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Mention Hover Profile */}
+      {hoveredMention && hoveredMention.userId !== "everyone" && (
+        <div
+          className="fixed z-[200] bg-card/95 backdrop-blur-sm border border-border/50 rounded-xl shadow-xl p-4 min-w-[200px] max-w-[250px] pointer-events-none"
+          style={{
+            left: `${hoveredMention.x}px`,
+            top: `${hoveredMention.y - 120}px`,
+            transform: "translateX(-50%)",
+          }}
+          onMouseEnter={() => {
+            if (mentionHoverTimeoutRef.current) {
+              clearTimeout(mentionHoverTimeoutRef.current);
+            }
+          }}
+          onMouseLeave={() => {
+            setHoveredMention(null);
+          }}
+        >
+          {(() => {
+            const mentionedUser = selectedGroup?.members?.find(
+              (m) => m.user?.id === hoveredMention.userId
+            )?.user;
+            
+            if (!mentionedUser) return null;
+            
+            return (
+              <div className="flex flex-col items-center text-center">
+                <div className="relative mb-3">
+                  <Image
+                    src={
+                      mentionedUser.profilePicture ||
+                      generateAvatarUrl(mentionedUser.name)
+                    }
+                    alt={mentionedUser.name}
+                    width={64}
+                    height={64}
+                    className="rounded-full w-16 h-16 object-cover border-2 border-primary/20"
+                  />
+                </div>
+                <h4 className="font-bold text-lg text-foreground mb-1">
+                  {mentionedUser.name}
+                </h4>
+                <p className="text-xs text-muted-foreground mb-3">
+                  @{mentionedUser.name.toLowerCase().replace(/\s+/g, "")}
+                </p>
+                <Link
+                  href={`/users/${mentionedUser.id}`}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity pointer-events-auto"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setHoveredMention(null);
+                  }}
+                >
+                  Lihat Profile
+                </Link>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+      {/* @everyone Hover Info */}
+      {hoveredMention && hoveredMention.userId === "everyone" && (
+        <div
+          className="fixed z-[200] bg-card/95 backdrop-blur-sm border border-border/50 rounded-xl shadow-xl p-4 min-w-[200px] max-w-[250px] pointer-events-none"
+          style={{
+            left: `${hoveredMention.x}px`,
+            top: `${hoveredMention.y - 80}px`,
+            transform: "translateX(-50%)",
+          }}
+          onMouseEnter={() => {
+            if (mentionHoverTimeoutRef.current) {
+              clearTimeout(mentionHoverTimeoutRef.current);
+            }
+          }}
+          onMouseLeave={() => {
+            setHoveredMention(null);
+          }}
+        >
+          <div className="flex flex-col items-center text-center">
+            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
+            <h4 className="font-bold text-lg text-foreground mb-1">
+              @everyone
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              Tag semua member dalam grup ini ({selectedGroup?._count?.members || selectedGroup?.members?.length || 0} members)
+            </p>
+          </div>
+        </div>
+      )}
+      
+      {/* Image Viewer Modal */}
+      <ImageViewer
+        imageUrl={viewingImage}
+        onClose={() => setViewingImage(null)}
+        alt="Group chat image"
+      />
     </div>
   );
 }

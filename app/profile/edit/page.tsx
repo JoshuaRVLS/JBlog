@@ -11,7 +11,7 @@ import toast from "react-hot-toast";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
 
 export default function ProfileEdit() {
-  const { userId, authenticated } = useContext(AuthContext);
+  const { userId, authenticated, loading: authLoading } = useContext(AuthContext);
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [name, setName] = useState("");
@@ -27,12 +27,13 @@ export default function ProfileEdit() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth check to complete
     if (!authenticated) {
       router.push("/login");
       return;
     }
     fetchProfile();
-  }, [authenticated]);
+  }, [authenticated, authLoading]);
 
   const fetchProfile = async () => {
     try {

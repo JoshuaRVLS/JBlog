@@ -215,9 +215,14 @@ export default function EditPost() {
       // Pastikan URL bersih tanpa quote marks atau karakter aneh
       const cleanUrl = imageUrl.trim().replace(/^["']|["']$/g, "");
       
-      // Insert image markdown - format sederhana tanpa title attribute
-      // Format: ![alt](url) - pastikan URL bersih
-      const imageMarkdown = `\n\n![Gambar](${cleanUrl})\n\n*Deskripsi gambar*\n\n`;
+      // Insert image dengan format yang menampilkan gambar di tengah dengan caption
+      // Menggunakan HTML untuk kontrol lebih baik
+      const imageMarkdown = `\n\n<div class="image-block">
+  <div class="image-container">
+    <img src="${cleanUrl}" alt="Gambar" />
+  </div>
+  <p class="image-caption">*Deskripsi gambar*</p>
+</div>\n\n`;
       
       // Insert di posisi cursor atau di akhir
       // Gunakan MDEditor API jika tersedia, atau langsung insert ke content
@@ -316,7 +321,7 @@ export default function EditPost() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
           {/* Header */}
@@ -567,89 +572,105 @@ export default function EditPost() {
                   </div>
                 </div>
               ) : (
-                <div className="border-2 border-border/50 rounded-xl overflow-hidden bg-card shadow-lg">
+                <div className="relative border-2 border-border/50 rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-card/95 shadow-xl backdrop-blur-sm">
+                  {/* Editor Header with gradient */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary opacity-50"></div>
+                  
                   <style jsx global>{`
                     .w-md-editor {
-                      background-color: hsl(var(--card)) !important;
+                      background: transparent !important;
                       color: hsl(var(--foreground)) !important;
+                      border: none !important;
                     }
                     .w-md-editor-text {
-                      background-color: hsl(var(--card)) !important;
+                      background: transparent !important;
                     }
                     .w-md-editor-text-textarea {
-                      background-color: hsl(var(--card)) !important;
+                      background: transparent !important;
                       color: hsl(var(--foreground)) !important;
                       min-height: 600px !important;
                       font-size: 16px !important;
                       font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
-                      line-height: 1.7 !important;
-                      padding: 24px !important;
+                      line-height: 1.8 !important;
+                      padding: 32px !important;
+                      border: none !important;
                     }
                     .w-md-editor-text-textarea:focus {
                       outline: none !important;
+                      box-shadow: none !important;
                     }
                     .w-md-editor-toolbar {
-                      background-color: hsl(var(--muted)) !important;
-                      border-bottom: 1px solid hsl(var(--border)) !important;
-                      padding: 8px 12px !important;
+                      background: linear-gradient(135deg, hsl(var(--muted)) 0%, hsl(var(--muted)/80) 100%) !important;
+                      border-bottom: 1px solid hsl(var(--border)/50) !important;
+                      padding: 12px 16px !important;
+                      backdrop-filter: blur(10px) !important;
                     }
                     .w-md-editor-toolbar button {
                       color: hsl(var(--foreground)) !important;
+                      border-radius: 6px !important;
+                      transition: all 0.2s ease !important;
                     }
                     .w-md-editor-toolbar button:hover {
                       background-color: hsl(var(--accent)) !important;
+                      transform: translateY(-1px) !important;
                     }
                     .w-md-editor-text-pre {
-                      background-color: hsl(var(--card)) !important;
+                      background: transparent !important;
                       color: hsl(var(--foreground)) !important;
                     }
+                    
+                    /* Image Block Styling - untuk preview dan editor */
+                    .w-md-editor-preview .image-block,
+                    .wmde-markdown .image-block {
+                      margin: 2rem 0 !important;
+                      padding: 1.5rem !important;
+                      background: linear-gradient(135deg, hsl(var(--muted)/30) 0%, hsl(var(--muted)/10) 100%) !important;
+                      border: 1px solid hsl(var(--border)/30) !important;
+                      border-radius: 1rem !important;
+                      text-align: center !important;
+                    }
+                    .w-md-editor-preview .image-container,
+                    .wmde-markdown .image-container {
+                      display: flex !important;
+                      justify-content: center !important;
+                      align-items: center !important;
+                      margin-bottom: 1rem !important;
+                    }
+                    .w-md-editor-preview .image-container img,
+                    .wmde-markdown .image-container img {
+                      max-width: 100% !important;
+                      height: auto !important;
+                      max-height: 500px !important;
+                      border-radius: 0.75rem !important;
+                      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3) !important;
+                      object-fit: contain !important;
+                      background: hsl(var(--muted)/20) !important;
+                      padding: 0.5rem !important;
+                    }
+                    .w-md-editor-preview .image-caption,
+                    .wmde-markdown .image-caption {
+                      font-style: italic !important;
+                      color: hsl(var(--muted-foreground)) !important;
+                      font-size: 0.9rem !important;
+                      margin-top: 0.75rem !important;
+                      text-align: center !important;
+                    }
+                    
                     /* Ensure images are displayed, not as links */
-                    .w-md-editor-preview img,
-                    .w-md-editor-preview .wmde-markdown img {
+                    .w-md-editor-preview img:not(.image-container img),
+                    .w-md-editor-preview .wmde-markdown img:not(.image-container img) {
                       display: block !important;
                       max-width: 100% !important;
                       height: auto !important;
-                      margin: 1.5rem 0 !important;
+                      margin: 1.5rem auto !important;
                       border-radius: 0.5rem !important;
                       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
                       object-fit: contain !important;
                     }
-                    .w-md-editor-preview a img,
-                    .w-md-editor-preview .wmde-markdown a img {
+                    .w-md-editor-preview a img:not(.image-container img),
+                    .w-md-editor-preview .wmde-markdown a img:not(.image-container img) {
                       display: block !important;
                       pointer-events: none !important;
-                    }
-                    /* Make sure image markdown syntax renders as images */
-                    .w-md-editor-preview img[src],
-                    .w-md-editor-preview .wmde-markdown img[src] {
-                      display: block !important;
-                      max-width: 100% !important;
-                      height: auto !important;
-                    }
-                    /* Override any link styling that might hide images */
-                    .w-md-editor-preview a[href*=".jpg"],
-                    .w-md-editor-preview a[href*=".jpeg"],
-                    .w-md-editor-preview a[href*=".png"],
-                    .w-md-editor-preview a[href*=".gif"],
-                    .w-md-editor-preview a[href*=".webp"],
-                    .w-md-editor-preview .wmde-markdown a[href*=".jpg"],
-                    .w-md-editor-preview .wmde-markdown a[href*=".jpeg"],
-                    .w-md-editor-preview .wmde-markdown a[href*=".png"],
-                    .w-md-editor-preview .wmde-markdown a[href*=".gif"],
-                    .w-md-editor-preview .wmde-markdown a[href*=".webp"] {
-                      display: inline-block !important;
-                    }
-                    .w-md-editor-preview a[href*=".jpg"] img,
-                    .w-md-editor-preview a[href*=".jpeg"] img,
-                    .w-md-editor-preview a[href*=".png"] img,
-                    .w-md-editor-preview a[href*=".gif"] img,
-                    .w-md-editor-preview a[href*=".webp"] img,
-                    .w-md-editor-preview .wmde-markdown a[href*=".jpg"] img,
-                    .w-md-editor-preview .wmde-markdown a[href*=".jpeg"] img,
-                    .w-md-editor-preview .wmde-markdown a[href*=".png"] img,
-                    .w-md-editor-preview .wmde-markdown a[href*=".gif"] img,
-                    .w-md-editor-preview .wmde-markdown a[href*=".webp"] img {
-                      display: block !important;
                     }
                   `}</style>
                   <MDEditor
@@ -670,7 +691,7 @@ export default function EditPost() {
             </div>
 
             {/* Actions */}
-            <div className="flex items-center justify-between pt-6 border-t border-border flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-6 border-t border-border">
               <label className="flex items-center gap-3 cursor-pointer group">
                 <div className="relative">
                   <input
@@ -687,16 +708,16 @@ export default function EditPost() {
               <button
                 type="submit"
                 disabled={saving}
-                className="flex items-center gap-2 px-8 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20"
+                className="flex items-center justify-center gap-2 px-6 py-2.5 sm:px-8 sm:py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20 text-sm sm:text-base w-full sm:w-auto"
               >
                 {saving ? (
                   <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <Loader2 className="h-4 w-4 sm:h-5 sm:w-5 animate-spin" />
                     <span>Menyimpan...</span>
                   </>
                 ) : (
                   <>
-                    <Save className="h-5 w-5" />
+                    <Save className="h-4 w-4 sm:h-5 sm:w-5" />
                     <span>Perbarui Post</span>
                   </>
                 )}

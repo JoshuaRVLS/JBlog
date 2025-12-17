@@ -4,6 +4,15 @@ export default function MarkdownRenderer({ content }: { content: string }) {
   // Simple markdown parser
   const parseMarkdown = (text: string) => {
     let html = text;
+    
+    // Handle image blocks first (before other parsing to preserve HTML structure)
+    // Match: <div class="image-block">...</div>
+    const imageBlockRegex = /<div class="image-block">[\s\S]*?<\/div>/g;
+    const imageBlocks: string[] = [];
+    html = html.replace(imageBlockRegex, (match) => {
+      imageBlocks.push(match);
+      return `__IMAGE_BLOCK_${imageBlocks.length - 1}__`;
+    });
 
     // Headers
     html = html.replace(/^### (.*$)/gim, "<h3 class='text-2xl font-bold mb-2 mt-4'>$1</h3>");
@@ -81,11 +90,11 @@ export default function MarkdownRenderer({ content }: { content: string }) {
     // Lists
     html = html.replace(/^\* (.*$)/gim, "<li class='ml-4'>$1</li>");
     html = html.replace(/^- (.*$)/gim, "<li class='ml-4'>$1</li>");
-    html = html.replace(/(<li.*<\/li>)/s, "<ul class='list-disc ml-6 mb-4'>$1</ul>");
+    html = html.replace(/(<li[\s\S]*?<\/li>)/g, "<ul class='list-disc ml-6 mb-4'>$1</ul>");
 
     // Ordered lists
     html = html.replace(/^\d+\. (.*$)/gim, "<li class='ml-4'>$1</li>");
-    html = html.replace(/(<li class='ml-4'>.*<\/li>)/s, "<ol class='list-decimal ml-6 mb-4'>$1</ol>");
+    html = html.replace(/(<li class='ml-4'>[\s\S]*?<\/li>)/g, "<ol class='list-decimal ml-6 mb-4'>$1</ol>");
 
     // Blockquotes
     html = html.replace(/^> (.*$)/gim, "<blockquote class='border-l-4 border-primary pl-4 italic my-4'>$1</blockquote>");
@@ -97,8 +106,21 @@ export default function MarkdownRenderer({ content }: { content: string }) {
     html = html.split("\n\n").map((para) => {
       if (!para.trim()) return "";
       if (para.startsWith("<")) return para; // Already formatted
+      if (para.includes("__IMAGE_BLOCK_")) return para; // Preserve image blocks
       return `<p class='mb-4 leading-7'>${para.replace(/\n/g, "<br />")}</p>`;
     }).join("");
+
+    // Restore image blocks
+    imageBlocks.forEach((block, index) => {
+      // Style the image block properly
+      const styledBlock = block
+        .replace(/class="image-block"/, 'class="image-block my-8 p-6 bg-gradient-to-br from-muted/30 via-muted/10 to-transparent border border-border/30 rounded-2xl text-center"')
+        .replace(/class="image-container"/, 'class="image-container flex justify-center items-center mb-4"')
+        .replace(/<img src="([^"]+)" alt="([^"]*)" \/>/g, '<img src="$1" alt="$2" class="max-w-full h-auto max-h-[500px] rounded-xl shadow-2xl object-contain bg-muted/20 p-2" loading="lazy" />')
+        .replace(/class="image-caption"/, 'class="image-caption italic text-muted-foreground text-sm mt-3 text-center"');
+      
+      html = html.replace(`__IMAGE_BLOCK_${index}__`, styledBlock);
+    });
 
     return html;
   };

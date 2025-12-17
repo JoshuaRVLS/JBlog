@@ -32,7 +32,7 @@ interface Report {
 }
 
 export default function AdminReports() {
-  const { userId, authenticated } = useContext(AuthContext);
+  const { userId, authenticated, loading: authLoading } = useContext(AuthContext);
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +46,7 @@ export default function AdminReports() {
   const [updating, setUpdating] = useState<string | null>(null);
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth check to complete
     if (!authenticated) {
       router.push("/login");
       return;

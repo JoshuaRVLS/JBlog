@@ -415,15 +415,17 @@
 
 @keyframes shimmer {
   0% {
-    transform: translateX(-100%);
+    transform: translateX(-100%) skewX(-15deg);
   }
   100% {
-    transform: translateX(100%);
+    transform: translateX(200%) skewX(-15deg);
   }
 }
 
 .animate-shimmer {
-  animation: shimmer 2s infinite;
+  animation: shimmer 3s ease-in-out infinite;
+  will-change: transform;
+  animation-delay: 0s;
 }
 
 /* Pulse animation for interactive elements */

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedRoutes = ["/dashboard", "/profile"]; // Add your protected routes
+const protectedRoutes = ["/dashboard", "/profile", "/feed", "/bookmarks", "/messages", "/admin"]; // Add your protected routes
 const publicRoutes = ["/login", "/register"];
 
 export default function middleware(req: NextRequest) {
@@ -8,13 +8,13 @@ export default function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
 
-  // If user is on a public route (login/register) and has a token, redirect to home
+  // If user is on a public route (login/register) and has a token, redirect to home (not dashboard)
   if (publicRoutes.includes(path) && accessToken) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(new URL("/", req.url));
   }
 
   // If user is on a protected route and doesn't have a token, redirect to login
-  if (protectedRoutes.includes(path) && !accessToken) {
+  if (protectedRoutes.some(route => path.startsWith(route)) && !accessToken) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 

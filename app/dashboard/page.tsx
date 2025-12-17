@@ -44,7 +44,7 @@ interface Post {
 }
 
 export default function Dashboard() {
-  const { userId, authenticated, isSuspended } = useContext(AuthContext);
+  const { userId, authenticated, isSuspended, loading: authLoading } = useContext(AuthContext);
   const router = useRouter();
 
   useEffect(() => {
@@ -59,6 +59,7 @@ export default function Dashboard() {
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth check to complete
     if (!authenticated) {
       router.push("/login");
       return;
@@ -66,7 +67,7 @@ export default function Dashboard() {
     if (userId) {
       fetchData();
     }
-  }, [userId, authenticated]);
+  }, [userId, authenticated, authLoading]);
 
   const fetchData = async () => {
     try {
@@ -147,35 +148,37 @@ export default function Dashboard() {
   const isAdmin = user?.isAdmin;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-x-hidden">
       <main className="pt-24 pb-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
               <div>
-                <h1 className="text-4xl font-bold mb-2">
+                <h1 className="text-3xl sm:text-4xl font-bold mb-2">
                   Dashboard
                 </h1>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground text-sm sm:text-base">
                   Kelola post blog kamu
                 </p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                 {isAdmin && (
                   <Link
                     href="/admin"
-                    className="flex items-center gap-2 px-6 py-3 bg-accent text-accent-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
+                    className="flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 bg-accent text-accent-foreground rounded-lg font-medium hover:opacity-90 transition-opacity text-sm sm:text-base"
                   >
-                    Panel Admin
+                    <span className="hidden sm:inline">Panel Admin</span>
+                    <span className="sm:hidden">Admin</span>
                   </Link>
                 )}
                 <Link
                   href="/dashboard/posts/new"
-                  className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity shadow-lg shadow-primary/20"
+                  className="flex items-center gap-2 px-4 py-2 sm:px-6 sm:py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity shadow-lg shadow-primary/20 text-sm sm:text-base"
                 >
-                  <Plus className="h-5 w-5" />
-                  <span>Post Baru</span>
+                  <Plus className="h-4 w-4 sm:h-5 sm:w-5" />
+                  <span className="hidden sm:inline">Post Baru</span>
+                  <span className="sm:hidden">Baru</span>
                 </Link>
               </div>
             </div>
@@ -296,23 +299,23 @@ export default function Dashboard() {
                       </Link>
                     )}
 
-                    <div className="flex-1">
+                    <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-4 mb-2">
-                        <div className="flex-1">
+                        <div className="flex-1 min-w-0">
                           <Link href={`/posts/${post.id}`}>
-                            <h3 className="text-xl font-bold mb-2 hover:text-primary transition-colors">
+                            <h3 className="text-lg sm:text-xl font-bold mb-2 hover:text-primary transition-colors break-words">
                               {post.title}
                             </h3>
                           </Link>
                           {post.excerpt && (
-                            <p className="text-muted-foreground text-sm mb-4 line-clamp-2">
+                            <p className="text-muted-foreground text-sm mb-4 line-clamp-2 break-words">
                               {post.excerpt}
                             </p>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-4 text-sm mb-3">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm mb-3">
                         {/* Author info */}
                         <div className="flex items-center gap-2">
                           {post.author.profilePicture ? (
@@ -321,21 +324,21 @@ export default function Dashboard() {
                               alt={post.author.name}
                               width={20}
                               height={20}
-                              className="rounded-full"
+                              className="rounded-full flex-shrink-0"
                             />
                           ) : (
-                            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center">
+                            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
                               <User className="h-3 w-3 text-primary" />
                             </div>
                           )}
-                          <span className="text-muted-foreground font-medium">
+                          <span className="text-muted-foreground font-medium truncate max-w-[100px] sm:max-w-none">
                             {post.author.name}
                           </span>
                         </div>
 
                         {post.author.id === userId && (
                           <span
-                            className={`px-3 py-1 rounded-full text-xs font-medium ${
+                            className={`px-2 py-0.5 sm:px-3 sm:py-1 rounded-full text-xs font-medium whitespace-nowrap flex-shrink-0 ${
                               post.published
                                 ? "bg-green-500/10 text-green-500"
                                 : "bg-yellow-500/10 text-yellow-500"
@@ -344,34 +347,41 @@ export default function Dashboard() {
                             {post.published ? "Terpublikasi" : "Draft"}
                           </span>
                         )}
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Clock className="h-4 w-4" />
-                          <span>{post.readingTime} menit</span>
+                        <div className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+                          <Clock className="h-3 w-3 sm:h-4 sm:w-4" />
+                          <span>{post.readingTime} m</span>
                         </div>
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <Heart className="h-4 w-4" />
+                        <div className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+                          <Heart className="h-3 w-3 sm:h-4 sm:w-4" />
                           <span>{post._count.claps}</span>
                         </div>
-                        <div className="flex items-center gap-1 text-muted-foreground">
-                          <MessageCircle className="h-4 w-4" />
+                        <div className="flex items-center gap-1 text-muted-foreground whitespace-nowrap">
+                          <MessageCircle className="h-3 w-3 sm:h-4 sm:w-4" />
                           <span>{post._count.comments}</span>
                         </div>
-                        <span className="text-muted-foreground">
+                        <span className="text-muted-foreground whitespace-nowrap hidden sm:inline">
                           {new Date(post.createdAt).toLocaleDateString("id-ID", {
                             day: "numeric",
                             month: "long",
                             year: "numeric",
                           })}
                         </span>
+                        <span className="text-muted-foreground whitespace-nowrap sm:hidden">
+                          {new Date(post.createdAt).toLocaleDateString("id-ID", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                        </span>
                       </div>
 
                       {/* Action buttons */}
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Link
                           href={`/posts/${post.id}`}
-                          className="px-4 py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-sm font-medium"
+                          className="px-3 py-1.5 sm:px-4 sm:py-2 bg-primary/10 text-primary rounded-lg hover:bg-primary/20 transition-colors text-xs sm:text-sm font-medium"
                         >
-                          Baca Selengkapnya
+                          <span className="hidden sm:inline">Baca Selengkapnya</span>
+                          <span className="sm:hidden">Baca</span>
                         </Link>
                         {post.author.id === userId && (
                           <>

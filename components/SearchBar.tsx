@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect, useRef, useContext } from "react";
+import { useState, useEffect, useRef, useContext, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
-import { Search, X, Clock, User, FileText, TrendingUp, Loader2 } from "lucide-react";
+import { Search, X, Clock, User, FileText, TrendingUp, Loader2, Sparkles } from "lucide-react";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
 
 interface SearchResult {
@@ -49,14 +49,37 @@ export default function SearchBar() {
   const [results, setResults] = useState<SearchResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "posts" | "users">("all");
   const searchRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const suggestionsFetchedRef = useRef<boolean>(false);
+
+  // Fetch suggestions only when input is focused
+  const fetchSuggestions = useCallback(async () => {
+    if (suggestionsFetchedRef.current) return; // Already fetched
+    
+    try {
+      setLoadingSuggestions(true);
+      const response = await AxiosInstance.get("/search/suggestions", {
+        params: { limit: 10 },
+      });
+      setSuggestions(response.data.suggestions || []);
+      suggestionsFetchedRef.current = true;
+    } catch (error) {
+      console.error("Error fetching suggestions:", error);
+    } finally {
+      setLoadingSuggestions(false);
+    }
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         setShowResults(false);
+        setShowSuggestions(false);
       }
     };
 
@@ -72,8 +95,13 @@ export default function SearchBar() {
     if (query.trim().length < 2) {
       setResults(null);
       setShowResults(false);
+      // Don't automatically show suggestions, only show when focused
+      setShowSuggestions(false);
       return;
     }
+
+    // Hide suggestions when user is typing
+    setShowSuggestions(false);
 
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
@@ -108,7 +136,19 @@ export default function SearchBar() {
   const handleUserClick = (userId: string) => {
     router.push(`/users/${userId}`);
     setShowResults(false);
+    setShowSuggestions(false);
     setQuery("");
+  };
+
+  const handleSuggestionClick = (suggestion: string) => {
+    // Clear any pending debounced searches
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    
+    setQuery(suggestion);
+    setShowSuggestions(false);
+    // Search will be triggered by useEffect when query changes
   };
 
   const totalResults = (results?.posts.length || 0) + (results?.users.length || 0);
@@ -126,11 +166,21 @@ export default function SearchBar() {
             setQuery(e.target.value);
             if (e.target.value.trim().length >= 2) {
               setShowResults(true);
+              setShowSuggestions(false);
+            } else {
+              // Don't show suggestions automatically on change, only on focus
+              setShowSuggestions(false);
+              setShowResults(false);
             }
           }}
           onFocus={() => {
             if (query.trim().length >= 2 && results) {
               setShowResults(true);
+              setShowSuggestions(false);
+            } else if (query.trim().length === 0) {
+              fetchSuggestions(); // Fetch suggestions when focused
+              setShowSuggestions(true);
+              setShowResults(false);
             }
           }}
           className="w-full pl-12 pr-10 py-4 rounded-xl border-2 border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
@@ -141,6 +191,7 @@ export default function SearchBar() {
               setQuery("");
               setResults(null);
               setShowResults(false);
+              setShowSuggestions(false); // Don't auto-show suggestions, let user focus to see them
             }}
             className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-accent transition-colors"
           >
@@ -153,6 +204,43 @@ export default function SearchBar() {
           </div>
         )}
       </div>
+
+      {/* Suggestions Dropdown (when input is empty or focused) */}
+      {showSuggestions && query.trim().length === 0 && !loading && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border/50 rounded-xl shadow-2xl z-50 backdrop-blur-sm overflow-hidden">
+          <div className="p-4 border-b border-border/50">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h3 className="text-sm font-semibold text-foreground">Saran Pencarian Populer</h3>
+            </div>
+          </div>
+          {loadingSuggestions ? (
+            <div className="p-8 text-center">
+              <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />
+              <p className="text-sm text-muted-foreground">Memuat saran...</p>
+            </div>
+          ) : suggestions.length > 0 ? (
+            <div className="p-2">
+              {suggestions.map((suggestion, index) => (
+                <button
+                  key={index}
+                  onClick={() => handleSuggestionClick(suggestion)}
+                  className="w-full text-left px-4 py-3 rounded-lg hover:bg-accent transition-colors group flex items-center gap-3"
+                >
+                  <Search className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors flex-shrink-0" />
+                  <span className="text-sm text-foreground group-hover:text-primary transition-colors flex-1">
+                    {suggestion}
+                  </span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center">
+              <p className="text-sm text-muted-foreground">Tidak ada saran tersedia</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Search Results Dropdown */}
       {showResults && query.trim().length >= 2 && (

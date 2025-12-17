@@ -10,7 +10,7 @@ import toast from "react-hot-toast";
 import AdminLoading from "@/components/AdminLoading";
 
 export default function AdminDashboard() {
-  const { userId, authenticated } = useContext(AuthContext);
+  const { userId, authenticated, loading: authLoading } = useContext(AuthContext);
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -22,6 +22,7 @@ export default function AdminDashboard() {
   });
 
   useEffect(() => {
+    if (authLoading) return; // Wait for auth check to complete
     if (!authenticated) {
       router.push("/login");
       return;
@@ -29,7 +30,7 @@ export default function AdminDashboard() {
     if (userId) {
       fetchData();
     }
-  }, [userId, authenticated]);
+  }, [userId, authenticated, authLoading]);
 
   const fetchData = async () => {
     try {

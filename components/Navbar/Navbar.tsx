@@ -4,11 +4,13 @@ import React, { useState, useEffect, useContext, useRef } from "react";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Terminal, Moon, Sun, Menu, X, LogOut, User, Settings, Home, BookOpen, LayoutDashboard, MessageCircle, Shield } from "lucide-react";
+import { Terminal, Moon, Sun, Menu, X, LogOut, User, Settings, Home, BookOpen, LayoutDashboard, MessageCircle, Shield, Rss, BookmarkCheck, MessageSquare } from "lucide-react";
 import Image from "next/image";
 import { AuthContext } from "@/providers/AuthProvider";
 import AxiosInstance from "@/utils/api";
 import NotificationsDropdown from "../NotificationsDropdown";
+import Tooltip from "../Tooltip";
+import { motion, AnimatePresence } from "motion/react";
 
 interface MotionProps {
   children: React.ReactNode;
@@ -219,7 +221,10 @@ export default function Navbar() {
     ...(isSuspended ? [] : [{ name: "Blog", href: "/blog", icon: BookOpen }]),
     ...(authenticated && !isSuspended
       ? [
+          { name: "Feed", href: "/feed", icon: Rss },
           { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+          { name: "Bookmarks", href: "/bookmarks", icon: BookmarkCheck },
+          { name: "Messages", href: "/messages", icon: MessageSquare },
           { name: "Group Chat", href: "/groupchat", icon: MessageCircle },
         ]
       : []),
@@ -283,7 +288,7 @@ export default function Navbar() {
         <div className="flex h-16 items-center justify-between overflow-visible">
           {/* Logo */}
           <Link href="/">
-            <MotionDiv
+            <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
@@ -294,7 +299,7 @@ export default function Navbar() {
               <span className="text-xl font-bold text-foreground terminal-glow">
                 jblog.dev
               </span>
-            </MotionDiv>
+            </motion.div>
           </Link>
 
           {/* Desktop Navigation - Icon Only with Animated Label */}
@@ -302,53 +307,63 @@ export default function Navbar() {
             {navItems.map((item: NavItem, index: number) => {
               const Icon = item.icon;
               const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
-              const wasActive = activeLabels.has(item.name);
-              const isNewlyActive = isActive && !wasActive;
               
               return (
-                <MotionDiv
+                <motion.div
                   key={item.name}
                   initial={hasAnimatedRef.current ? { opacity: 1, y: 0 } : { opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={hasAnimatedRef.current ? { duration: 0 } : { duration: 0.5, delay: index * 0.1 }}
-                  whileHover={{ scale: 1.1 }}
+                  whileHover={{ scale: 1.05 }}
                   className="relative group"
                 >
                   <div className="flex items-center">
-                    <MotionDiv
-                      whileTap={{ scale: 0.9 }}
-                      transition={{ duration: 0.15, ease: "easeOut" }}
-                    >
-                      <Link
-                        href={item.href}
-                        className={`relative flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-300 flex-shrink-0 active:scale-95 ${
-                          isActive
-                            ? "bg-primary/10 text-primary"
-                            : "text-foreground/60 hover:text-primary hover:bg-accent/50"
-                        }`}
+                    <Tooltip content={item.name} delay={200}>
+                      <motion.div
+                        whileTap={{ scale: 0.9 }}
+                        transition={{ duration: 0.15, ease: "easeOut" }}
                       >
-                        <Icon className="h-5 w-5 flex-shrink-0 transition-transform duration-200" />
-                      </Link>
-                    </MotionDiv>
+                        <Link
+                          href={item.href}
+                          className={`relative flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-300 flex-shrink-0 ${
+                            isActive
+                              ? "bg-primary/10 text-primary"
+                              : "text-foreground/60 hover:text-primary hover:bg-accent/50"
+                          }`}
+                        >
+                          <motion.div
+                            animate={isActive ? { scale: 1.1, rotate: 0 } : { scale: 1, rotate: 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <Icon className="h-5 w-5 flex-shrink-0" />
+                          </motion.div>
+                        </Link>
+                      </motion.div>
+                    </Tooltip>
                     
                     {/* Animated Label - Only show when active, slide from left to right */}
-                    {isActive && (
-                      <div className="ml-3 whitespace-nowrap flex-shrink-0">
-                        <MotionDiv
-                          key={`label-${item.name}`}
-                          initial={isNewlyActive ? { opacity: 0, x: -30 } : { opacity: 1, x: 0 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={isNewlyActive ? { duration: 0.4, ease: "easeOut" } : { duration: 0 }}
-                          className="inline-block"
+                    <AnimatePresence mode="wait">
+                      {isActive && (
+                        <motion.div
+                          key={`label-${item.name}-${pathname}`}
+                          initial={{ opacity: 0, x: -20, width: 0 }}
+                          animate={{ opacity: 1, x: 0, width: "auto" }}
+                          exit={{ opacity: 0, x: -20, width: 0 }}
+                          transition={{ 
+                            duration: 0.3, 
+                            ease: [0.4, 0, 0.2, 1],
+                            opacity: { duration: 0.2 }
+                          }}
+                          className="ml-3 whitespace-nowrap overflow-hidden flex-shrink-0"
                         >
                           <span className="inline-block px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm font-medium backdrop-blur-sm border border-primary/20 shadow-sm">
                             {item.name}
                           </span>
-                        </MotionDiv>
-                      </div>
-                    )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                </MotionDiv>
+                </motion.div>
               );
             })}
           </div>
@@ -373,6 +388,7 @@ export default function Navbar() {
                           src={user.profilePicture}
                           alt={user.name || "Profile"}
                           fill
+                          sizes="32px"
                           className="object-cover"
                         />
                       </div>
@@ -387,57 +403,65 @@ export default function Navbar() {
                   </button>
 
                   {/* Dropdown Menu */}
-                  {profileMenuOpen && (
-                    <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50">
-                      <MotionDiv
-                        whileTap={{ scale: 0.97 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
+                  <AnimatePresence>
+                    {profileMenuOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50"
                       >
-                        <Link
-                          href={`/users/${userId}`}
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-accent transition-all active:scale-95"
+                        <motion.div
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ duration: 0.15, ease: "easeOut" }}
                         >
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-foreground">Profil Saya</span>
-                        </Link>
-                      </MotionDiv>
-                      <MotionDiv
-                        whileTap={{ scale: 0.97 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
-                      >
-                        <Link
-                          href="/profile/settings"
-                          onClick={() => setProfileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3 hover:bg-accent transition-all active:scale-95"
+                          <Link
+                            href={`/users/${userId}`}
+                            onClick={() => setProfileMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-accent transition-all"
+                          >
+                            <User className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-foreground">Profil Saya</span>
+                          </Link>
+                        </motion.div>
+                        <motion.div
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ duration: 0.15, ease: "easeOut" }}
                         >
-                          <Settings className="h-4 w-4 text-muted-foreground" />
-                          <span className="text-sm text-foreground">Pengaturan</span>
-                        </Link>
-                      </MotionDiv>
-                      <div className="border-t border-border"></div>
-                      <MotionDiv
-                        whileTap={{ scale: 0.97 }}
-                        transition={{ duration: 0.15, ease: "easeOut" }}
-                      >
-                        <button
-                          onClick={async () => {
-                            setProfileMenuOpen(false);
-                            await logout();
-                            router.push("/");
-                          }}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-destructive/10 text-destructive transition-all active:scale-95"
+                          <Link
+                            href="/profile/settings"
+                            onClick={() => setProfileMenuOpen(false)}
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-accent transition-all"
+                          >
+                            <Settings className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-foreground">Pengaturan</span>
+                          </Link>
+                        </motion.div>
+                        <div className="border-t border-border"></div>
+                        <motion.div
+                          whileTap={{ scale: 0.97 }}
+                          transition={{ duration: 0.15, ease: "easeOut" }}
                         >
-                          <LogOut className="h-4 w-4" />
-                          <span className="text-sm">Logout</span>
-                        </button>
-                      </MotionDiv>
-                    </div>
-                  )}
+                          <button
+                            onClick={async () => {
+                              setProfileMenuOpen(false);
+                              await logout();
+                              router.push("/");
+                            }}
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-destructive/10 text-destructive transition-all"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            <span className="text-sm">Logout</span>
+                          </button>
+                        </motion.div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </>
             ) : (
-              <MotionDiv
+              <motion.div
                 whileTap={{ scale: 0.95 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
               >
@@ -447,10 +471,10 @@ export default function Navbar() {
                 >
                   Sign In
                 </Link>
-              </MotionDiv>
+              </motion.div>
             )}
             {/* Theme Toggle Button */}
-            <MotionDiv
+            <motion.div
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className="relative"
@@ -460,13 +484,13 @@ export default function Navbar() {
                 className="relative h-10 w-10 rounded-lg bg-card hover:bg-accent border border-border flex items-center justify-center overflow-hidden transition-colors"
                 aria-label="Toggle theme"
               >
-                <MotionDiv
+                <motion.div
                   key={theme}
                   initial={{ rotate: -180, scale: 0 }}
                   animate={{ rotate: 0, scale: 1 }}
                   transition={{
                     duration: 0.6,
-                    ease: "cubic-bezier(0.34, 1.56, 0.64, 1)",
+                    ease: [0.34, 1.56, 0.64, 1],
                   }}
                   className="absolute"
                 >
@@ -475,12 +499,12 @@ export default function Navbar() {
                   ) : (
                     <Sun className="h-5 w-5 text-primary" />
                   )}
-                </MotionDiv>
+                </motion.div>
               </button>
-            </MotionDiv>
+            </motion.div>
 
             {/* Mobile Menu Button */}
-            <MotionDiv
+            <motion.div
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9 }}
               className="md:hidden"
@@ -496,103 +520,121 @@ export default function Navbar() {
                   <Menu className="h-5 w-5 text-foreground" />
                 )}
               </button>
-            </MotionDiv>
+            </motion.div>
           </div>
         </div>
 
         {/* Mobile Menu */}
-        {mobileMenuOpen && (
-          <MotionDiv
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.3 }}
-            className="md:hidden border-t border-border overflow-hidden"
-          >
-            <div className="py-4 space-y-2">
-              {navItems.map((item: NavItem, index: number) => (
-                <MotionDiv
-                  key={item.name}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: index * 0.05 }}
-                  whileHover={{ x: 8 }}
-                >
-                  <MotionDiv
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3 }}
+              className="md:hidden border-t border-border overflow-hidden"
+            >
+              <div className="py-4 space-y-2">
+                {navItems.map((item: NavItem, index: number) => {
+                  const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+                  return (
+                    <motion.div
+                      key={item.name}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      whileHover={{ x: 8 }}
+                    >
+                      <motion.div
+                        whileTap={{ scale: 0.97, x: 4 }}
+                        transition={{ duration: 0.15, ease: "easeOut" }}
+                      >
+                        <Link
+                          href={item.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className={`block px-4 py-3 text-base font-medium rounded-md transition-all ${
+                            isActive
+                              ? "text-primary bg-primary/10"
+                              : "text-foreground/80 hover:text-primary hover:bg-accent/50"
+                          }`}
+                        >
+                          {item.name}
+                        </Link>
+                      </motion.div>
+                    </motion.div>
+                  );
+                })}
+                {authenticated ? (
+                  <>
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: navItems.length * 0.05 }}
+                      whileTap={{ scale: 0.97, x: 4 }}
+                    >
+                      <Link
+                        href={`/users/${userId}`}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground/80 hover:text-primary hover:bg-accent/50 rounded-md transition-all"
+                      >
+                        <User className="h-4 w-4" />
+                        <span>Profil Saya</span>
+                      </Link>
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: (navItems.length + 1) * 0.05 }}
+                      whileTap={{ scale: 0.97, x: 4 }}
+                    >
+                      <Link
+                        href="/profile/settings"
+                        onClick={() => setMobileMenuOpen(false)}
+                        className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground/80 hover:text-primary hover:bg-accent/50 rounded-md transition-all"
+                      >
+                        <Settings className="h-4 w-4" />
+                        <span>Pengaturan</span>
+                      </Link>
+                    </motion.div>
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ duration: 0.3, delay: (navItems.length + 2) * 0.05 }}
+                      whileTap={{ scale: 0.97, x: 4 }}
+                    >
+                      <button
+                        onClick={async () => {
+                          await logout();
+                          setMobileMenuOpen(false);
+                          router.push("/");
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-3 text-base font-medium text-foreground/80 hover:text-destructive hover:bg-accent/50 rounded-md transition-all"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Logout</span>
+                      </button>
+                    </motion.div>
+                  </>
+                ) : (
+                  <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: navItems.length * 0.05 }}
                     whileTap={{ scale: 0.97, x: 4 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
                   >
                     <Link
-                      href={item.href}
+                      href="/login"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="block px-4 py-3 text-base font-medium text-foreground/80 hover:text-primary hover:bg-accent/50 rounded-md transition-all active:scale-95"
+                      className="block px-4 py-3 text-base font-medium text-primary hover:bg-accent/50 rounded-md transition-all"
                     >
-                      {item.name}
+                      Sign In
                     </Link>
-                  </MotionDiv>
-                </MotionDiv>
-              ))}
-              {authenticated ? (
-                <>
-                  <MotionDiv
-                    whileTap={{ scale: 0.97, x: 4 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                  >
-                    <Link
-                      href={`/users/${userId}`}
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground/80 hover:text-primary hover:bg-accent/50 rounded-md transition-all active:scale-95"
-                    >
-                      <User className="h-4 w-4" />
-                      <span>Profil Saya</span>
-                    </Link>
-                  </MotionDiv>
-                  <MotionDiv
-                    whileTap={{ scale: 0.97, x: 4 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                  >
-                    <Link
-                      href="/profile/settings"
-                      onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center gap-3 px-4 py-3 text-base font-medium text-foreground/80 hover:text-primary hover:bg-accent/50 rounded-md transition-all active:scale-95"
-                    >
-                      <Settings className="h-4 w-4" />
-                      <span>Pengaturan</span>
-                    </Link>
-                  </MotionDiv>
-                  <MotionDiv
-                    whileTap={{ scale: 0.97, x: 4 }}
-                    transition={{ duration: 0.15, ease: "easeOut" }}
-                  >
-                    <button
-                      onClick={async () => {
-                        await logout();
-                        setMobileMenuOpen(false);
-                        router.push("/");
-                      }}
-                      className="flex items-center gap-3 w-full text-left px-4 py-3 text-base font-medium text-foreground/80 hover:text-destructive hover:bg-accent/50 rounded-md transition-all active:scale-95"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      <span>Logout</span>
-                    </button>
-                  </MotionDiv>
-                </>
-              ) : (
-                <MotionDiv
-                  whileTap={{ scale: 0.97, x: 4 }}
-                  transition={{ duration: 0.15, ease: "easeOut" }}
-                >
-                  <Link
-                    href="/login"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="block px-4 py-3 text-base font-medium text-primary hover:bg-accent/50 rounded-md transition-all active:scale-95"
-                  >
-                    Sign In
-                  </Link>
-                </MotionDiv>
-              )}
-            </div>
-          </MotionDiv>
-        )}
+                  </motion.div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </nav>
   );
