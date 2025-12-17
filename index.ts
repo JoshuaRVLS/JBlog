@@ -19,6 +19,8 @@ import BookmarksRoutes from "./routes/bookmarks.route";
 import RepostsRoutes from "./routes/reposts.route";
 import DirectMessagesRoutes from "./routes/directMessages.route";
 import FeedRoutes from "./routes/feed.route";
+import BroadcastRoutes from "./routes/broadcast.route";
+import UpdateLogRoutes from "./routes/updatelog.route";
 import db from "./lib/db";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -88,6 +90,8 @@ app.use("/api/bookmarks/", BookmarksRoutes);
 app.use("/api/reposts/", RepostsRoutes);
 app.use("/api/direct-messages/", DirectMessagesRoutes);
 app.use("/api/feed/", FeedRoutes);
+app.use("/api/broadcast/", BroadcastRoutes);
+app.use("/api/updatelog/", UpdateLogRoutes);
 
 // Create HTTP server
 const httpServer = createServer(app);

@@ -7,6 +7,7 @@ import { RegisterSchema } from "../schemas/register.schema";
 import bcrypt from "bcryptjs";
 import { generateVerificationToken } from "../lib/generator";
 import { encrypt } from "../lib/jwt";
+import { getVerificationEmailTemplate } from "../lib/emailTemplate";
 
 export const createUser = async (req: Request, res: Response) => {
   try {
@@ -35,8 +36,12 @@ export const createUser = async (req: Request, res: Response) => {
       body: JSON.stringify({
         sender: { name: "JCorp", email: "jravaellnew@gmail.com" },
         to: [{ email: user.email, name: user.name }],
-        subject: "JBlog Kode Verifikasi",
-        htmlContent: `Ini kode verifikasi kamu: ${verificationCode} atau melalui link: http://localhost:3000/verify-email?code=${verificationCode}`,
+        subject: "JBlog - Kode Verifikasi Email Anda",
+        htmlContent: getVerificationEmailTemplate(
+          user.name,
+          verificationCode,
+          `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email/${user.id}?code=${verificationCode}`
+        ),
       }),
     });
 
@@ -55,44 +60,12 @@ export const createUser = async (req: Request, res: Response) => {
       },
     });
 
-    // Auto login setelah register berhasil
-    const accessToken = await encrypt({ id: user.id }, "15m");
-    const refreshToken = await encrypt({ id: user.id }, "7d");
-
-    await db.refreshToken.upsert({
-      create: {
-        value: refreshToken,
-        userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-      update: {
-        value: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-      where: {
-        userId: user.id,
-      },
-    });
-
-    // Set cookies untuk auto login
-    res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "prod",
-      maxAge: 15 * 60 * 1000,
-      sameSite: "lax",
-    });
-    res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "prod",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
-    });
-
-    console.log(`✅ User berhasil dibuat dan auto login - User: ${user.email}`);
+    // Don't auto-login, user needs to verify email first
+    console.log(`✅ User berhasil dibuat - User: ${user.email}`);
     res.status(StatusCodes.CREATED).json({
-      msg: "Registrasi berhasil! Selamat datang!",
+      msg: "Registrasi berhasil! Silakan cek email kamu untuk kode verifikasi.",
       user: { id: user.id, email: user.email, name: user.name },
-      redirectTo: "/profile/finalisation",
+      redirectTo: `/verify-email/${user.id}`,
     });
   } catch (error: any) {
     // Handle unique constraint violation (email already exists)
@@ -121,6 +94,13 @@ export const getUserProfile = async (req: Request, res: Response) => {
         email: true,
         bio: true,
         profilePicture: true,
+        country: true,
+        website: true,
+        location: true,
+        twitter: true,
+        github: true,
+        linkedin: true,
+        instagram: true,
         isOwner: true,
         isAdmin: true,
         isVerified: true,

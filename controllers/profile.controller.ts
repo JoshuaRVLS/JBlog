@@ -12,9 +12,8 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
     }
 
-    const { name, bio, profilePicture, country, customLinks } = req.body;
+    const { name, bio, profilePicture, country, website, location, twitter, github, linkedin, instagram, customLinks } = req.body;
 
-    // Update user basic info
     const user = await db.user.update({
       where: { id: userId },
       data: {
@@ -22,6 +21,12 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         ...(bio !== undefined && { bio }),
         ...(profilePicture !== undefined && { profilePicture }),
         ...(country !== undefined && { country }),
+        ...(website !== undefined && { website }),
+        ...(location !== undefined && { location }),
+        ...(twitter !== undefined && { twitter }),
+        ...(github !== undefined && { github }),
+        ...(linkedin !== undefined && { linkedin }),
+        ...(instagram !== undefined && { instagram }),
       },
       select: {
         id: true,
@@ -29,6 +34,13 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         email: true,
         bio: true,
         profilePicture: true,
+        country: true,
+        website: true,
+        location: true,
+        twitter: true,
+        github: true,
+        linkedin: true,
+        instagram: true,
         isVerified: true,
         createdAt: true,
         customLinks: {
@@ -71,6 +83,13 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
           email: true,
           bio: true,
           profilePicture: true,
+          country: true,
+          website: true,
+          location: true,
+          twitter: true,
+          github: true,
+          linkedin: true,
+          instagram: true,
           isVerified: true,
           createdAt: true,
           customLinks: {
@@ -121,6 +140,12 @@ export const getCurrentProfile = async (req: AuthRequest, res: Response) => {
           bio: true,
           profilePicture: true,
           country: true,
+          website: true,
+          location: true,
+          twitter: true,
+          github: true,
+          linkedin: true,
+          instagram: true,
           isVerified: true,
           isOwner: true,
           isAdmin: true,
@@ -161,6 +186,12 @@ export const getCurrentProfile = async (req: AuthRequest, res: Response) => {
         bio: user.bio ?? null,
         profilePicture: user.profilePicture ?? null,
         country: user.country ?? null,
+        website: user.website ?? null,
+        location: user.location ?? null,
+        twitter: user.twitter ?? null,
+        github: user.github ?? null,
+        linkedin: user.linkedin ?? null,
+        instagram: user.instagram ?? null,
         isVerified: user.isVerified ?? false,
         isOwner: user.isOwner ?? false,
         isAdmin: user.isAdmin ?? false,

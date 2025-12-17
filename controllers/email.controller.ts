@@ -2,6 +2,8 @@ import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import db from "../lib/db";
 import { generateVerificationToken } from "../lib/generator";
+import { encrypt } from "../lib/jwt";
+import { getVerificationEmailTemplate } from "../lib/emailTemplate";
 
 export const sendVerification = async (req: Request, res: Response) => {
   const { userId } = req.body;
@@ -22,6 +24,22 @@ export const sendVerification = async (req: Request, res: Response) => {
 
   const verificationCode = generateVerificationToken();
 
+  // Update or create verification code in database
+  await db.verificationCode.upsert({
+    update: {
+      value: verificationCode,
+      expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+    },
+    create: {
+      value: verificationCode,
+      expiredAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      userId: user.id,
+    },
+    where: {
+      userId: user.id,
+    },
+  });
+
   try {
     await fetch("https://api.brevo.com/v3/smtp/email", {
       method: "POST",
@@ -41,12 +59,21 @@ export const sendVerification = async (req: Request, res: Response) => {
             name: user.name,
           },
         ],
-        subject: "JBlog Kode Verifikasi",
-        htmlContent: `Ini kode verifikasi kamu: ${verificationCode} atau melalui link: http://localhost:3000/verify-email?code=${verificationCode}`,
+        subject: "JBlog - Kode Verifikasi Email Anda",
+        htmlContent: getVerificationEmailTemplate(
+          user.name,
+          verificationCode,
+          `${process.env.FRONTEND_URL || "http://localhost:3000"}/verify-email/${user.id}?code=${verificationCode}`
+        ),
       }),
     });
+    
+    res.json({ msg: "Kode verifikasi telah dikirim ke email kamu" });
   } catch (error) {
     console.log(error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      msg: "Gagal mengirim email, tetapi kode telah dibuat. Silakan coba lagi nanti." 
+    });
   }
 };
 
@@ -110,7 +137,40 @@ export const verifyVerification = async (req: Request, res: Response) => {
       });
     }
 
-    console.log(`✅ Email terverifikasi - User ID: ${storedCode.userId}`);
+    // Auto login setelah verifikasi berhasil
+    const accessToken = await encrypt({ id: storedCode.userId }, "15m");
+    const refreshToken = await encrypt({ id: storedCode.userId }, "7d");
+
+    await db.refreshToken.upsert({
+      create: {
+        value: refreshToken,
+        userId: storedCode.userId,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      update: {
+        value: refreshToken,
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+      },
+      where: {
+        userId: storedCode.userId,
+      },
+    });
+
+    // Set cookies untuk auto login
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "prod",
+      maxAge: 15 * 60 * 1000,
+      sameSite: "lax",
+    });
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "prod",
+      sameSite: "lax",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
+    console.log(`✅ Email terverifikasi dan user auto login - User ID: ${storedCode.userId}`);
     res.json({ 
       msg: "Verifikasi akun berhasil!",
       userId: storedCode.userId,

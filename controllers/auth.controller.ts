@@ -31,6 +31,17 @@ export const loginUser = async (req: Request, res: Response) => {
         .json({ msg: "Email atau password salah" });
     }
 
+    // Cek apakah email sudah terverifikasi
+    if (!user.isVerified) {
+      return res
+        .status(StatusCodes.FORBIDDEN)
+        .json({ 
+          msg: "Email belum terverifikasi. Silakan cek email kamu untuk kode verifikasi.",
+          userId: user.id,
+          requiresVerification: true
+        });
+    }
+
     const accessToken = await encrypt({ id: user.id }, "15m");
 
     const refreshToken = await encrypt({ id: user.id }, "7d");
