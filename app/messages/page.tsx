@@ -693,7 +693,7 @@ function MessagesPageContent() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto" data-lenis-prevent>
                 {loading ? (
                   <div className="p-4 space-y-4">
                     {[1, 2, 3].map((i) => (
@@ -837,7 +837,7 @@ function MessagesPageContent() {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4" data-lenis-prevent>
                     {messages.map((message) => {
                       const isOwn = message.senderId === userId;
                       

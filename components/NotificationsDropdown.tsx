@@ -12,7 +12,7 @@ import { io, Socket } from "socket.io-client";
 
 interface Notification {
   id: string;
-  type: "like" | "comment" | "reply" | "mention";
+  type: "like" | "comment" | "reply" | "mention" | "direct_message";
   actor: {
     id: string;
     name: string;
@@ -171,6 +171,8 @@ export default function NotificationsDropdown() {
         return <MessageCircle className="h-4 w-4 text-blue-500" />;
       case "mention":
         return <AtSign className="h-4 w-4 text-purple-500" />;
+      case "direct_message":
+        return <MessageCircle className="h-4 w-4 text-emerald-500" />;
       default:
         return <Bell className="h-4 w-4" />;
     }
@@ -218,6 +220,14 @@ export default function NotificationsDropdown() {
       );
     }
 
+    if (type === "direct_message") {
+      return (
+        <>
+          <strong>{actor.name}</strong> mengirimkan pesan ke kamu
+        </>
+      );
+    }
+
     return <strong>{actor.name}</strong>;
   };
 
@@ -227,6 +237,10 @@ export default function NotificationsDropdown() {
     }
     if (notification.groupChat) {
       return `/groupchat?group=${notification.groupChat.id}`;
+    }
+    if (notification.type === "direct_message") {
+      // Buka DM dengan actor (pengirim pesan)
+      return `/messages?userId=${notification.actor.id}`;
     }
     return "#";
   };
