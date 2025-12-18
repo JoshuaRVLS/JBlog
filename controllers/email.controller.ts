@@ -2,7 +2,7 @@ import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import db from "../lib/db";
 import { generateVerificationToken } from "../lib/generator";
-import { encrypt } from "../lib/jwt";
+import { encrypt, generateTokenId } from "../lib/jwt";
 import { getVerificationEmailTemplate } from "../lib/emailTemplate";
 import { EncryptionService } from "../lib/encryption";
 
@@ -139,35 +139,37 @@ export const verifyVerification = async (req: Request, res: Response) => {
     }
 
     // Auto login setelah verifikasi berhasil
-    const accessToken = await encrypt({ id: storedCode.userId }, "15m");
-    const refreshToken = await encrypt({ id: storedCode.userId }, "7d");
+    const accessToken = await encrypt({ id: storedCode.userId }, "15m", generateTokenId());
+    const refreshTokenId = generateTokenId();
+    const refreshToken = await encrypt({ id: storedCode.userId }, "7d", refreshTokenId);
 
-    await db.refreshToken.upsert({
-      create: {
+    // Simpan refresh token baru (multi-device support, tidak lagi one-to-one)
+    const refreshTokenExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    await db.refreshToken.create({
+      data: {
         value: refreshToken,
         userId: storedCode.userId,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-      update: {
-        value: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
-      where: {
-        userId: storedCode.userId,
+        expiresAt: refreshTokenExpiresAt,
+        isRevoked: false,
       },
     });
 
-    // Set cookies untuk auto login
+    // Set cookies untuk auto login - samakan dengan pola di auth.controller
+    const isProduction = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod";
+    const cookieOptions = {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: "lax" as const,
+      path: "/",
+    };
+
     res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "prod",
+      ...cookieOptions,
       maxAge: 15 * 60 * 1000,
-      sameSite: "lax",
     });
+
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "prod",
-      sameSite: "lax",
+      ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
