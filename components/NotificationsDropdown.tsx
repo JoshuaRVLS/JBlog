@@ -110,6 +110,14 @@ export default function NotificationsDropdown() {
       const response = await AxiosInstance.get("/notifications?limit=20");
       setNotifications(response.data.notifications || []);
     } catch (error) {
+      const anyError = error as any;
+      const status = anyError?.response?.status;
+      // Kalau token sudah expired / belum valid, jangan spam error, cukup kosongkan data
+      if (status === 401) {
+        setNotifications([]);
+        setUnreadCount(0);
+        return;
+      }
       console.error("Error fetching notifications:", error);
     } finally {
       setLoading(false);
@@ -121,6 +129,13 @@ export default function NotificationsDropdown() {
       const response = await AxiosInstance.get("/notifications/unread-count");
       setUnreadCount(response.data.count || 0);
     } catch (error) {
+      const anyError = error as any;
+      const status = anyError?.response?.status;
+      if (status === 401) {
+        // Kalau belum login / token invalid, anggap tidak ada unread
+        setUnreadCount(0);
+        return;
+      }
       console.error("Error fetching unread count:", error);
     }
   };

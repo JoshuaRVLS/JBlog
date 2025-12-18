@@ -559,13 +559,13 @@ export default function BlogPage() {
                         className="flex items-center gap-3 p-3 rounded-xl hover:bg-accent/50 transition-colors"
                       >
                         <Link href={`/users/${user.id}`} className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="relative flex-shrink-0">
+                          <div className="relative flex-shrink-0 w-11 h-11 rounded-full overflow-hidden ring-2 ring-border">
                             <Image
                               src={user.profilePicture || generateAvatarUrl(user.name)}
                               alt={user.name}
-                              width={44}
-                              height={44}
-                              className="rounded-full ring-2 ring-border"
+                              fill
+                              sizes="44px"
+                              className="object-cover"
                             />
                             {user.isVerified && (
                               <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-primary rounded-full flex items-center justify-center">
