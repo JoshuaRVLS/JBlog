@@ -76,6 +76,8 @@ export default function ProfileFinalisation() {
         headers: {
           "Content-Type": "multipart/form-data",
         },
+        // Allow more time for avatar upload on VPS
+        timeout: 120000,
       });
 
       setProfilePicture(response.data.url);

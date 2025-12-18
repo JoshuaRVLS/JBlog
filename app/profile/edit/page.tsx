@@ -86,6 +86,8 @@ export default function ProfileEdit() {
         headers: {
           "Content-Type": "multipart/form-data",
         },
+        // Allow more time for avatar upload on VPS (Supabase + network latency)
+        timeout: 120000,
       });
 
       setProfilePicture(response.data.url);
