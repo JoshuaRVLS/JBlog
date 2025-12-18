@@ -11,7 +11,8 @@ export default function MarkdownRenderer({ content }: { content: string }) {
     const imageBlocks: string[] = [];
     html = html.replace(imageBlockRegex, (match) => {
       imageBlocks.push(match);
-      return `__IMAGE_BLOCK_${imageBlocks.length - 1}__`;
+      // Gunakan placeholder yang tidak mengandung karakter markdown (tanpa _ atau *)
+      return `JIMAGEBLOCKPLACEHOLDER${imageBlocks.length - 1}`;
     });
 
     // Headers
@@ -106,7 +107,7 @@ export default function MarkdownRenderer({ content }: { content: string }) {
     html = html.split("\n\n").map((para) => {
       if (!para.trim()) return "";
       if (para.startsWith("<")) return para; // Already formatted
-      if (para.includes("__IMAGE_BLOCK_")) return para; // Preserve image blocks
+      if (para.includes("JIMAGEBLOCKPLACEHOLDER")) return para; // Preserve image blocks
       return `<p class='mb-4 leading-7'>${para.replace(/\n/g, "<br />")}</p>`;
     }).join("");
 
@@ -119,7 +120,7 @@ export default function MarkdownRenderer({ content }: { content: string }) {
         .replace(/<img src="([^"]+)" alt="([^"]*)" \/>/g, '<img src="$1" alt="$2" class="max-w-full h-auto max-h-[500px] rounded-xl shadow-2xl object-contain bg-muted/20 p-2" loading="lazy" />')
         .replace(/class="image-caption"/, 'class="image-caption italic text-muted-foreground text-sm mt-3 text-center"');
       
-      html = html.replace(`__IMAGE_BLOCK_${index}__`, styledBlock);
+      html = html.replace(`JIMAGEBLOCKPLACEHOLDER${index}`, styledBlock);
     });
 
     return html;

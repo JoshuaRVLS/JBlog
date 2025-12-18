@@ -17,12 +17,9 @@ import {
   EyeOff,
 } from "lucide-react";
 import toast from "react-hot-toast";
-import dynamic from "next/dynamic";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { FormTextarea } from "@/components/ui/FormInput";
-
-const MDEditor = dynamic(() => import("@uiw/react-md-editor"), { ssr: false });
-import "@uiw/react-md-editor/markdown-editor.css";
+import DragDropPostEditor from "@/components/editor/DragDropPostEditor";
 
 export default function EditPost() {
   const { userId, authenticated } = useContext(AuthContext);
@@ -48,7 +45,6 @@ export default function EditPost() {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const inlineImageInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLDivElement>(null);
-  const editorRef = useRef<any>(null);
 
   // Fetch available tags
   useEffect(() => {
@@ -162,7 +158,31 @@ export default function EditPost() {
       toast.success("Cover image berhasil diupload");
     } catch (error: any) {
       console.error("Error uploading cover:", error);
-      toast.error(error.response?.data?.error || "Gagal upload cover image");
+
+      const status = error?.response?.status;
+      const code = error?.response?.data?.code;
+      const backendMsg = error?.response?.data?.error || error?.response?.data?.msg;
+
+      if (status === 401) {
+        if (code === "NO_TOKEN") {
+          toast.error("Sesi login kamu sudah habis. Silakan login lagi untuk upload cover.");
+        } else if (code === "TOKEN_EXPIRED") {
+          toast.error("Token sudah kedaluwarsa. Refresh halaman atau login ulang dulu.");
+        } else {
+          toast.error(backendMsg || "Tidak terautentikasi. Silakan login ulang.");
+        }
+      } else if (status === 413) {
+        toast.error("Cover terlalu besar untuk diproses server. Coba perkecil ukuran gambar.");
+      } else if (status === 422) {
+        toast.error(backendMsg || "Format cover tidak valid.");
+      } else if (error.code === "ECONNABORTED") {
+        toast.error("Upload cover timeout. Cek koneksi lalu coba lagi.");
+      } else if (error.message === "Network Error") {
+        toast.error("Tidak bisa terhubung ke server. Pastikan backend hidup.");
+      } else {
+        toast.error(backendMsg || "Gagal upload cover image");
+      }
+
       setCoverImageFile(null);
       setCoverImagePreview(null);
     } finally {
@@ -220,30 +240,11 @@ export default function EditPost() {
   <p class="image-caption">*Deskripsi gambar*</p>
 </div>\n\n`;
       
-      // Insert di posisi cursor atau di akhir
-      // Gunakan MDEditor API jika tersedia, atau langsung insert ke content
-      if (editorRef.current && editorRef.current.textarea) {
-        // Insert menggunakan MDEditor API
-        const textarea = editorRef.current.textarea;
-        const start = textarea.selectionStart || content.length;
-        const end = textarea.selectionEnd || content.length;
-        const newContent = content.slice(0, start) + imageMarkdown + content.slice(end);
-        setContent(newContent);
-        
-        // Set cursor position setelah image markdown
-        setTimeout(() => {
-          if (textarea) {
-            const newPos = start + imageMarkdown.length;
-            textarea.setSelectionRange(newPos, newPos);
-            textarea.focus();
-          }
-        }, 0);
-      } else {
-        // Fallback: insert di akhir
-        const cursorPos = content.length;
-        const newContent = content.slice(0, cursorPos) + imageMarkdown + content.slice(cursorPos);
-        setContent(newContent);
-      }
+      // Untuk editor baru, cukup tambahkan HTML block ke akhir konten.
+      const cursorPos = content.length;
+      const newContent =
+        content.slice(0, cursorPos) + imageMarkdown + content.slice(cursorPos);
+      setContent(newContent);
       
       toast.success("Gambar berhasil ditambahkan");
     } catch (error: any) {
@@ -525,32 +526,13 @@ export default function EditPost() {
               )}
             </div>
 
-            {/* Content Editor with Preview Toggle */}
+            {/* Content Editor with Preview Toggle (Drag & Drop) */}
             <div className="space-y-4">
               <div className="flex items-center justify-between flex-wrap gap-4">
                 <label className="block text-sm font-semibold text-foreground">
                   Konten (Markdown)
                 </label>
                 <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => inlineImageInputRef.current?.click()}
-                    disabled={uploadingInline}
-                    className="flex items-center gap-2 px-4 py-2 bg-muted hover:bg-accent text-foreground rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium"
-                  >
-                    {uploadingInline ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Uploading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <ImageIcon className="h-4 w-4" />
-                        <span className="hidden sm:inline">Tambah Gambar</span>
-                        <span className="sm:hidden">Gambar</span>
-                      </>
-                    )}
-                  </button>
                   <button
                     type="button"
                     onClick={() => setShowPreview(!showPreview)}
@@ -589,121 +571,11 @@ export default function EditPost() {
                   </div>
                 </div>
               ) : (
-                <div className="relative border-2 border-border/50 rounded-xl overflow-hidden bg-gradient-to-br from-card via-card to-card/95 shadow-xl backdrop-blur-sm">
-                  {/* Editor Header with gradient */}
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-accent to-primary opacity-50"></div>
-                  
-                  <style jsx global>{`
-                    .w-md-editor {
-                      background: transparent !important;
-                      color: hsl(var(--foreground)) !important;
-                      border: none !important;
-                    }
-                    .w-md-editor-text {
-                      background: transparent !important;
-                    }
-                    .w-md-editor-text-textarea {
-                      background: transparent !important;
-                      color: hsl(var(--foreground)) !important;
-                      min-height: 600px !important;
-                      font-size: 16px !important;
-                      font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
-                      line-height: 1.8 !important;
-                      padding: 32px !important;
-                      border: none !important;
-                    }
-                    .w-md-editor-text-textarea:focus {
-                      outline: none !important;
-                      box-shadow: none !important;
-                    }
-                    .w-md-editor-toolbar {
-                      background: linear-gradient(135deg, hsl(var(--muted)) 0%, hsl(var(--muted)/80) 100%) !important;
-                      border-bottom: 1px solid hsl(var(--border)/50) !important;
-                      padding: 12px 16px !important;
-                      backdrop-filter: blur(10px) !important;
-                    }
-                    .w-md-editor-toolbar button {
-                      color: hsl(var(--foreground)) !important;
-                      border-radius: 6px !important;
-                      transition: all 0.2s ease !important;
-                    }
-                    .w-md-editor-toolbar button:hover {
-                      background-color: hsl(var(--accent)) !important;
-                      transform: translateY(-1px) !important;
-                    }
-                    .w-md-editor-text-pre {
-                      background: transparent !important;
-                      color: hsl(var(--foreground)) !important;
-                    }
-                    
-                    /* Image Block Styling - untuk preview dan editor */
-                    .w-md-editor-preview .image-block,
-                    .wmde-markdown .image-block {
-                      margin: 2rem 0 !important;
-                      padding: 1.5rem !important;
-                      background: linear-gradient(135deg, hsl(var(--muted)/30) 0%, hsl(var(--muted)/10) 100%) !important;
-                      border: 1px solid hsl(var(--border)/30) !important;
-                      border-radius: 1rem !important;
-                      text-align: center !important;
-                    }
-                    .w-md-editor-preview .image-container,
-                    .wmde-markdown .image-container {
-                      display: flex !important;
-                      justify-content: center !important;
-                      align-items: center !important;
-                      margin-bottom: 1rem !important;
-                    }
-                    .w-md-editor-preview .image-container img,
-                    .wmde-markdown .image-container img {
-                      max-width: 100% !important;
-                      height: auto !important;
-                      max-height: 500px !important;
-                      border-radius: 0.75rem !important;
-                      box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.3) !important;
-                      object-fit: contain !important;
-                      background: hsl(var(--muted)/20) !important;
-                      padding: 0.5rem !important;
-                    }
-                    .w-md-editor-preview .image-caption,
-                    .wmde-markdown .image-caption {
-                      font-style: italic !important;
-                      color: hsl(var(--muted-foreground)) !important;
-                      font-size: 0.9rem !important;
-                      margin-top: 0.75rem !important;
-                      text-align: center !important;
-                    }
-                    
-                    /* Ensure images are displayed, not as links */
-                    .w-md-editor-preview img:not(.image-container img),
-                    .w-md-editor-preview .wmde-markdown img:not(.image-container img) {
-                      display: block !important;
-                      max-width: 100% !important;
-                      height: auto !important;
-                      margin: 1.5rem auto !important;
-                      border-radius: 0.5rem !important;
-                      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1) !important;
-                      object-fit: contain !important;
-                    }
-                    .w-md-editor-preview a img:not(.image-container img),
-                    .w-md-editor-preview .wmde-markdown a img:not(.image-container img) {
-                      display: block !important;
-                      pointer-events: none !important;
-                    }
-                  `}</style>
-                  <MDEditor
-                    ref={editorRef}
-                    value={content}
-                    onChange={(val) => setContent(val || "")}
-                    preview="edit"
-                    hideToolbar={false}
-                    data-color-mode="dark"
-                    height={600}
-                  />
-                </div>
+                <DragDropPostEditor value={content} onChange={setContent} />
               )}
               
               <p className="text-xs text-muted-foreground">
-                💡 Tip: Gunakan tombol "Tambah Gambar" untuk menambahkan gambar inline dengan caption
+                💡 Tip: Susun paragraf dan gambar dengan drag & drop untuk membuat layout post yang rapi.
               </p>
             </div>
 

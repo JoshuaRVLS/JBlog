@@ -241,7 +241,7 @@ export default function BlogPage() {
               </p>
               
               {/* Search Bar */}
-              <div className="max-w-2xl mx-auto relative z-[100]">
+              <div className="max-w-2xl mx-auto relative z-10">
                 <SearchBar />
               </div>
             </div>
