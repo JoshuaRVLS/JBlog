@@ -95,7 +95,7 @@ export default function BlogPage() {
   });
 
   // Cached popular posts (sidebar "Trending")
-  const { data: popularPosts = [] } = useQuery({
+  const { data: popularPosts = [] } = useQuery<Post[]>({
     queryKey: ["popularPosts", 5],
     queryFn: async () => {
       const response = await AxiosInstance.get("/search/popular", {
@@ -107,14 +107,14 @@ export default function BlogPage() {
   });
 
   // Cached recommended users (depends on auth)
-  const { data: recommendedUsers = [] } = useQuery({
+  const { data: recommendedUsers = [] } = useQuery<RecommendedUser[]>({
     queryKey: ["recommendedUsers", { authenticated }],
     queryFn: async () => {
-      if (!authenticated) return [];
+      if (!authenticated) return [] as RecommendedUser[];
       const response = await AxiosInstance.get("/search/recommended-users", {
         params: { limit: 5 },
       });
-      return response.data.users || [];
+      return (response.data.users || []) as RecommendedUser[];
     },
     enabled: authenticated,
     staleTime: 5 * 60 * 1000,
