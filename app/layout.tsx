@@ -5,7 +5,7 @@ import { Toaster } from "react-hot-toast";
 import AuthProvider from "../providers/AuthProvider";
 import ThemeProvider from "@/providers/ThemeProvider";
 import QueryProvider from "@/providers/QueryProvider";
-import SmoothScroll from "@/components/SmoothScroll";
+import { SocketProvider } from "@/providers/SocketProvider";
 import ReportBugButton from "@/components/ReportBugButton";
 
 const geistSans = Geist({
@@ -161,12 +161,12 @@ export default function RootLayout({
             }}
           />
           <QueryProvider>
-            <SmoothScroll>
-              <AuthProvider>
+            <AuthProvider>
+              <SocketProvider>
                 {children}
                 <ReportBugButton />
-              </AuthProvider>
-            </SmoothScroll>
+              </SocketProvider>
+            </AuthProvider>
           </QueryProvider>
         </ThemeProvider>
       </body>

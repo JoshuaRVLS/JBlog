@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useContext, useMemo, useCallback } from "react";
+import { useState, useEffect, useContext, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -12,6 +12,7 @@ import PostsLoading from "@/components/PostsLoading";
 import { Clock, Heart, MessageCircle, TrendingUp, UserPlus, User, BookOpen, Sparkles, Filter, Grid3x3, List, Calendar, Eye } from "lucide-react";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
 import toast from "react-hot-toast";
+import { useQuery } from "@tanstack/react-query";
 
 interface Post {
   id: string;
@@ -63,13 +64,11 @@ export default function BlogPage() {
     }
   }, [isSuspended, authenticated, router]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [popularPosts, setPopularPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
-  const [tags, setTags] = useState<Array<{ id: string; name: string; slug: string }>>([]);
-  const [recommendedUsers, setRecommendedUsers] = useState<RecommendedUser[]>([]);
+  
   const [followStatuses, setFollowStatuses] = useState<Record<string, {
     isFollowing: boolean;
     isFollowedBy: boolean;
@@ -79,14 +78,45 @@ export default function BlogPage() {
   const [followingLoading, setFollowingLoading] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Cached tags (shared across Blog page visits)
+  const { data: tags = [] } = useQuery({
+    queryKey: ["tags"],
+    queryFn: async () => {
+      const response = await AxiosInstance.get("/tags");
+      return response.data.tags || [];
+    },
+    staleTime: 10 * 60 * 1000, // 10 menit
+  });
+
+  // Cached popular posts (sidebar "Trending")
+  const { data: popularPosts = [] } = useQuery({
+    queryKey: ["popularPosts", 5],
+    queryFn: async () => {
+      const response = await AxiosInstance.get("/search/popular", {
+        params: { limit: 5 },
+      });
+      return response.data.posts || [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Cached recommended users (depends on auth)
+  const { data: recommendedUsers = [] } = useQuery({
+    queryKey: ["recommendedUsers", { authenticated }],
+    queryFn: async () => {
+      if (!authenticated) return [];
+      const response = await AxiosInstance.get("/search/recommended-users", {
+        params: { limit: 5 },
+      });
+      return response.data.users || [];
+    },
+    enabled: authenticated,
+    staleTime: 5 * 60 * 1000,
+  });
+
   useEffect(() => {
     fetchPosts();
-    fetchTags();
-    fetchPopularPosts();
-    if (authenticated) {
-      fetchRecommendedUsers();
-    }
-  }, [selectedTag, sortBy, authenticated]);
+  }, [selectedTag, sortBy]);
 
   const fetchPosts = async () => {
     try {
@@ -111,37 +141,6 @@ export default function BlogPage() {
       console.error("Error fetching posts:", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchPopularPosts = async () => {
-    try {
-      const response = await AxiosInstance.get("/search/popular", {
-        params: { limit: 5 },
-      });
-      setPopularPosts(response.data.posts || []);
-    } catch (error) {
-      console.error("Error fetching popular posts:", error);
-    }
-  };
-
-  const fetchTags = async () => {
-    try {
-      const response = await AxiosInstance.get("/tags");
-      setTags(response.data.tags || []);
-    } catch (error) {
-      console.error("Error fetching tags:", error);
-    }
-  };
-
-  const fetchRecommendedUsers = async () => {
-    try {
-      const response = await AxiosInstance.get("/search/recommended-users", {
-        params: { limit: 5 },
-      });
-      setRecommendedUsers(response.data.users || []);
-    } catch (error) {
-      console.error("Error fetching recommended users:", error);
     }
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useContext, useRef, Suspense } from "react";
+import { useState, useEffect, useContext, useRef, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -9,7 +9,7 @@ import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
 import { Send, User, Search, ArrowLeft, MessageSquare, Image as ImageIcon, Video, Mic, X, Loader2, Play, Pause, Lock, Key, Plus } from "lucide-react";
 import toast from "react-hot-toast";
-import { io, Socket } from "socket.io-client";
+import { useSocket } from "@/providers/SocketProvider";
 import ImageViewer from "@/components/ImageViewer";
 import ConfirmModal from "@/components/modals/ConfirmModal";
 import { useEncryption } from "@/hooks/useEncryption";
@@ -58,6 +58,7 @@ function MessagesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { authenticated, userId, loading: authLoading } = useContext(AuthContext);
+  const { socket } = useSocket();
   const encryption = useEncryption(userId || undefined);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
@@ -72,7 +73,7 @@ function MessagesPageContent() {
   const [generatingKeyPair, setGeneratingKeyPair] = useState(false);
   const [currentUserProfile, setCurrentUserProfile] = useState<{ name: string; profilePicture: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
+  const lastConversationsFetchRef = useRef<number>(0);
   
   // Media upload states
   const [selectedMedia, setSelectedMedia] = useState<{
@@ -134,14 +135,8 @@ function MessagesPageContent() {
   useEffect(() => {
     if (selectedUserId) {
       fetchMessages(selectedUserId);
-      setupSocket();
       loadReceiverPublicKey(selectedUserId);
     }
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
   }, [selectedUserId]);
 
   useEffect(() => {
@@ -184,84 +179,7 @@ function MessagesPageContent() {
     };
   }, [audioUrl, isRecording]);
 
-  const setupSocket = () => {
-    if (!selectedUserId || !userId) return;
-
-    const token = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("accessToken="))
-      ?.split("=")[1];
-
-    if (!token) return;
-
-    // Get backend URL from environment variable or use localhost as fallback
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") || "http://localhost:8000";
-    const socketUrl = backendUrl.startsWith("http") ? backendUrl : `http://${backendUrl}`;
-
-    // Disconnect existing socket if any
-    if (socketRef.current) {
-      socketRef.current.disconnect();
-    }
-
-    socketRef.current = io(socketUrl, {
-      auth: { token },
-      transports: ["websocket", "polling"],
-    });
-
-    socketRef.current.on("connect", () => {
-      console.log("✅ Connected to messages socket");
-    });
-
-    socketRef.current.on("disconnect", () => {
-      console.log("❌ Disconnected from messages socket");
-    });
-
-    socketRef.current.on("connect_error", (error) => {
-      console.error("Socket connection error:", error);
-    });
-
-    socketRef.current.on("newDirectMessage", async (message: Message) => {
-      // Only add message if it's for the current conversation
-      if (
-        (message.senderId === selectedUserId && message.receiverId === userId) ||
-        (message.senderId === userId && message.receiverId === selectedUserId)
-      ) {
-        // Decrypt message if encrypted
-        let decryptedMessage = message;
-        if (encryption && message.encryptedContent && message.senderId !== userId && encryption.hasKeys) {
-          try {
-            const senderPublicKey = await encryption.getUserPublicKey(message.senderId);
-            if (senderPublicKey) {
-              const encrypted = JSON.parse(message.encryptedContent);
-              const decrypted = await encryption.decryptFromUser(encrypted, senderPublicKey);
-              if (decrypted) {
-                decryptedMessage = { ...message, content: decrypted };
-              }
-            }
-          } catch (error) {
-            console.error("Error decrypting incoming message:", error);
-          }
-        }
-
-        // Check if message already exists (to prevent duplicates from optimistic updates)
-        setMessages((prev) => {
-          const exists = prev.some((msg) => msg.id === decryptedMessage.id);
-          if (!exists) {
-            return [...prev, decryptedMessage];
-          }
-          return prev;
-        });
-        
-        // Only mark as read if message is from the other user
-        if (message.senderId === selectedUserId) {
-          markAsRead(selectedUserId);
-        }
-      }
-      fetchConversations(); // Refresh conversations list
-    });
-  };
-
-  const fetchConversations = async () => {
+  const fetchConversations = useCallback(async () => {
     try {
       setLoading(true);
       const response = await AxiosInstance.get("/direct-messages");
@@ -272,7 +190,17 @@ function MessagesPageContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Throttled refresh for conversations list, so it doesn't refetch too often
+  const refreshConversationsThrottled = useCallback(() => {
+    const now = Date.now();
+    if (now - lastConversationsFetchRef.current < 1000) {
+      return;
+    }
+    lastConversationsFetchRef.current = now;
+    fetchConversations();
+  }, [fetchConversations]);
 
   const loadReceiverPublicKey = async (userId: string) => {
     if (!encryption || !encryption.hasKeys) {
@@ -335,11 +263,72 @@ function MessagesPageContent() {
   const markAsRead = async (otherUserId: string) => {
     try {
       await AxiosInstance.put(`/direct-messages/${otherUserId}/read`);
-      fetchConversations();
+      refreshConversationsThrottled();
     } catch (error) {
       console.error("Error marking as read:", error);
     }
   };
+
+  // Listen for direct messages via global socket (single connection)
+  useEffect(() => {
+    if (!socket || !userId) return;
+
+    const handleNewDirectMessage = async (message: Message) => {
+      // If there's an active conversation, only update when message belongs to it
+      if (
+        selectedUserId &&
+        ( (message.senderId === selectedUserId && message.receiverId === userId) ||
+          (message.senderId === userId && message.receiverId === selectedUserId) )
+      ) {
+        let decryptedMessage = message;
+        if (
+          encryption &&
+          message.encryptedContent &&
+          message.senderId !== userId &&
+          encryption.hasKeys
+        ) {
+          try {
+            const senderPublicKey = await encryption.getUserPublicKey(
+              message.senderId
+            );
+            if (senderPublicKey) {
+              const encrypted = JSON.parse(message.encryptedContent);
+              const decrypted = await encryption.decryptFromUser(
+                encrypted,
+                senderPublicKey
+              );
+              if (decrypted) {
+                decryptedMessage = { ...message, content: decrypted };
+              }
+            }
+          } catch (error) {
+            console.error("Error decrypting incoming message:", error);
+          }
+        }
+
+        setMessages((prev) => {
+          const exists = prev.some((msg) => msg.id === decryptedMessage.id);
+          if (!exists) {
+            return [...prev, decryptedMessage];
+          }
+          return prev;
+        });
+
+        if (message.senderId === selectedUserId) {
+          markAsRead(selectedUserId);
+        }
+      }
+
+      // Always refresh conversations in a throttled way for sidebar preview/unread
+      refreshConversationsThrottled();
+    };
+
+    socket.on("newDirectMessage", handleNewDirectMessage);
+
+    return () => {
+      socket.off("newDirectMessage", handleNewDirectMessage);
+    };
+  }, [socket, userId, selectedUserId, encryption, refreshConversationsThrottled]);
 
   // Handle file selection (image/video)
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -552,8 +541,7 @@ function MessagesPageContent() {
         }
         return filtered;
       });
-      
-      fetchConversations();
+      refreshConversationsThrottled();
       toast.success("Media berhasil dikirim");
     } catch (error: any) {
       console.error("Error sending media message:", error);
@@ -645,8 +633,7 @@ function MessagesPageContent() {
         }
         return filtered;
       });
-      
-      fetchConversations();
+      refreshConversationsThrottled();
     } catch (error: any) {
       console.error("Error sending message:", error);
       setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));

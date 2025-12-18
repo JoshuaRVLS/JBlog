@@ -8,7 +8,7 @@ import { Bell, Heart, MessageCircle, AtSign, X } from "lucide-react";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
-import { io, Socket } from "socket.io-client";
+import { useSocket } from "@/providers/SocketProvider";
 
 interface Notification {
   id: string;
@@ -43,66 +43,37 @@ interface Notification {
 
 export default function NotificationsDropdown() {
   const { authenticated, userId } = useContext(AuthContext);
+  const { socket } = useSocket();
   const router = useRouter();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const socketRef = useRef<Socket | null>(null);
 
   useEffect(() => {
     if (!authenticated || !userId) return;
 
-    // Fetch notifications
+    // Initial fetch
     fetchNotifications();
     fetchUnreadCount();
-
-    // Connect to Socket.IO for real-time notifications
-    connectSocket();
-
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.disconnect();
-      }
-    };
   }, [authenticated, userId]);
 
-  const connectSocket = async () => {
-    try {
-      const response = await AxiosInstance.get("/auth/socket-token");
-      const token = response.data.token;
+  // Socket listeners using global socket (single connection)
+  useEffect(() => {
+    if (!authenticated || !userId || !socket) return;
 
-      if (!token) return;
+    const handleNewNotification = () => {
+      fetchNotifications();
+      fetchUnreadCount();
+    };
 
-      const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
-        "http://localhost:8000";
-      const socketUrl = backendUrl.startsWith("http")
-        ? backendUrl
-        : `http://${backendUrl}`;
+    socket.on("new-notification", handleNewNotification);
 
-      const socket = io(socketUrl, {
-        auth: { token },
-        transports: ["websocket"],
-        reconnection: true,
-      });
-
-      socket.on("connect", () => {
-        console.log("✅ Connected to notifications socket");
-      });
-
-      socket.on("new-notification", () => {
-        // Refresh notifications when new one arrives
-        fetchNotifications();
-        fetchUnreadCount();
-      });
-
-      socketRef.current = socket;
-    } catch (error) {
-      console.error("Error connecting to socket:", error);
-    }
-  };
+    return () => {
+      socket.off("new-notification", handleNewNotification);
+    };
+  }, [authenticated, userId, socket]);
 
   const fetchNotifications = async () => {
     try {

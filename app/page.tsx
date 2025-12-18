@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { OrganizationJsonLd } from "next-seo";
 import Navbar from "@/components/Navbar/Navbar";
@@ -11,11 +12,16 @@ import HobbiesSection from "@/components/sections/HobbiesSection";
 import SkillsSection from "@/components/sections/SkillsSection";
 import UsersWorldChartSection from "@/components/sections/UsersWorldChartSection";
 import CTASection from "@/components/sections/CTASection";
-import BroadcastParticles from "@/components/BroadcastParticles";
 import { Menu, X, Home as HomeIcon, Briefcase, Building2, Heart, Lightbulb, Bug, Send, Loader2, Globe2, Sparkles, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import AxiosInstance from "@/utils/api";
 import toast from "react-hot-toast";
+
+// Dynamic import for heavy particles component to keep initial bundle small
+const BroadcastParticles = dynamic(
+  () => import("@/components/BroadcastParticles"),
+  { ssr: false }
+);
 
 interface GitHubProject {
   id: number;
