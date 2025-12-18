@@ -257,8 +257,8 @@ export default function Navbar() {
             <Link href="/">
               <div className="flex items-center gap-2 cursor-pointer">
                 <Terminal className="h-6 w-6 text-primary" />
-                <span className="text-xl font-bold text-foreground terminal-glow">
-                  jblog.dev
+                <span className="text-xl font-bold text-foreground terminal-glow tracking-tight">
+                  jblog<span className="text-primary">.space</span>
                 </span>
               </div>
             </Link>
@@ -286,8 +286,8 @@ export default function Navbar() {
               className="flex items-center gap-2 cursor-pointer"
             >
               <Terminal className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold text-foreground terminal-glow">
-                jblog.dev
+              <span className="text-xl font-bold text-foreground terminal-glow tracking-tight">
+                jblog<span className="text-primary">.space</span>
               </span>
             </motion.div>
           </Link>
