@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useContext, useRef } from "react";
+import { useState, useEffect, useContext, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -54,7 +54,7 @@ interface Message {
   };
 }
 
-export default function MessagesPage() {
+function MessagesPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { authenticated, userId, loading: authLoading } = useContext(AuthContext);
@@ -1128,6 +1128,25 @@ export default function MessagesPage() {
         isLoading={generatingKeyPair}
       />
     </div>
+  );
+}
+
+function MessagesLoadingFallback() {
+  return (
+    <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+        <p className="text-muted-foreground">Loading messages...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<MessagesLoadingFallback />}>
+      <MessagesPageContent />
+    </Suspense>
   );
 }
 

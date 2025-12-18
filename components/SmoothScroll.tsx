@@ -20,7 +20,6 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
       gestureOrientation: "vertical",
       smoothWheel: true,
       wheelMultiplier: 1,
-      smoothTouch: false,
       touchMultiplier: 2,
       infinite: false,
     });
@@ -28,7 +27,7 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
     // Set up ScrollTrigger scrollerProxy for Lenis
     ScrollTrigger.scrollerProxy(document.body, {
       scrollTop(value) {
-        if (arguments.length) {
+        if (arguments.length && value !== undefined) {
           lenis.scrollTo(value, { immediate: true });
         }
         return lenis.scroll;

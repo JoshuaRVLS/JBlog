@@ -13,9 +13,9 @@ type AuthData = {
   loading: boolean;
   isSuspended: boolean;
   suspendedUntil: string | null;
-  login: (data: FieldValues) => void;
-  register: (data: FieldValues) => void;
-  verifyEmail: (data: FieldValues) => void;
+  login: (data: FieldValues) => Promise<any>;
+  register: (data: FieldValues) => Promise<any>;
+  verifyEmail: (data: FieldValues) => Promise<any>;
   logout: () => void;
 };
 
@@ -25,9 +25,9 @@ export const AuthContext = createContext<AuthData>({
   loading: true,
   isSuspended: false,
   suspendedUntil: null,
-  login: (data: FieldValues) => {},
-  register: (data: FieldValues) => {},
-  verifyEmail: (data: FieldValues) => {},
+  login: async (data: FieldValues) => {},
+  register: async (data: FieldValues) => {},
+  verifyEmail: async (data: FieldValues) => {},
   logout: () => {},
 });
 
