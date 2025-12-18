@@ -315,8 +315,10 @@ export default function DragDropPostEditor({
   const [draggingId, setDraggingId] = useState<string | null>(null);
   const [uploadingBlockId, setUploadingBlockId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(
-    new Map<string, HTMLTextAreaElement>(),
+  const textareaRefs = useRef<
+    Map<string, HTMLTextAreaElement | HTMLInputElement>
+  >(
+    new Map<string, HTMLTextAreaElement | HTMLInputElement>(),
   );
   const [selection, setSelection] = useState<{
     blockId: string | null;
@@ -724,8 +726,8 @@ export default function DragDropPostEditor({
   const handleInsertSnippet = (snippetId: string) => {
     const snippet = savedSnippets.find((s) => s.id === snippetId);
     if (!snippet) return;
-    const newBlocks: Block[] = snippet.blocks.map((b) => ({
-      ...b,
+    const newBlocks: Block[] = snippet.blocks.map((b): Block => ({
+      ...(b as any),
       id: createId(),
     }));
     setBlocks((prev) => [...prev, ...newBlocks]);

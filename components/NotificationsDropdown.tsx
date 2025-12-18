@@ -259,129 +259,142 @@ export default function NotificationsDropdown() {
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-96 bg-card border border-border rounded-lg shadow-xl overflow-hidden z-50 max-h-[600px] flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <h3 className="font-semibold text-foreground">Notifikasi</h3>
-            {unreadCount > 0 && (
-              <button
-                onClick={markAllAsRead}
-                className="text-sm text-primary hover:underline"
-              >
-                Tandai semua sudah dibaca
-              </button>
-            )}
-          </div>
-
-          {/* Notifications List */}
-          <div className="overflow-y-auto flex-1">
-            {loading ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Memuat...
+        <div className="fixed inset-x-0 top-16 z-50 px-2 sm:absolute sm:inset-auto sm:right-0 sm:top-auto sm:mt-2 sm:z-50 sm:px-0">
+          <div className="mx-auto w-full max-w-lg sm:mx-0 sm:w-96 max-h-[70vh] rounded-lg border border-border bg-card shadow-xl flex flex-col overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between p-4 border-b border-border">
+              <h3 className="font-semibold text-foreground">Notifikasi</h3>
+              <div className="flex items-center gap-2">
+                {unreadCount > 0 && (
+                  <button
+                    onClick={markAllAsRead}
+                    className="text-xs sm:text-sm text-primary hover:underline"
+                  >
+                    Tandai semua sudah dibaca
+                  </button>
+                )}
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="p-1 rounded-full hover:bg-accent"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-            ) : notifications.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">
-                Tidak ada notifikasi
-              </div>
-            ) : (
-              <div className="divide-y divide-border">
-                {notifications.map((notification) => {
-                  const link = getNotificationLink(notification);
-                  const isUnread = !notification.read;
-                  const mainActor = notification.actors?.[0] || notification.actor;
+            </div>
 
-                  return (
-                    <Link
-                      key={notification.id}
-                      href={link}
-                      onClick={() => {
-                        if (isUnread) {
-                          markAsRead(notification.id);
-                        }
-                        setIsOpen(false);
-                      }}
-                      className={`block p-4 hover:bg-accent/50 transition-colors ${
-                        isUnread ? "bg-primary/5" : ""
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        {/* Actor Avatar(s) */}
-                        <div className="relative flex-shrink-0">
-                          {notification.actors && notification.actors.length > 1 ? (
-                            <div className="flex -space-x-2">
-                              {notification.actors.slice(0, 2).map((actor, idx) => (
-                                <div
-                                  key={actor.id}
-                                  className="relative w-10 h-10 rounded-full border-2 border-background overflow-hidden"
-                                  style={{ zIndex: 2 - idx }}
-                                >
-                                  <Image
-                                    src={
-                                      actor.profilePicture ||
-                                      generateAvatarUrl(actor.name)
-                                    }
-                                    alt={actor.name}
-                                    width={40}
-                                    height={40}
-                                    sizes="40px"
-                                    className="w-full h-full object-cover"
-                                  />
-                                </div>
-                              ))}
+            {/* Notifications List */}
+            <div className="flex-1 overflow-y-auto">
+              {loading ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Memuat...
+                </div>
+              ) : notifications.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  Tidak ada notifikasi
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {notifications.map((notification) => {
+                    const link = getNotificationLink(notification);
+                    const isUnread = !notification.read;
+                    const mainActor =
+                      notification.actors?.[0] || notification.actor;
+
+                    return (
+                      <Link
+                        key={notification.id}
+                        href={link}
+                        onClick={() => {
+                          if (isUnread) {
+                            markAsRead(notification.id);
+                          }
+                          setIsOpen(false);
+                        }}
+                        className={`block p-4 hover:bg-accent/50 transition-colors ${
+                          isUnread ? "bg-primary/5" : ""
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          {/* Actor Avatar(s) */}
+                          <div className="relative flex-shrink-0">
+                            {notification.actors &&
+                            notification.actors.length > 1 ? (
+                              <div className="flex -space-x-2">
+                                {notification.actors
+                                  .slice(0, 2)
+                                  .map((actor, idx) => (
+                                    <div
+                                      key={actor.id}
+                                      className="relative h-10 w-10 overflow-hidden rounded-full border-2 border-background"
+                                      style={{ zIndex: 2 - idx }}
+                                    >
+                                      <Image
+                                        src={
+                                          actor.profilePicture ||
+                                          generateAvatarUrl(actor.name)
+                                        }
+                                        alt={actor.name}
+                                        width={40}
+                                        height={40}
+                                        sizes="40px"
+                                        className="h-full w-full object-cover"
+                                      />
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <div className="h-10 w-10 overflow-hidden rounded-full">
+                                <Image
+                                  src={
+                                    mainActor.profilePicture ||
+                                    generateAvatarUrl(mainActor.name)
+                                  }
+                                  alt={mainActor.name}
+                                  width={40}
+                                  height={40}
+                                  sizes="40px"
+                                  className="h-full w-full object-cover"
+                                />
+                              </div>
+                            )}
+                            <div className="absolute -bottom-1 -right-1 rounded-full border-2 border-background bg-card p-1">
+                              {getNotificationIcon(notification.type)}
                             </div>
-                          ) : (
-                            <div className="w-10 h-10 rounded-full overflow-hidden">
-                              <Image
-                                src={
-                                  mainActor.profilePicture ||
-                                  generateAvatarUrl(mainActor.name)
-                                }
-                                alt={mainActor.name}
-                                width={40}
-                                height={40}
-                                sizes="40px"
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          )}
-                          <div className="absolute -bottom-1 -right-1 bg-card border-2 border-background rounded-full p-1">
-                            {getNotificationIcon(notification.type)}
                           </div>
-                        </div>
 
-                        {/* Notification Content */}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm text-foreground">
-                            {getNotificationText(notification)}
-                          </p>
-                          {notification.post && (
-                            <p className="text-xs text-muted-foreground mt-1 truncate">
-                              {notification.post.title}
+                          {/* Notification Content */}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm text-foreground">
+                              {getNotificationText(notification)}
                             </p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(notification.createdAt).toLocaleString(
-                              "id-ID",
-                              {
+                            {notification.post && (
+                              <p className="mt-1 truncate text-xs text-muted-foreground">
+                                {notification.post.title}
+                              </p>
+                            )}
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {new Date(
+                                notification.createdAt,
+                              ).toLocaleString("id-ID", {
                                 day: "numeric",
                                 month: "short",
                                 hour: "2-digit",
                                 minute: "2-digit",
-                              }
-                            )}
-                          </p>
-                        </div>
+                              })}
+                            </p>
+                          </div>
 
-                        {/* Unread Indicator */}
-                        {isUnread && (
-                          <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-2" />
-                        )}
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            )}
+                          {/* Unread Indicator */}
+                          {isUnread && (
+                            <div className="mt-2 h-2 w-2 flex-shrink-0 rounded-full bg-primary" />
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
