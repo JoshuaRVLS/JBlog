@@ -7,7 +7,7 @@ import Image from "next/image";
 import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
-import { Send, User, Search, ArrowLeft, MessageSquare, Image as ImageIcon, Video, Mic, X, Loader2, Play, Pause, Lock, Key } from "lucide-react";
+import { Send, User, Search, ArrowLeft, MessageSquare, Image as ImageIcon, Video, Mic, X, Loader2, Play, Pause, Lock, Key, Plus } from "lucide-react";
 import toast from "react-hot-toast";
 import { io, Socket } from "socket.io-client";
 import ImageViewer from "@/components/ImageViewer";
@@ -566,7 +566,7 @@ function MessagesPageContent() {
 
   // Original sendMessage for text only
   const sendMessage = async () => {
-    if ((!newMessage.trim() && !selectedMedia) || !selectedUserId || sending || !userId) return;
+    if ((!newMessage.trim() && !selectedMedia) || !selectedUserId || !userId) return;
 
     // If there's selected media, upload it first
     if (selectedMedia) {
@@ -624,12 +624,13 @@ function MessagesPageContent() {
     // Optimistic update - add message immediately
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage("");
-    setSending(true);
 
     try {
       const response = await AxiosInstance.post("/direct-messages", {
         receiverId: selectedUserId,
-        content: encryptedContent ? "" : messageContent,
+        // Selalu kirim plain content ke backend agar tidak tersimpan sebagai pesan kosong
+        // encryptedContent tetap dikirim untuk E2EE antara klien
+        content: messageContent,
         encryptedContent: encryptedContent,
         encryptionKeyId: encryptionKeyId,
         type: "text",
@@ -651,8 +652,6 @@ function MessagesPageContent() {
       setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));
       setNewMessage(messageContent);
       toast.error(error.response?.data?.error || "Gagal mengirim pesan");
-    } finally {
-      setSending(false);
     }
   };
 
@@ -672,10 +671,14 @@ function MessagesPageContent() {
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="pt-20 pb-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
-          <div className="flex h-[calc(100vh-8rem)] border border-border rounded-xl overflow-hidden bg-card">
+        <div className="container mx-auto px-2 sm:px-4 lg:px-8 max-w-7xl">
+          <div className="flex flex-col md:flex-row h-[calc(100vh-8rem)] min-h-0 border border-border rounded-xl overflow-hidden bg-card">
             {/* Conversations List */}
-            <div className="w-full md:w-1/3 border-r border-border flex flex-col">
+            <div
+              className={`w-full md:w-1/3 border-b md:border-b-0 md:border-r border-border flex flex-col ${
+                selectedUserId ? "hidden md:flex" : "flex"
+              }`}
+            >
               <div className="p-4 border-b border-border">
                 <h1 className="text-2xl font-bold mb-4">Messages</h1>
                 <div className="relative">
@@ -758,7 +761,11 @@ function MessagesPageContent() {
             </div>
 
             {/* Messages Area */}
-            <div className="flex-1 flex flex-col">
+            <div
+              className={`flex-1 flex flex-col min-h-0 ${
+                !selectedUserId ? "hidden md:flex" : "flex"
+              }`}
+            >
               {selectedUserId ? (
                 <>
                   {/* Header */}
@@ -791,7 +798,7 @@ function MessagesPageContent() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                       {enableEncryption && (
                         <div className="flex items-center gap-1.5 px-2 py-1 bg-green-500/10 text-green-500 rounded-lg text-xs">
                           <Lock className="h-3.5 w-3.5" />
@@ -806,6 +813,24 @@ function MessagesPageContent() {
                         >
                           <Key className="h-3.5 w-3.5" />
                           <span>Aktifkan E2EE</span>
+                        </button>
+                      )}
+                      {encryption && encryption.hasKeys && (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              await encryption.generateKeyPair();
+                              toast.success("Key E2EE berhasil digenerate ulang");
+                            } catch (err) {
+                              console.error("Gagal regenerate key pair:", err);
+                              toast.error("Gagal generate ulang key. Coba lagi.");
+                            }
+                          }}
+                          className="p-1 rounded-full hover:bg-accent transition-colors"
+                          title="Generate ulang key E2EE"
+                        >
+                          <Key className="h-3.5 w-3.5 text-muted-foreground" />
                         </button>
                       )}
                     </div>
@@ -1020,49 +1045,14 @@ function MessagesPageContent() {
                           className="hidden"
                         />
                         
-                        {/* Image button */}
+                        {/* Single "+" button for media (image/video) */}
                         <label
                           htmlFor="media-upload"
                           className="flex-shrink-0 p-2 rounded-lg bg-muted hover:bg-accent transition-colors cursor-pointer"
-                          title="Upload image or video"
+                          title="Tambah media"
                         >
-                          <ImageIcon className="h-5 w-5 text-primary" />
+                          <Plus className="h-5 w-5 text-primary" />
                         </label>
-                        
-                        {/* Audio recording button */}
-                        {!isRecording ? (
-                          <button
-                            onClick={startRecording}
-                            disabled={selectedMedia !== null || uploading}
-                            className="flex-shrink-0 p-2 rounded-lg bg-muted hover:bg-accent transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Record audio"
-                          >
-                            <Mic className="h-5 w-5 text-primary" />
-                          </button>
-                        ) : (
-                          <div className="flex items-center gap-2 flex-shrink-0">
-                            <div className="flex items-center gap-2 px-3 py-2 bg-red-500/10 rounded-lg">
-                              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-                              <span className="text-sm font-medium text-red-500">
-                                {Math.floor(recordingTime / 60)}:{String(recordingTime % 60).padStart(2, "0")}
-                              </span>
-                            </div>
-                            <button
-                              onClick={stopRecording}
-                              className="p-2 rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors"
-                              title="Stop recording"
-                            >
-                              <Pause className="h-5 w-5" />
-                            </button>
-                            <button
-                              onClick={cancelRecording}
-                              className="p-2 rounded-lg bg-muted hover:bg-accent transition-colors"
-                              title="Cancel"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
-                          </div>
-                        )}
                         
                         {/* Text input */}
                         <input
@@ -1082,10 +1072,10 @@ function MessagesPageContent() {
                         {/* Send button */}
                         <button
                           onClick={sendMessage}
-                          disabled={(!newMessage.trim() && !selectedMedia) || sending || uploading || isRecording}
+                          disabled={(!newMessage.trim() && !selectedMedia) || uploading || isRecording}
                           className="flex-shrink-0 px-4 md:px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 text-sm"
                         >
-                          {(sending || uploading) ? (
+                          {uploading ? (
                             <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
                             <Send className="h-4 w-4" />

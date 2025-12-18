@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 import { Bug, X, Send, Loader2 } from "lucide-react";
 import AxiosInstance from "@/utils/api";
 import toast from "react-hot-toast";
@@ -15,6 +16,10 @@ export default function ReportBugButton() {
     description: "",
     type: "bug",
   });
+  const pathname = usePathname();
+
+  // On the messages page, hide floating button on mobile to avoid covering chat input
+  const isMessagesPage = pathname?.startsWith("/messages");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,24 +57,28 @@ export default function ReportBugButton() {
     <>
       {/* Floating Button */}
       <div 
-        className="fixed bottom-24 right-8 z-50 flex flex-col items-end gap-3 lg:bottom-8"
+        className={`fixed bottom-24 right-8 z-50 flex flex-col items-end gap-3 lg:bottom-8 ${
+          isMessagesPage ? "hidden md:flex" : ""
+        }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Tooltip/Label */}
-        <div 
-          className={`hidden md:block transition-all duration-300 pointer-events-none ${
-            isHovered 
-              ? "opacity-100 translate-y-0" 
-              : "opacity-0 translate-y-2"
-          }`}
-        >
-          <div className="bg-card border border-border/50 rounded-lg px-4 py-2 shadow-xl backdrop-blur-sm">
-            <p className="text-sm font-semibold text-foreground whitespace-nowrap">
-              Report Bug / Feedback
-            </p>
+        {/* Tooltip/Label - disable on messages page to avoid overlapping near chat input */}
+        {!isMessagesPage && (
+          <div 
+            className={`hidden md:block transition-all duration-300 pointer-events-none ${
+              isHovered 
+                ? "opacity-100 translate-y-0" 
+                : "opacity-0 translate-y-2"
+            }`}
+          >
+            <div className="bg-card border border-border/50 rounded-lg px-4 py-2 shadow-xl backdrop-blur-sm">
+              <p className="text-sm font-semibold text-foreground whitespace-nowrap">
+                Report Bug / Feedback
+              </p>
+            </div>
           </div>
-        </div>
+        )}
         
         {/* Button */}
         <button

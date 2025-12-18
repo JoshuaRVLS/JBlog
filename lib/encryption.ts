@@ -329,6 +329,7 @@ export class EncryptionService {
         throw new Error(`Public key length ${keyBuffer.byteLength} tidak valid untuk P-256 (harus 64 atau 65 bytes)`);
       }
 
+      // Untuk public key ECDH, usages harus [] (tidak boleh deriveKey/deriveBits di public key)
       return await crypto.subtle.importKey(
         "raw",
         finalKeyBuffer,
@@ -337,7 +338,7 @@ export class EncryptionService {
           namedCurve: this.ECDH_CURVE,
         },
         true,
-        ["deriveKey", "deriveBits"]
+        []
       );
     } catch (error: any) {
       console.error("Error importing public key:", error);
@@ -357,12 +358,33 @@ export class EncryptionService {
   }
 
   private static base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binary = atob(base64);
-    const bytes = new Uint8Array(binary.length);
-    for (let i = 0; i < binary.length; i++) {
-      bytes[i] = binary.charCodeAt(i);
+    try {
+      if (!base64 || typeof base64 !== "string") {
+        throw new Error("Empty base64 string");
+      }
+
+      // Normalize base64: remove whitespace, fix URL-safe variants, add padding if needed
+      let normalized = base64.trim().replace(/\s+/g, "").replace(/-/g, "+").replace(/_/g, "/");
+      const pad = normalized.length % 4;
+      if (pad === 1) {
+        // This cannot be valid base64
+        throw new Error(`Invalid base64 length (${normalized.length})`);
+      } else if (pad > 1) {
+        normalized = normalized + "=".repeat(4 - pad);
+      }
+
+      const binary = atob(normalized);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return bytes.buffer;
+    } catch (error: any) {
+      console.error("❌ Error decoding base64 to ArrayBuffer:", error);
+      console.error("  - Raw base64 length:", base64?.length || 0);
+      console.error("  - Raw base64 preview:", base64?.substring(0, 20) || "");
+      throw new Error("Format kunci tidak valid. Silakan regenerate key pair di halaman Messages.");
     }
-    return bytes.buffer;
   }
 }
 

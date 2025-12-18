@@ -1339,32 +1339,38 @@ export default function Home() {
                 : (broadcast.particleEffect || "none")
               } 
             />
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2.5 relative z-10 pointer-events-auto">
-              <div className="flex items-center justify-between gap-4">
-                <div className="flex items-center gap-3 flex-1 min-w-0">
+            <div className="container mx-auto px-3 sm:px-4 md:px-6 lg:px-8 py-2.5 relative z-10 pointer-events-auto">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-4">
+                <div className="flex items-start sm:items-center gap-2 sm:gap-3 flex-1 min-w-0">
                   {broadcast.icon && (
-                    <span className="text-lg flex-shrink-0">{broadcast.icon}</span>
+                    <span className="text-base sm:text-lg flex-shrink-0 mt-0.5 sm:mt-0">
+                      {broadcast.icon}
+                    </span>
                   )}
-                  <div className="font-bold whitespace-nowrap text-sm">
-                    {countdownFinished && broadcast.actionAfterCountdown === "change_message" && broadcast.messageAfterCountdown
-                      ? broadcast.messageAfterCountdown
-                      : broadcast.title}
-                  </div>
-                  <div className="text-xs opacity-80 truncate">
-                    {countdownFinished && broadcast.actionAfterCountdown === "change_message" && broadcast.messageAfterCountdown
-                      ? ""
-                      : broadcast.message}
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2">
+                      <div className="font-semibold text-xs sm:text-sm truncate">
+                        {countdownFinished && broadcast.actionAfterCountdown === "change_message" && broadcast.messageAfterCountdown
+                          ? broadcast.messageAfterCountdown
+                          : broadcast.title}
+                      </div>
+                    </div>
+                    <div className="text-[11px] sm:text-xs opacity-80 leading-snug line-clamp-2 sm:line-clamp-3">
+                      {countdownFinished && broadcast.actionAfterCountdown === "change_message" && broadcast.messageAfterCountdown
+                        ? ""
+                        : broadcast.message}
+                    </div>
                   </div>
                 </div>
                 {broadcast.hasCountdown && countdown && !countdownFinished && (
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="flex items-center gap-1 px-2 py-1 bg-white/20 rounded backdrop-blur-sm">
+                  <div className="flex items-center justify-end sm:justify-center gap-1 sm:gap-2 flex-shrink-0">
+                    <div className="flex items-center gap-1 px-2 py-1 bg-white/20 rounded-full sm:rounded backdrop-blur-sm text-[11px] sm:text-xs font-semibold">
                       {countdown.days > 0 && (
-                        <span className="text-xs font-bold">
+                        <span>
                           {countdown.days}d
                         </span>
                       )}
-                      <span className="text-xs font-bold">
+                      <span>
                         {String(countdown.hours).padStart(2, "0")}:
                         {String(countdown.minutes).padStart(2, "0")}:
                         {String(countdown.seconds).padStart(2, "0")}

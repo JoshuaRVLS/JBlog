@@ -484,9 +484,9 @@ export default function Navbar() {
               >
                 <Link
                   href="/login"
-                  className="hidden md:flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-all active:scale-95"
+                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-all active:scale-95 shadow-sm"
                 >
-                  Sign In
+                  <span>Login</span>
                 </Link>
               </motion.div>
             )}
