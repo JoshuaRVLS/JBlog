@@ -29,7 +29,7 @@ model User {
   linkedin       String?
   instagram      String?
 
-  refreshToken           RefreshToken?
+  refreshTokens          RefreshToken[]
   posts                  Post[]
   verificationCode       VerificationCode?
   passwordResetTokens    PasswordResetToken[]
@@ -47,6 +47,7 @@ model User {
   reposts                Repost[]
   sentDirectMessages     DirectMessage[]      @relation("DirectMessageSender")
   receivedDirectMessages DirectMessage[]      @relation("DirectMessageReceiver")
+  encryptionKeys         EncryptionKey[]      // User's encryption keys
 
   // Followers relationship
   followers Follow[] @relation("UserFollowers")
@@ -57,6 +58,12 @@ model User {
   isVerified     Boolean   @default(false)
   isSuspended    Boolean   @default(false)
   suspendedUntil DateTime?
+
+  // J+ Premium Subscription
+  isJPlus        Boolean   @default(false)
+  jPlusExpiresAt DateTime?
+  jPlusTier      String?   @default("supporter") // supporter
+  jPlusStartedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -81,9 +88,18 @@ model Follow {
 model RefreshToken {
   id        String   @id @default(cuid())
   value     String
-  userId    String   @unique
+  userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
+  createdAt DateTime @default(now())
+  deviceInfo String? // Store device/browser info for security
+  ipAddress  String? // Store IP address for security tracking
+  isRevoked  Boolean  @default(false) // For token revocation
+
+  @@unique([userId, value]) // Allow multiple refresh tokens per user (multi-device support)
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([isRevoked])
 }
 
 model Post {
@@ -224,11 +240,13 @@ model GroupChat {
   description   String?
   logo          String? // Logo/avatar group chat
   isPublic      Boolean           @default(true)
+  encryptionEnabled Boolean        @default(false) // Enable E2EE for group
   createdBy     String
   creator       User              @relation("GroupChatCreator", fields: [createdBy], references: [id], onDelete: Cascade)
   members       GroupChatMember[]
   messages      Message[]
   notifications Notification[]
+  encryptionKeys EncryptionKey[]  // Group encryption keys
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -253,12 +271,15 @@ model GroupChatMember {
 model Message {
   id             String           @id @default(cuid())
   content        String
+  encryptedContent String? // Encrypted content untuk E2EE
+  encryptionKeyId   String? // Reference to encryption key used
   groupChatId    String
   groupChat      GroupChat        @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
   userId         String
   user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   type           String           @default("text") // text, image, video, audio
   mediaUrl       String? // URL untuk photo, video, audio
+  encryptedMediaUrl String? // Encrypted media URL untuk E2EE
   mediaThumbnail String? // Thumbnail untuk video
   mentions       MessageMention[]
   createdAt      DateTime         @default(now())
@@ -268,6 +289,7 @@ model Message {
   @@index([groupChatId])
   @@index([userId])
   @@index([createdAt])
+  @@index([encryptionKeyId])
 }
 
 model Notification {
@@ -356,8 +378,11 @@ model DirectMessage {
   receiverId String
   receiver   User     @relation("DirectMessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
   content    String
+  encryptedContent String? // Encrypted content untuk E2EE
+  encryptionKeyId   String? // Reference to encryption key used
   type       String   @default("text") // text, image, video, audio
   mediaUrl   String? // URL untuk photo, video, audio
+  encryptedMediaUrl String? // Encrypted media URL untuk E2EE
   read       Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -366,6 +391,7 @@ model DirectMessage {
   @@index([receiverId])
   @@index([read])
   @@index([createdAt])
+  @@index([encryptionKeyId])
 }
 
 model Broadcast {
@@ -378,6 +404,8 @@ model Broadcast {
   backgroundColor   String?
   textColor         String?
   borderColor       String?
+  particleEffect   String?  // "none", "snow", "confetti", "stars", "hearts", "fireworks", "sparkles"
+  particleEffectAfterCountdown String? // Particle effect setelah countdown selesai
   hasCountdown      Boolean  @default(false)
   countdownEndDate  DateTime?
   actionAfterCountdown String? // "hide", "change_message", "redirect"
@@ -408,4 +436,23 @@ model UpdateLog {
 
   @@index([date])
   @@index([version])
+}
+
+model EncryptionKey {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicKey     String?  // Base64 encoded public key (ECDH) - null for group keys
+  privateKeyEncrypted String? // Encrypted private key (optional, for backup) or encrypted group key
+  keyType       String   @default("ecdh") // ecdh, group
+  groupChatId   String? // For group chat keys
+  groupChat     GroupChat? @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([userId, groupChatId, keyType])
+  @@index([userId])
+  @@index([groupChatId])
+  @@index([isActive])
 }

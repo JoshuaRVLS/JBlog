@@ -149,6 +149,9 @@ export const getCurrentProfile = async (req: AuthRequest, res: Response) => {
           isVerified: true,
           isOwner: true,
           isAdmin: true,
+          isJPlus: true,
+          jPlusExpiresAt: true,
+          jPlusTier: true,
           createdAt: true,
           customLinks: {
             orderBy: { order: "asc" },
@@ -195,6 +198,9 @@ export const getCurrentProfile = async (req: AuthRequest, res: Response) => {
         isVerified: user.isVerified ?? false,
         isOwner: user.isOwner ?? false,
         isAdmin: user.isAdmin ?? false,
+        isJPlus: user.isJPlus ?? false,
+        jPlusExpiresAt: user.jPlusExpiresAt ?? null,
+        jPlusTier: user.jPlusTier ?? null,
         createdAt: user.createdAt,
         customLinks: Array.isArray(user.customLinks) ? user.customLinks : [],
         _count: {

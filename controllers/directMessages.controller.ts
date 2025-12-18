@@ -7,7 +7,7 @@ import { createNotification } from "./notifications.controller";
 // Send a direct message
 export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
   try {
-    const { receiverId, content, type = "text", mediaUrl } = req.body;
+    const { receiverId, content, type = "text", mediaUrl, encryptedContent, encryptedMediaUrl, encryptionKeyId } = req.body;
     const senderId = req.userId;
 
     if (!senderId) {
@@ -61,6 +61,9 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
         senderId,
         receiverId,
         content: messageContent,
+        encryptedContent: encryptedContent || null,
+        encryptedMediaUrl: encryptedMediaUrl || null,
+        encryptionKeyId: encryptionKeyId || null,
         type,
         mediaUrl,
       },

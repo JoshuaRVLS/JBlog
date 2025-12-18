@@ -21,6 +21,8 @@ import DirectMessagesRoutes from "./routes/directMessages.route";
 import FeedRoutes from "./routes/feed.route";
 import BroadcastRoutes from "./routes/broadcast.route";
 import UpdateLogRoutes from "./routes/updatelog.route";
+import EncryptionRoutes from "./routes/encryption.route";
+import JPlusRoutes from "./routes/jplus.route";
 import db from "./lib/db";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -92,6 +94,8 @@ app.use("/api/direct-messages/", DirectMessagesRoutes);
 app.use("/api/feed/", FeedRoutes);
 app.use("/api/broadcast/", BroadcastRoutes);
 app.use("/api/updatelog/", UpdateLogRoutes);
+app.use("/api/encryption/", EncryptionRoutes);
+app.use("/api/jplus/", JPlusRoutes);
 
 // Create HTTP server
 const httpServer = createServer(app);
@@ -260,16 +264,18 @@ io.on("connection", (socket) => {
   // Send message
   socket.on("send-message", async (data: { 
     groupId: string; 
-    content: string;
+    content?: string;
+    encryptedContent?: string;
+    encryptionKeyId?: string;
     type?: string;
     mediaUrl?: string;
     mediaThumbnail?: string;
   }) => {
     try {
-      const { groupId, content, type = "text", mediaUrl, mediaThumbnail } = data;
+      const { groupId, content, encryptedContent, encryptionKeyId, type = "text", mediaUrl, mediaThumbnail } = data;
 
-      // For text messages, content is required
-      if (type === "text" && (!content || content.trim().length === 0)) {
+      // For text messages, either content or encryptedContent is required
+      if (type === "text" && (!content || content.trim().length === 0) && !encryptedContent) {
         socket.emit("error", { msg: "Pesan tidak boleh kosong" });
         return;
       }
@@ -341,7 +347,9 @@ io.on("connection", (socket) => {
       // Save message to database
       const message = await db.message.create({
         data: {
-          content: content?.trim() || "",
+          content: encryptedContent ? null : (content?.trim() || ""),
+          encryptedContent: encryptedContent || null,
+          encryptionKeyId: encryptionKeyId || null,
           type: type,
           mediaUrl: mediaUrl || null,
           mediaThumbnail: mediaThumbnail || null,

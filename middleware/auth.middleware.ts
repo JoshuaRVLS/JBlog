@@ -38,21 +38,55 @@ export const requireAuth = async (
     const { accessToken } = req.cookies;
 
     if (!accessToken) {
-      return res.status(401).json({ msg: "Harus login dulu" });
+      return res.status(StatusCodes.UNAUTHORIZED).json({ 
+        msg: "Harus login dulu",
+        code: "NO_TOKEN"
+      });
     }
 
-    const userId = await verify(accessToken);
+    let userId: string;
+    try {
+      userId = await verify(accessToken);
+    } catch (error: any) {
+      // More specific error messages
+      if (error.message?.includes("expired")) {
+        return res.status(StatusCodes.UNAUTHORIZED).json({ 
+          msg: "Token sudah kadaluarsa. Silakan refresh token atau login ulang.",
+          code: "TOKEN_EXPIRED"
+        });
+      }
+      
+      if (error.message?.includes("Invalid")) {
+        return res.status(StatusCodes.UNAUTHORIZED).json({ 
+          msg: "Token tidak valid",
+          code: "INVALID_TOKEN"
+        });
+      }
+      
+      return res.status(StatusCodes.UNAUTHORIZED).json({ 
+        msg: "Token tidak valid atau sudah kadaluarsa",
+        code: "TOKEN_ERROR"
+      });
+    }
     
     const user = await db.user.findUnique({
       where: { id: userId },
       select: { isSuspended: true, suspendedUntil: true },
     });
 
-    if (user?.isSuspended) {
+    if (!user) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ 
+        msg: "User tidak ditemukan",
+        code: "USER_NOT_FOUND"
+      });
+    }
+
+    if (user.isSuspended) {
       const now = new Date();
       const suspendedUntil = user.suspendedUntil;
       
       if (suspendedUntil && suspendedUntil < now) {
+        // Auto-unsuspend if suspension period has passed
         await db.user.update({
           where: { id: userId },
           data: { isSuspended: false, suspendedUntil: null },
@@ -64,6 +98,7 @@ export const requireAuth = async (
         
         return res.status(StatusCodes.FORBIDDEN).json({ 
           msg: message,
+          code: "ACCOUNT_SUSPENDED",
           suspendedUntil: suspendedUntil || null
         });
       }
@@ -71,8 +106,12 @@ export const requireAuth = async (
 
     req.userId = userId;
     next();
-  } catch (error) {
-    return res.status(401).json({ msg: "Token tidak valid atau sudah kadaluarsa" });
+  } catch (error: any) {
+    console.error("❌ Error in requireAuth middleware:", error);
+    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
+      msg: "Terjadi kesalahan saat autentikasi",
+      code: "AUTH_ERROR"
+    });
   }
 };
 

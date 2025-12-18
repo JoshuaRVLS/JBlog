@@ -3,6 +3,7 @@ import multer from "multer";
 import { StatusCodes } from "http-status-codes";
 import type { AuthRequest } from "../middleware/auth.middleware";
 import { supabase, BUCKETS } from "../lib/supabase";
+import db from "../lib/db";
 
 // Setup multer untuk memory storage (karena kita upload ke Supabase)
 const storage = multer.memoryStorage();
@@ -33,9 +34,10 @@ const mediaFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterC
   }
 };
 
+// Dynamic file size limit - will be checked in controller based on J+ status
 export const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB max (will be validated in controller)
   fileFilter: imageFilter,
 });
 
@@ -109,7 +111,45 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
     }
 
     const file = req.file;
-    const fileExt = file.originalname.split(".").pop();
+    const fileExt = file.originalname.split(".").pop()?.toLowerCase();
+    const isGif = fileExt === "gif" || file.mimetype === "image/gif";
+
+    // Get user J+ status
+    const user = await db.user.findUnique({
+      where: { id: req.userId },
+      select: {
+        isJPlus: true,
+        jPlusExpiresAt: true,
+        jPlusTier: true,
+      },
+    });
+
+    const hasActiveJPlus = user?.isJPlus && (
+      !user.jPlusExpiresAt || 
+      new Date(user.jPlusExpiresAt) > new Date()
+    );
+
+    // Check if user has J+ for GIF profile pictures
+    if (isGif && !hasActiveJPlus) {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        error: "Fitur GIF profile picture hanya tersedia untuk member J+. Upgrade ke J+ untuk menggunakan fitur ini!",
+        requiresJPlus: true,
+      });
+    }
+
+    // Check file size limits - J+ supporters get 50MB
+    const maxFileSize = hasActiveJPlus 
+      ? 50 * 1024 * 1024 // 50MB for J+ supporters
+      : 5 * 1024 * 1024; // 5MB for non-J+ users
+
+    if (file.size > maxFileSize) {
+      const maxSizeMB = maxFileSize / (1024 * 1024);
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: `Ukuran file maksimal ${maxSizeMB}MB. ${!hasActiveJPlus ? 'Upgrade ke J+ untuk upload file lebih besar!' : ''}`,
+        requiresJPlus: !hasActiveJPlus,
+      });
+    }
+
     const fileName = `${req.userId}-${Date.now()}.${fileExt}`;
     const filePath = fileName;
 

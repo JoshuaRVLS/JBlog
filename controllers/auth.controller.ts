@@ -1,10 +1,44 @@
-import { decrypt, encrypt, verify } from "../lib/jwt";
+import { encrypt, verify, generateTokenId } from "../lib/jwt";
 import { LoginSchema } from "../schemas/login.schema";
 import type { Request, Response } from "express";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
 import { z } from "zod";
 import bcrypt from "bcryptjs";
+
+/**
+ * Get client device information for security tracking
+ */
+const getDeviceInfo = (req: Request): string => {
+  const userAgent = req.headers["user-agent"] || "Unknown";
+  return userAgent.substring(0, 200); // Limit length
+};
+
+/**
+ * Get client IP address
+ */
+const getClientIp = (req: Request): string => {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (typeof forwarded === "string") {
+    return forwarded.split(",")[0].trim();
+  }
+  return req.socket.remoteAddress || "Unknown";
+};
+
+/**
+ * Get secure cookie options
+ */
+const getCookieOptions = () => {
+  const isProduction = process.env.NODE_ENV === "production" || process.env.NODE_ENV === "prod";
+  
+  return {
+    httpOnly: true,
+    secure: isProduction, // Only send over HTTPS in production
+    sameSite: "lax" as const,
+    path: "/",
+    // domain: process.env.COOKIE_DOMAIN, // Uncomment if using custom domain
+  };
+};
 
 export const loginUser = async (req: Request, res: Response) => {
   try {
@@ -42,35 +76,57 @@ export const loginUser = async (req: Request, res: Response) => {
         });
     }
 
-    const accessToken = await encrypt({ id: user.id }, "15m");
+    // Generate tokens with unique IDs for tracking
+    const refreshTokenId = generateTokenId();
+    const accessToken = await encrypt({ id: user.id }, "15m", generateTokenId());
+    const refreshToken = await encrypt({ id: user.id }, "7d", refreshTokenId);
 
-    const refreshToken = await encrypt({ id: user.id }, "7d");
+    // Store refresh token with device info for security
+    const deviceInfo = getDeviceInfo(req);
+    const ipAddress = getClientIp(req);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
-    await db.refreshToken.upsert({
-      create: {
+    const newRefreshTokenRecord = await db.refreshToken.create({
+      data: {
         value: refreshToken,
         userId: user.id,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
+        expiresAt,
+        deviceInfo,
+        ipAddress,
+        isRevoked: false,
       },
-      update: {
-        value: refreshToken,
-        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-      },
+    });
+
+    // Revoke old refresh tokens (keep last 5 tokens for multi-device support)
+    const oldTokens = await db.refreshToken.findMany({
       where: {
         userId: user.id,
+        isRevoked: false,
+        id: { not: newRefreshTokenRecord.id },
       },
+      orderBy: { createdAt: "desc" },
+      skip: 4, // Keep last 5 tokens (including new one)
     });
 
+    if (oldTokens.length > 0) {
+      await db.refreshToken.updateMany({
+        where: {
+          id: { in: oldTokens.map(t => t.id) },
+        },
+        data: { isRevoked: true },
+      });
+    }
+
+    const cookieOptions = getCookieOptions();
+
     res.cookie("accessToken", accessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "prod",
-      maxAge: 15 * 60 * 1000,
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000, // 15 minutes
     });
+    
     res.cookie("refreshToken", refreshToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "prod",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      ...cookieOptions,
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
     console.log(`✅ Login berhasil - User: ${user.email}`);
     res.status(StatusCodes.OK).json({ msg: "Login berhasil" });
@@ -86,15 +142,22 @@ export const logout = async (req: Request, res: Response) => {
     const { refreshToken } = req.cookies;
 
     if (refreshToken) {
-      await db.refreshToken.deleteMany({
+      // Revoke refresh token instead of deleting (for audit trail)
+      await db.refreshToken.updateMany({
         where: {
           value: refreshToken,
+          isRevoked: false,
+        },
+        data: {
+          isRevoked: true,
         },
       });
     }
 
-    res.clearCookie("accessToken");
-    res.clearCookie("refreshToken");
+    const cookieOptions = getCookieOptions();
+
+    res.clearCookie("accessToken", cookieOptions);
+    res.clearCookie("refreshToken", cookieOptions);
 
     console.log("✅ Logout berhasil");
     res.json({ msg: "Logout berhasil" });
@@ -108,11 +171,30 @@ export const logout = async (req: Request, res: Response) => {
 
 export const refreshToken = async (req: Request, res: Response) => {
   try {
-    const { refreshToken } = req.cookies;
+    const { refreshToken: refreshTokenValue } = req.cookies;
 
+    if (!refreshTokenValue) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Refresh token tidak ditemukan" });
+    }
+
+    // Verify token format first
+    let userId: string;
+    try {
+      userId = await verify(refreshTokenValue);
+    } catch (error: any) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Refresh token tidak valid atau sudah kadaluarsa" });
+    }
+
+    // Check if token exists in database and is not revoked
     const storedRefreshToken = await db.refreshToken.findFirst({
       where: {
-        value: refreshToken,
+        value: refreshTokenValue,
+        userId,
+        isRevoked: false,
         expiresAt: { gt: new Date() },
       },
     });
@@ -120,30 +202,63 @@ export const refreshToken = async (req: Request, res: Response) => {
     if (!storedRefreshToken) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
-        .json({ msg: "Refresh token sudah kadaluarsa" });
+        .json({ msg: "Refresh token tidak ditemukan atau sudah dicabut" });
     }
 
-    if (refreshToken !== storedRefreshToken.value) {
-      return res
-        .status(StatusCodes.UNAUTHORIZED)
-        .json({ msg: "Refresh token tidak valid" });
+    // Optional: Implement refresh token rotation for better security
+    // Rotate refresh token (generate new one, revoke old one)
+    const shouldRotate = process.env.REFRESH_TOKEN_ROTATION === "true";
+    
+    let newRefreshToken = refreshTokenValue;
+    
+    if (shouldRotate) {
+      // Generate new refresh token
+      const newRefreshTokenId = generateTokenId();
+      newRefreshToken = await encrypt({ id: userId }, "7d", newRefreshTokenId);
+      
+      // Revoke old token
+      await db.refreshToken.update({
+        where: { id: storedRefreshToken.id },
+        data: { isRevoked: true },
+      });
+      
+      // Create new refresh token
+      const deviceInfo = getDeviceInfo(req);
+      const ipAddress = getClientIp(req);
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+      
+      await db.refreshToken.create({
+        data: {
+          value: newRefreshToken,
+          userId,
+          expiresAt,
+          deviceInfo,
+          ipAddress,
+          isRevoked: false,
+        },
+      });
     }
 
-    const newAccessToken = await encrypt(
-      { id: storedRefreshToken.userId },
-      "15m"
-    );
+    // Generate new access token
+    const newAccessToken = await encrypt({ id: userId }, "15m", generateTokenId());
+
+    const cookieOptions = getCookieOptions();
 
     res.cookie("accessToken", newAccessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "prod",
-      sameSite: "lax",
-      maxAge: 15 * 60 * 1000,
+      ...cookieOptions,
+      maxAge: 15 * 60 * 1000, // 15 minutes
     });
 
+    if (shouldRotate) {
+      res.cookie("refreshToken", newRefreshToken, {
+        ...cookieOptions,
+        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      });
+    }
+
     console.log("✅ Refresh token berhasil");
-    res.json({ userId: storedRefreshToken.userId });
-  } catch (error) {
+    res.json({ userId });
+  } catch (error: any) {
     console.error("❌ Error refresh token:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
@@ -194,6 +309,7 @@ export const validate = async (req: Request, res: Response) => {
       const storedRefreshToken = await db.refreshToken.findFirst({
         where: {
           value: refreshToken,
+          isRevoked: false,
           expiresAt: { gt: new Date() },
         },
       });
@@ -223,13 +339,14 @@ export const validate = async (req: Request, res: Response) => {
 
         const newAccessToken = await encrypt(
           { id: storedRefreshToken.userId },
-          "15m"
+          "15m",
+          generateTokenId()
         );
 
+        const cookieOptions = getCookieOptions();
+
         res.cookie("accessToken", newAccessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "prod",
-          sameSite: "lax",
+          ...cookieOptions,
           maxAge: 15 * 60 * 1000,
         });
 
@@ -279,6 +396,7 @@ export const getSocketToken = async (req: Request, res: Response) => {
       const storedRefreshToken = await db.refreshToken.findFirst({
         where: {
           value: refreshToken,
+          isRevoked: false,
           expiresAt: { gt: new Date() },
         },
       });
@@ -286,13 +404,14 @@ export const getSocketToken = async (req: Request, res: Response) => {
       if (storedRefreshToken) {
         const newAccessToken = await encrypt(
           { id: storedRefreshToken.userId },
-          "15m"
+          "15m",
+          generateTokenId()
         );
 
+        const cookieOptions = getCookieOptions();
+
         res.cookie("accessToken", newAccessToken, {
-          httpOnly: true,
-          secure: process.env.NODE_ENV === "prod",
-          sameSite: "lax",
+          ...cookieOptions,
           maxAge: 15 * 60 * 1000,
         });
 

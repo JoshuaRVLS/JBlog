@@ -4,6 +4,7 @@ import db from "../lib/db";
 import { generateVerificationToken } from "../lib/generator";
 import { encrypt } from "../lib/jwt";
 import { getVerificationEmailTemplate } from "../lib/emailTemplate";
+import { EncryptionService } from "../lib/encryption";
 
 export const sendVerification = async (req: Request, res: Response) => {
   const { userId } = req.body;
@@ -169,6 +170,33 @@ export const verifyVerification = async (req: Request, res: Response) => {
       sameSite: "lax",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
+
+    // Auto-generate encryption key pair for new user after verification
+    try {
+      const existingKey = await db.encryptionKey.findFirst({
+        where: {
+          userId: storedCode.userId,
+          keyType: "ecdh",
+          isActive: true,
+        },
+      });
+
+      if (!existingKey) {
+        const keyPair = EncryptionService.generateKeyPair();
+        await db.encryptionKey.create({
+          data: {
+            userId: storedCode.userId,
+            publicKey: keyPair.publicKey,
+            keyType: "ecdh",
+            isActive: true,
+          },
+        });
+        console.log(`✅ Encryption key pair auto-generated for user ${storedCode.userId}`);
+      }
+    } catch (keyError: any) {
+      // Don't fail verification if key generation fails
+      console.error(`⚠️ Failed to auto-generate encryption key pair:`, keyError);
+    }
 
     console.log(`✅ Email terverifikasi dan user auto login - User ID: ${storedCode.userId}`);
     res.json({ 

@@ -1,22 +1,139 @@
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 
-export const encrypt = async (payload: { id: string }, expiresIn: any) => {
-  return jwt.sign(payload, process.env.JWT_SECRET as string, {
-    algorithm: "HS256",
-    expiresIn,
-  });
+export interface TokenPayload {
+  id: string;
+  iat?: number;
+  exp?: number;
+  jti?: string; // JWT ID for token tracking
+}
+
+export interface TokenResult {
+  payload: TokenPayload;
+  expired: boolean;
+}
+
+/**
+ * Generate a secure random token ID
+ */
+export const generateTokenId = (): string => {
+  return crypto.randomBytes(16).toString("hex");
 };
 
-export const decrypt = async (token: string): Promise<{ id: string }> => {
-  const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
-    id: string;
-  };
-  return decoded as { id: string };
+/**
+ * Encrypt (sign) JWT token with additional security features
+ */
+export const encrypt = async (
+  payload: { id: string },
+  expiresIn: string | number,
+  tokenId?: string
+): Promise<string> => {
+  const secret = process.env.JWT_SECRET;
+  
+  if (!secret) {
+    throw new Error("JWT_SECRET is not defined in environment variables");
+  }
+
+  const jti = tokenId || generateTokenId();
+  
+  return jwt.sign(
+    { ...payload, jti },
+    secret,
+    {
+      algorithm: "HS256",
+      expiresIn,
+      issuer: "jblog",
+      audience: "jblog-users",
+    }
+  );
 };
 
+/**
+ * Decrypt (verify) JWT token with proper error handling
+ */
+export const decrypt = async (token: string): Promise<TokenResult> => {
+  const secret = process.env.JWT_SECRET;
+  
+  if (!secret) {
+    throw new Error("JWT_SECRET is not defined in environment variables");
+  }
+
+  try {
+    const decoded = jwt.verify(token, secret, {
+      algorithms: ["HS256"],
+      issuer: "jblog",
+      audience: "jblog-users",
+    }) as TokenPayload;
+
+    return {
+      payload: decoded,
+      expired: false,
+    };
+  } catch (error: any) {
+    if (error.name === "TokenExpiredError") {
+      // Decode expired token to get payload (for logging purposes)
+      const decoded = jwt.decode(token) as TokenPayload;
+      return {
+        payload: decoded || { id: "" },
+        expired: true,
+      };
+    }
+    
+    if (error.name === "JsonWebTokenError") {
+      throw new Error("Invalid token format");
+    }
+    
+    if (error.name === "NotBeforeError") {
+      throw new Error("Token not yet valid");
+    }
+
+    throw new Error(`Token verification failed: ${error.message}`);
+  }
+};
+
+/**
+ * Verify token and return user ID
+ */
 export const verify = async (token: string): Promise<string> => {
-  console.log(token);
-  const decoded = await decrypt(token);
-  console.log(decoded);
-  return decoded.id;
+  const result = await decrypt(token);
+  
+  if (result.expired) {
+    throw new Error("Token has expired");
+  }
+  
+  if (!result.payload.id) {
+    throw new Error("Invalid token payload: missing user ID");
+  }
+  
+  return result.payload.id;
+};
+
+/**
+ * Get token expiration date
+ */
+export const getTokenExpiration = (token: string): Date | null => {
+  try {
+    const decoded = jwt.decode(token) as TokenPayload;
+    if (decoded?.exp) {
+      return new Date(decoded.exp * 1000);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Check if token is expired
+ */
+export const isTokenExpired = (token: string): boolean => {
+  try {
+    const decoded = jwt.decode(token) as TokenPayload;
+    if (!decoded?.exp) return true;
+    
+    const expirationDate = new Date(decoded.exp * 1000);
+    return expirationDate < new Date();
+  } catch {
+    return true;
+  }
 };
