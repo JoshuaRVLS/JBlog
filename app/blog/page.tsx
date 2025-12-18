@@ -39,6 +39,12 @@ interface Post {
   };
 }
 
+interface Tag {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 interface RecommendedUser {
   id: string;
   name: string;
@@ -79,11 +85,11 @@ export default function BlogPage() {
   const [showFilters, setShowFilters] = useState(false);
 
   // Cached tags (shared across Blog page visits)
-  const { data: tags = [] } = useQuery({
+  const { data: tags = [] } = useQuery<Tag[]>({
     queryKey: ["tags"],
     queryFn: async () => {
       const response = await AxiosInstance.get("/tags");
-      return response.data.tags || [];
+      return (response.data.tags || []) as Tag[];
     },
     staleTime: 10 * 60 * 1000, // 10 menit
   });
