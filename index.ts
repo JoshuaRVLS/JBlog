@@ -33,6 +33,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import { verify } from "./lib/jwt";
 import { createNotification } from "./controllers/notifications.controller";
+import { setIO } from "./lib/socket";
 
 const app = express();
 
@@ -107,6 +108,9 @@ const io = new Server(httpServer, {
     credentials: true,
   },
 });
+
+// Make Socket.IO instance accessible from other modules
+setIO(io);
 
 // Socket.IO authentication middleware
 io.use(async (socket, next) => {

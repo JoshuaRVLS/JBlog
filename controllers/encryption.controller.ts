@@ -29,33 +29,40 @@ export const generateUserKeyPair = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    if (existingKey) {
-      return res.status(StatusCodes.BAD_REQUEST).json({
-        error: "Key pair sudah ada. Gunakan endpoint get untuk mengambil public key",
-      });
-    }
-
     // Frontend should generate key pair using Web Crypto API and send only public key
     // This ensures private key never leaves the client (better security)
     const { publicKey } = req.body;
 
-    if (!publicKey || typeof publicKey !== 'string') {
+    if (!publicKey || typeof publicKey !== "string") {
       return res.status(StatusCodes.BAD_REQUEST).json({
         error: "Public key harus dikirim dari frontend. Frontend harus generate key pair menggunakan Web Crypto API.",
       });
     }
 
-    const encryptionKey = await db.encryptionKey.create({
-      data: {
-        userId,
-        publicKey: publicKey,
-        keyType: "ecdh",
-        isActive: true,
-      },
-    });
+    let encryptionKey;
+    if (existingKey) {
+      // Regenerate / rotate: update existing active key with new public key
+      encryptionKey = await db.encryptionKey.update({
+        where: { id: existingKey.id },
+        data: {
+          publicKey: publicKey,
+          isActive: true,
+        },
+      });
+    } else {
+      // First time: create new key record
+      encryptionKey = await db.encryptionKey.create({
+        data: {
+          userId,
+          publicKey: publicKey,
+          keyType: "ecdh",
+          isActive: true,
+        },
+      });
+    }
 
     res.status(StatusCodes.CREATED).json({
-      message: "Public key berhasil disimpan",
+      message: existingKey ? "Public key berhasil diperbarui" : "Public key berhasil disimpan",
       keyId: encryptionKey.id,
       note: "Private key tetap di frontend dan tidak pernah dikirim ke server (E2EE best practice)",
     });

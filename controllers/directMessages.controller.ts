@@ -2,6 +2,7 @@ import type { Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
+import { getIO } from "../lib/socket";
 import { createNotification } from "./notifications.controller";
 
 // Send a direct message
@@ -22,11 +23,12 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
         .json({ error: "receiverId harus diisi" });
     }
 
-    // For text messages, content is required. For media messages, content can be empty but mediaUrl is required
-    if (type === "text" && !content) {
+    // For text messages, either plain content or encryptedContent must be provided.
+    // For media messages, content can be empty but mediaUrl is required.
+    if (type === "text" && !content && !encryptedContent) {
       return res
         .status(StatusCodes.BAD_REQUEST)
-        .json({ error: "content harus diisi untuk pesan text" });
+        .json({ error: "content atau encryptedContent harus diisi untuk pesan text" });
     }
 
     // For media messages, mediaUrl is required
@@ -91,6 +93,12 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
       userId: receiverId,
       actorId: senderId,
     });
+
+    // Emit real-time event via Socket.IO to both sender and receiver rooms
+    const io = getIO();
+    if (io) {
+      io.to(`user:${receiverId}`).to(`user:${senderId}`).emit("newDirectMessage", message);
+    }
 
     console.log(`✅ User ${senderId} sent DM to ${receiverId}`);
     res.status(StatusCodes.CREATED).json({
