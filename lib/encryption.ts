@@ -30,15 +30,27 @@ export class EncryptionService {
     const publicKeyBuffer = await crypto.subtle.exportKey("raw", keyPair.publicKey);
     const privateKeyBuffer = await crypto.subtle.exportKey("pkcs8", keyPair.privateKey);
 
-    // Web Crypto API exports public key as 64 bytes (X + Y), but Node.js crypto expects 65 bytes (0x04 + X + Y)
-    // Add 0x04 prefix to match Node.js format for compatibility
+    // Web Crypto API may export P-256 public key as:
+    // - 65 bytes: already uncompressed format (0x04 + X(32) + Y(32))
+    // - 64 bytes: X(32) + Y(32) without prefix
+    // Normalize to 65 bytes with 0x04 prefix for compatibility with Node.js crypto.
     const publicKeyArray = new Uint8Array(publicKeyBuffer);
-    const publicKeyWithPrefix = new Uint8Array(65);
-    publicKeyWithPrefix[0] = 0x04; // Uncompressed point indicator
-    publicKeyWithPrefix.set(publicKeyArray, 1);
+    let normalizedPublicKey: Uint8Array;
+
+    if (publicKeyArray.length === 65) {
+      // Already has prefix; just use as-is
+      normalizedPublicKey = publicKeyArray;
+    } else if (publicKeyArray.length === 64) {
+      // Add 0x04 prefix
+      normalizedPublicKey = new Uint8Array(65);
+      normalizedPublicKey[0] = 0x04; // Uncompressed point indicator
+      normalizedPublicKey.set(publicKeyArray, 1);
+    } else {
+      throw new Error(`Unexpected public key length: ${publicKeyArray.length} bytes (expected 64 or 65)`);
+    }
 
     return {
-      publicKey: this.arrayBufferToBase64(publicKeyWithPrefix.buffer),
+      publicKey: this.arrayBufferToBase64(normalizedPublicKey.buffer),
       privateKey: this.arrayBufferToBase64(privateKeyBuffer),
     };
   }

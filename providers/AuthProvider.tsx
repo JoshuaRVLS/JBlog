@@ -142,7 +142,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { email, name, password, confirmPassword } = data;
       const response = await AxiosInstance.post("/users", {
-        email,
+        email,                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                
         name,
         password,
         confirmPassword,
