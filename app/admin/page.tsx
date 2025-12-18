@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
-import { Users, Shield, FileText, Bug, Megaphone } from "lucide-react";
+import { Users, Shield, FileText, Bug, Megaphone, GitBranch } from "lucide-react";
 import toast from "react-hot-toast";
 import AdminLoading from "@/components/AdminLoading";
 
@@ -121,6 +121,13 @@ export default function AdminDashboard() {
       icon: Megaphone,
       href: "/admin/broadcast",
       color: "bg-pink-500/10 text-pink-500",
+    },
+    {
+      title: "Update Logs",
+      description: "Sync dan kelola update logs dari GitHub commits",
+      icon: GitBranch,
+      href: "/admin/updatelogs",
+      color: "bg-indigo-500/10 text-indigo-500",
     },
   ];
 

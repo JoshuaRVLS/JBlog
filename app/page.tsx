@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { OrganizationJsonLd } from "next-seo";
 import Navbar from "@/components/Navbar/Navbar";
 import HeroSection from "@/components/sections/HeroSection";
@@ -11,6 +11,8 @@ import HobbiesSection from "@/components/sections/HobbiesSection";
 import SkillsSection from "@/components/sections/SkillsSection";
 import UsersWorldChartSection from "@/components/sections/UsersWorldChartSection";
 import CTASection from "@/components/sections/CTASection";
+import JPlusBanner from "@/components/sections/JPlusBanner";
+import BroadcastParticles from "@/components/BroadcastParticles";
 import { Menu, X, Home as HomeIcon, Briefcase, Building2, Heart, Lightbulb, Bug, Send, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import AxiosInstance from "@/utils/api";
@@ -35,6 +37,67 @@ interface GitHubOrg {
   avatar_url: string;
   description: string | null;
   html_url: string;
+}
+
+// Component for infinite scroll trigger
+function LoadMoreTriggerComponent({ onLoadMore, isLoading, containerRef }: { onLoadMore: () => void; isLoading: boolean; containerRef?: React.RefObject<HTMLDivElement | null> }) {
+  const observerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !isLoading) {
+          onLoadMore();
+        }
+      },
+      { 
+        threshold: 0.1, 
+        rootMargin: "100px",
+        root: containerRef?.current || null // Use container as root for scroll detection
+      }
+    );
+
+    const currentRef = observerRef.current;
+    if (currentRef) {
+      observer.observe(currentRef);
+    }
+
+    return () => {
+      if (currentRef) {
+        observer.unobserve(currentRef);
+      }
+    };
+  }, [onLoadMore, isLoading, containerRef]);
+
+  return (
+    <div ref={observerRef} className="h-20 flex items-center justify-center">
+      {isLoading && (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <svg
+            className="animate-spin h-5 w-5"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="4"
+            ></circle>
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+            ></path>
+          </svg>
+          <span className="text-sm">Memuat update logs...</span>
+        </div>
+      )}
+    </div>
+  );
 }
 
 // Lazy load GSAP to reduce initial bundle size
@@ -65,6 +128,7 @@ export default function Home() {
   const hobbiesSectionRef = useRef<HTMLElement>(null);
   const skillsSectionRef = useRef<HTMLElement>(null);
   const lenisRef = useRef<any>(null);
+  const updateLogsContainerRef = useRef<HTMLDivElement>(null);
   
   // Navigation menu state
   const [activeSection, setActiveSection] = useState<string>("hero");
@@ -93,25 +157,46 @@ export default function Home() {
   const { data: broadcast } = useQuery({
     queryKey: ["broadcast", "active"],
     queryFn: async () => {
-      const response = await fetch("/api/broadcast/active");
-      if (!response.ok) throw new Error("Failed to fetch broadcast");
-      const data = await response.json();
-      return data.broadcast;
+      try {
+        const response = await fetch("/api/broadcast/active");
+        if (!response.ok) return null;
+        const data = await response.json();
+        return data.broadcast || null;
+      } catch (error) {
+        console.error("Error fetching broadcast:", error);
+        return null;
+      }
     },
     staleTime: 30 * 1000,
     refetchInterval: 60 * 1000,
   });
 
-  const { data: updateLogs = [] } = useQuery({
+  const {
+    data: updateLogsData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteQuery({
     queryKey: ["updateLogs"],
-    queryFn: async () => {
-      const response = await fetch("/api/updatelog/?limit=5");
+    queryFn: async ({ pageParam }) => {
+      const url = new URL("/api/updatelog/", window.location.origin);
+      url.searchParams.set("limit", "10");
+      if (pageParam) {
+        url.searchParams.set("cursor", pageParam);
+      }
+      const response = await fetch(url.toString());
       if (!response.ok) throw new Error("Failed to fetch update logs");
       const data = await response.json();
-      return data.logs || [];
+      return data;
     },
+    getNextPageParam: (lastPage) => {
+      return lastPage.pagination?.hasMore ? lastPage.pagination.nextCursor : undefined;
+    },
+    initialPageParam: undefined,
     staleTime: 5 * 60 * 1000,
   });
+
+  const updateLogs = updateLogsData?.pages.flatMap((page) => page.logs || []) || [];
 
   const { data: githubData } = useQuery({
     queryKey: ["githubData"],
@@ -1195,7 +1280,7 @@ export default function Home() {
       <main className="pb-20 lg:pb-0">
         {broadcast && !(countdownFinished && broadcast.actionAfterCountdown === "hide") && (
           <div
-            className={`fixed top-16 left-0 right-0 z-40 border-b backdrop-blur-sm transition-transform duration-200 ease-out ${
+            className={`fixed top-16 left-0 right-0 z-40 border-b backdrop-blur-sm transition-transform duration-200 ease-out relative overflow-hidden ${
               showBroadcast ? "translate-y-0" : "-translate-y-full"
             }`}
             style={{
@@ -1226,7 +1311,13 @@ export default function Home() {
                 : "#ef4444"),
             }}
           >
-            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2.5">
+            <BroadcastParticles 
+              effect={countdownFinished && broadcast.particleEffectAfterCountdown 
+                ? (broadcast.particleEffectAfterCountdown || "none")
+                : (broadcast.particleEffect || "none")
+              } 
+            />
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2.5 relative z-10 pointer-events-auto">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 flex-1 min-w-0">
                   {broadcast.icon && (
@@ -1310,19 +1401,53 @@ export default function Home() {
             <div className="h-12 sm:h-16 md:h-20 bg-gradient-to-b from-background via-background to-background"></div>
             <section id="updates" className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
               <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">Update Logs</h2>
-              <div className="max-w-3xl mx-auto space-y-4">
-                {updateLogs.map((log) => (
-                  <div
-                    key={log.id}
-                    className="bg-card border border-border rounded-xl p-6 hover:border-primary/50 transition-all"
-                  >
+              <div className="max-w-3xl mx-auto">
+                {/* Fixed height container with scroll */}
+                <div 
+                  ref={updateLogsContainerRef}
+                  className="h-[600px] overflow-y-auto space-y-4 update-logs-scroll"
+                >
+                  {updateLogs.map((log: any) => (
+                    <div
+                      key={log.id}
+                      className="bg-card border border-border rounded-xl p-6 hover:border-primary/50 transition-all"
+                    >
                     <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <h3 className="text-xl font-bold mb-1">{log.title}</h3>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-xl font-bold">{log.title}</h3>
+                          {log.version && (
+                            <span className="px-2 py-0.5 bg-primary/10 text-primary rounded text-sm font-medium">
+                              v{log.version}
+                            </span>
+                          )}
+                        </div>
                         <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                          <span>v{log.version}</span>
-                          {log.author && <span>by {log.author}</span>}
-                          <span>{new Date(log.date).toLocaleDateString("id-ID")}</span>
+                          {log.author && (
+                            <div className="flex items-center gap-1">
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                              </svg>
+                              <span>{log.author}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>
+                              {new Date(log.date || log.createdAt).toLocaleDateString("id-ID", {
+                                year: "numeric",
+                                month: "long",
+                                day: "numeric",
+                              })}
+                            </span>
+                          </div>
+                          {log.commitHash && (
+                            <span className="font-mono text-xs">
+                              {log.commitHash.substring(0, 7)}
+                            </span>
+                          )}
                         </div>
                       </div>
                       {log.commitUrl && (
@@ -1330,17 +1455,44 @@ export default function Home() {
                           href={log.commitUrl}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="text-primary hover:underline text-sm"
+                          className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-colors flex-shrink-0"
+                          title="View on GitHub"
                         >
-                          View Commit
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                          </svg>
                         </a>
                       )}
                     </div>
-                    {log.description && (
-                      <p className="text-muted-foreground mb-3">{log.description}</p>
-                    )}
+                    {(() => {
+                      if (!log.description) return null;
+                      const branchMatch = log.description.match(/\[(?:Branch|Branches):\s*([^\]]+)\]/);
+                      const branches = branchMatch?.[1]?.split(",").map((b: string) => b.trim()) || [];
+                      const cleanDescription = log.description.replace(/\[(?:Branch|Branches):[^\]]+\]/g, "").trim();
+                      
+                      return (
+                        <div className="mb-3">
+                          {cleanDescription && (
+                            <p className="text-muted-foreground leading-relaxed mb-2">{cleanDescription}</p>
+                          )}
+                          {/* Display branch badges */}
+                          {branches.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {branches.map((branch: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="px-2 py-0.5 bg-primary/10 text-primary rounded text-xs font-medium"
+                                >
+                                  {branch}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
                     {log.changes && log.changes.length > 0 && (
-                      <ul className="space-y-1">
+                      <ul className="space-y-2 mt-4">
                         {log.changes.map((change: string, idx: number) => (
                           <li key={idx} className="text-sm text-muted-foreground flex items-start gap-2">
                             <span className="text-primary mt-1">•</span>
@@ -1350,7 +1502,78 @@ export default function Home() {
                       </ul>
                     )}
                   </div>
-                ))}
+                  ))}
+                </div>
+                
+                {/* Navigation Buttons */}
+                <div className="flex items-center justify-between gap-4 mt-6">
+                  <button
+                    onClick={() => {
+                      if (updateLogsContainerRef.current) {
+                        updateLogsContainerRef.current.scrollTo({
+                          top: 0,
+                          behavior: "smooth",
+                        });
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                    <span>Previous</span>
+                  </button>
+                  
+                  {hasNextPage ? (
+                    <button
+                      onClick={() => {
+                        if (hasNextPage && !isFetchingNextPage) {
+                          fetchNextPage();
+                        }
+                      }}
+                      disabled={isFetchingNextPage}
+                      className="flex items-center gap-2 px-6 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {isFetchingNextPage ? (
+                        <>
+                          <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          <span>Loading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Load More</span>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </>
+                      )}
+                    </button>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      Semua update logs telah dimuat
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={() => {
+                      if (updateLogsContainerRef.current) {
+                        updateLogsContainerRef.current.scrollTo({
+                          top: updateLogsContainerRef.current.scrollHeight,
+                          behavior: "smooth",
+                        });
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-lg hover:bg-accent transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <span>Next</span>
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
               </div>
             </section>
           </>
@@ -1358,6 +1581,7 @@ export default function Home() {
 
         <div className="h-12 sm:h-16 md:h-20 bg-gradient-to-b from-background via-background to-background"></div>
 
+        <JPlusBanner />
         <CTASection ref={ctaSectionRef} />
       </main>
     </div>

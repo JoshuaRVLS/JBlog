@@ -121,9 +121,34 @@ export default function ProfileSettings() {
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Ukuran file maksimal 5MB");
+    // Check file size - will be validated on backend based on J+ status
+    // Frontend just shows a warning for very large files
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error("Ukuran file terlalu besar (maksimal 100MB)");
       return;
+    }
+
+    // Check if file is GIF and user has J+
+    const isGif = file.type === "image/gif" || file.name.toLowerCase().endsWith(".gif");
+    if (isGif) {
+      try {
+        const jplusResponse = await AxiosInstance.get("/jplus/status");
+        const hasJPlus = jplusResponse.data.isJPlus;
+        
+        if (!hasJPlus) {
+          toast.error("Fitur GIF profile picture hanya tersedia untuk member J+. Upgrade ke J+ untuk menggunakan fitur ini!", {
+            duration: 5000,
+          });
+          // Redirect to J+ page
+          setTimeout(() => {
+            router.push("/jplus");
+          }, 2000);
+          return;
+        }
+      } catch (error: any) {
+        console.error("Error checking J+ status:", error);
+        // If error, still allow upload but backend will reject if no J+
+      }
     }
 
     const reader = new FileReader();
@@ -143,11 +168,33 @@ export default function ProfileSettings() {
         },
       });
 
-      setProfilePicture(response.data.url);
-      toast.success("Foto profil berhasil diupload");
+      const newProfilePicture = response.data.url;
+      setProfilePicture(newProfilePicture);
+      
+      // Immediately update profile in backend to save the new profile picture
+      try {
+        await AxiosInstance.put("/profile", {
+          profilePicture: newProfilePicture,
+        });
+        toast.success("Foto profil berhasil diupload dan disimpan");
+        // Refresh profile data
+        await fetchProfile();
+      } catch (updateError: any) {
+        console.error("Error updating profile after upload:", updateError);
+        // Profile picture URL is already set, so it should work on next save
+      }
     } catch (error: any) {
       console.error("Error uploading avatar:", error);
-      toast.error(error.response?.data?.error || "Gagal upload foto profil");
+      const errorMsg = error.response?.data?.error || "Gagal upload foto profil";
+      toast.error(errorMsg);
+      
+      // If J+ required, redirect to J+ page
+      if (error.response?.data?.requiresJPlus) {
+        setTimeout(() => {
+          router.push("/jplus");
+        }, 2000);
+      }
+      
       setPreview(user?.profilePicture || generateAvatarUrl(user?.name || "U"));
     } finally {
       setUploading(false);

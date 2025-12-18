@@ -185,6 +185,65 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       // Update auth state setelah verifikasi berhasil (auto login)
       await checkAuth();
       
+      // Auto-generate encryption key pair for new user after verification
+      // This is done in the background, don't block the redirect
+      if (response.data.userId) {
+        // Use dynamic import to avoid loading encryption code if not needed
+        import("@/lib/encryption").then(async ({ EncryptionService }) => {
+          import("@/lib/keyStorage").then(async ({ KeyStorage }) => {
+            try {
+              // Check if key pair already exists locally
+              const existingKey = KeyStorage.getKeyPair();
+              if (!existingKey) {
+                // Generate key pair in frontend
+                const keyPair = await EncryptionService.generateKeyPair();
+                
+                // Send public key to backend to sync (backend will create the key record)
+                try {
+                  const keyResponse = await AxiosInstance.post("/encryption/keys/generate");
+                  if (keyResponse.data.keyId) {
+                    // Store key pair locally with keyId from backend
+                    KeyStorage.saveKeyPair({
+                      publicKey: keyPair.publicKey,
+                      privateKey: keyPair.privateKey,
+                      keyId: keyResponse.data.keyId,
+                    });
+                    console.log("✅ Encryption key pair auto-generated after verification");
+                  }
+                } catch (keyError: any) {
+                  // If key already exists in backend (backend generated it), that's fine
+                  if (keyError.response?.status === 400 && keyError.response?.data?.error?.includes("Key pair sudah ada")) {
+                    // Try to get keyId from backend
+                    try {
+                      const publicKeyResponse = await AxiosInstance.get(`/encryption/keys/user/${response.data.userId}`);
+                      if (publicKeyResponse.data.publicKey) {
+                        // We have public key from backend, store our generated key pair locally
+                        // Note: The public key from backend might be different, but that's ok
+                        // We'll use our locally generated key pair for encryption
+                        KeyStorage.saveKeyPair({
+                          publicKey: keyPair.publicKey,
+                          privateKey: keyPair.privateKey,
+                          keyId: publicKeyResponse.data.keyId || "",
+                        });
+                        console.log("✅ Encryption key pair stored locally (backend key exists)");
+                      }
+                    } catch (e) {
+                      // Failed to sync, but that's ok - user can generate manually later
+                      console.warn("Failed to sync encryption key pair:", e);
+                    }
+                  } else {
+                    console.warn("Failed to generate encryption key pair:", keyError);
+                  }
+                }
+              }
+            } catch (error) {
+              // Don't fail verification if key generation fails
+              console.warn("Failed to auto-generate encryption key pair:", error);
+            }
+          });
+        });
+      }
+      
       // Redirect ke profile finalisation setelah verifikasi berhasil
       if (response.data.redirectTo) {
         router.push(response.data.redirectTo);

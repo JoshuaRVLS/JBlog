@@ -9,54 +9,62 @@ import toast from "react-hot-toast";
 import AdminLoading from "@/components/AdminLoading";
 
 const getThemeConfig = (theme: string) => {
-  const themes: Record<string, { backgroundColor: string; textColor: string; borderColor: string; icon: string }> = {
+  const themes: Record<string, { backgroundColor: string; textColor: string; borderColor: string; icon: string; particleEffect: string }> = {
     default: {
       backgroundColor: "#3b82f6",
       textColor: "#ffffff",
       borderColor: "#3b82f6",
       icon: "",
+      particleEffect: "none",
     },
     newyear: {
       backgroundColor: "#f59e0b",
       textColor: "#ffffff",
       borderColor: "#f59e0b",
       icon: "🎉",
+      particleEffect: "confetti",
     },
     christmas: {
       backgroundColor: "#dc2626",
       textColor: "#ffffff",
       borderColor: "#dc2626",
       icon: "🎄",
+      particleEffect: "snow",
     },
     valentine: {
       backgroundColor: "#ec4899",
       textColor: "#ffffff",
       borderColor: "#ec4899",
       icon: "💝",
+      particleEffect: "hearts",
     },
     independence: {
       backgroundColor: "#dc2626",
       textColor: "#ffffff",
       borderColor: "#fbbf24",
       icon: "🇮🇩",
+      particleEffect: "sparkles",
     },
     eid: {
       backgroundColor: "#10b981",
       textColor: "#ffffff",
       borderColor: "#10b981",
       icon: "🌙",
+      particleEffect: "stars",
     },
     halloween: {
       backgroundColor: "#7c3aed",
       textColor: "#fbbf24",
       borderColor: "#7c3aed",
       icon: "🎃",
+      particleEffect: "fireworks",
     },
     custom: {
       backgroundColor: "",
       textColor: "",
       borderColor: "",
       icon: "",
+      particleEffect: "none",
     },
   };
   return themes[theme] || themes.default;
@@ -79,6 +87,8 @@ export default function AdminBroadcast() {
     backgroundColor: "",
     textColor: "",
     borderColor: "",
+    particleEffect: "none",
+    particleEffectAfterCountdown: "none",
     hasCountdown: false,
     countdownEndDate: "",
     actionAfterCountdown: "hide",
@@ -137,7 +147,7 @@ export default function AdminBroadcast() {
       }
       setShowForm(false);
       setEditingId(null);
-      setFormData({ title: "", message: "", type: "info", theme: "default", icon: "", backgroundColor: "", textColor: "", borderColor: "", hasCountdown: false, countdownEndDate: "", actionAfterCountdown: "hide", messageAfterCountdown: "", redirectUrlAfterCountdown: "", isActive: false });
+      setFormData({ title: "", message: "", type: "info", theme: "default", icon: "", backgroundColor: "", textColor: "", borderColor: "", particleEffect: "none", particleEffectAfterCountdown: "none", hasCountdown: false, countdownEndDate: "", actionAfterCountdown: "hide", messageAfterCountdown: "", redirectUrlAfterCountdown: "", isActive: false });
       fetchData();
     } catch (error: any) {
       toast.error(error.response?.data?.error || "Gagal menyimpan broadcast");
@@ -157,6 +167,8 @@ export default function AdminBroadcast() {
       backgroundColor: broadcast.backgroundColor || "",
       textColor: broadcast.textColor || "",
       borderColor: broadcast.borderColor || "",
+      particleEffect: broadcast.particleEffect || "none",
+      particleEffectAfterCountdown: broadcast.particleEffectAfterCountdown || "none",
       hasCountdown: Boolean(broadcast.hasCountdown),
       countdownEndDate: broadcast.countdownEndDate ? new Date(broadcast.countdownEndDate).toISOString().slice(0, 16) : "",
       actionAfterCountdown: broadcast.actionAfterCountdown || "hide",
@@ -208,7 +220,7 @@ export default function AdminBroadcast() {
               onClick={() => {
                 setShowForm(true);
                 setEditingId(null);
-                setFormData({ title: "", message: "", type: "info", theme: "default", icon: "", backgroundColor: "", textColor: "", borderColor: "", hasCountdown: false, countdownEndDate: "", actionAfterCountdown: "hide", messageAfterCountdown: "", redirectUrlAfterCountdown: "", isActive: false });
+                setFormData({ title: "", message: "", type: "info", theme: "default", icon: "", backgroundColor: "", textColor: "", borderColor: "", particleEffect: "none", particleEffectAfterCountdown: "none", hasCountdown: false, countdownEndDate: "", actionAfterCountdown: "hide", messageAfterCountdown: "", redirectUrlAfterCountdown: "", isActive: false });
               }}
               className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
             >
@@ -227,7 +239,7 @@ export default function AdminBroadcast() {
                   onClick={() => {
                     setShowForm(false);
                     setEditingId(null);
-                    setFormData({ title: "", message: "", type: "info", theme: "default", icon: "", backgroundColor: "", textColor: "", borderColor: "", hasCountdown: false, countdownEndDate: "", actionAfterCountdown: "hide", messageAfterCountdown: "", redirectUrlAfterCountdown: "", isActive: false });
+                    setFormData({ title: "", message: "", type: "info", theme: "default", icon: "", backgroundColor: "", textColor: "", borderColor: "", particleEffect: "none", particleEffectAfterCountdown: "none", hasCountdown: false, countdownEndDate: "", actionAfterCountdown: "hide", messageAfterCountdown: "", redirectUrlAfterCountdown: "", isActive: false });
                   }}
                   className="text-muted-foreground hover:text-foreground"
                 >
@@ -299,6 +311,7 @@ export default function AdminBroadcast() {
                         textColor: themeConfig.textColor,
                         borderColor: themeConfig.borderColor,
                         icon: themeConfig.icon,
+                        particleEffect: themeConfig.particleEffect,
                       });
                     }}
                     className="w-full px-4 py-2 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
@@ -355,6 +368,26 @@ export default function AdminBroadcast() {
                     placeholder="🎉 atau Sparkles"
                     className="w-full px-4 py-2 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Particle Effect
+                  </label>
+                  <select
+                    value={formData.particleEffect}
+                    onChange={(e) => setFormData({ ...formData, particleEffect: e.target.value })}
+                    className="w-full px-4 py-2 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="none">Tidak Ada</option>
+                    <option value="snow">Salju (Snow)</option>
+                    <option value="confetti">Konfeti (Confetti)</option>
+                    <option value="stars">Bintang (Stars)</option>
+                    <option value="hearts">Hati (Hearts)</option>
+                    <option value="fireworks">Kembang Api (Fireworks)</option>
+                    <option value="sparkles">Kilau (Sparkles)</option>
+                  </select>
                 </div>
 
                 <div>
@@ -420,6 +453,29 @@ export default function AdminBroadcast() {
                         />
                       </div>
                     )}
+
+                    <div>
+                      <label className="block text-sm font-semibold mb-2 flex items-center gap-2">
+                        <Sparkles className="h-4 w-4" />
+                        Particle Effect Setelah Countdown
+                      </label>
+                      <select
+                        value={formData.particleEffectAfterCountdown}
+                        onChange={(e) => setFormData({ ...formData, particleEffectAfterCountdown: e.target.value })}
+                        className="w-full px-4 py-2 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                      >
+                        <option value="none">Tidak Ada</option>
+                        <option value="snow">Salju (Snow)</option>
+                        <option value="confetti">Konfeti (Confetti)</option>
+                        <option value="stars">Bintang (Stars)</option>
+                        <option value="hearts">Hati (Hearts)</option>
+                        <option value="fireworks">Kembang Api (Fireworks)</option>
+                        <option value="sparkles">Kilau (Sparkles)</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Particle effect yang akan ditampilkan setelah countdown selesai
+                      </p>
+                    </div>
                   </div>
                 )}
 
@@ -482,7 +538,7 @@ export default function AdminBroadcast() {
                     onClick={() => {
                       setShowForm(false);
                       setEditingId(null);
-                      setFormData({ title: "", message: "", type: "info", theme: "default", icon: "", backgroundColor: "", textColor: "", borderColor: "", hasCountdown: false, countdownEndDate: "", actionAfterCountdown: "hide", messageAfterCountdown: "", redirectUrlAfterCountdown: "", isActive: false });
+                      setFormData({ title: "", message: "", type: "info", theme: "default", icon: "", backgroundColor: "", textColor: "", borderColor: "", particleEffect: "none", particleEffectAfterCountdown: "none", hasCountdown: false, countdownEndDate: "", actionAfterCountdown: "hide", messageAfterCountdown: "", redirectUrlAfterCountdown: "", isActive: false });
                     }}
                     className="px-6 py-3 bg-muted text-foreground rounded-lg font-medium hover:bg-accent"
                   >

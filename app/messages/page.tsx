@@ -7,10 +7,12 @@ import Image from "next/image";
 import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
-import { Send, User, Search, ArrowLeft, MessageSquare, Image as ImageIcon, Video, Mic, X, Loader2, Play, Pause } from "lucide-react";
+import { Send, User, Search, ArrowLeft, MessageSquare, Image as ImageIcon, Video, Mic, X, Loader2, Play, Pause, Lock, Key } from "lucide-react";
 import toast from "react-hot-toast";
 import { io, Socket } from "socket.io-client";
 import ImageViewer from "@/components/ImageViewer";
+import ConfirmModal from "@/components/modals/ConfirmModal";
+import { useEncryption } from "@/hooks/useEncryption";
 
 interface Conversation {
   user: {
@@ -31,10 +33,13 @@ interface Conversation {
 interface Message {
   id: string;
   content: string;
+  encryptedContent?: string | null;
+  encryptionKeyId?: string | null;
   senderId: string;
   receiverId: string;
   type: string;
   mediaUrl: string | null;
+  encryptedMediaUrl?: string | null;
   read: boolean;
   createdAt: string;
   sender: {
@@ -53,6 +58,7 @@ export default function MessagesPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { authenticated, userId, loading: authLoading } = useContext(AuthContext);
+  const encryption = useEncryption(userId || undefined);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -60,6 +66,11 @@ export default function MessagesPage() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [receiverPublicKey, setReceiverPublicKey] = useState<string | null>(null);
+  const [enableEncryption, setEnableEncryption] = useState(false);
+  const [showKeyPairModal, setShowKeyPairModal] = useState(false);
+  const [generatingKeyPair, setGeneratingKeyPair] = useState(false);
+  const [currentUserProfile, setCurrentUserProfile] = useState<{ name: string; profilePicture: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const socketRef = useRef<Socket | null>(null);
   
@@ -94,6 +105,23 @@ export default function MessagesPage() {
       return;
     }
     
+    // Fetch current user profile
+    const fetchCurrentUserProfile = async () => {
+      try {
+        const response = await AxiosInstance.get("/profile");
+        if (response.data) {
+          setCurrentUserProfile({
+            name: response.data.name || "You",
+            profilePicture: response.data.profilePicture || null,
+          });
+        }
+      } catch (error) {
+        console.error("Error fetching current user profile:", error);
+      }
+    };
+    
+    fetchCurrentUserProfile();
+    
     // Check for userId query parameter first
     const userIdParam = searchParams.get("userId");
     if (userIdParam) {
@@ -107,6 +135,7 @@ export default function MessagesPage() {
     if (selectedUserId) {
       fetchMessages(selectedUserId);
       setupSocket();
+      loadReceiverPublicKey(selectedUserId);
     }
     return () => {
       if (socketRef.current) {
@@ -114,6 +143,25 @@ export default function MessagesPage() {
       }
     };
   }, [selectedUserId]);
+
+  useEffect(() => {
+    if (encryption && !encryption.hasKeys && authenticated && !encryption.isLoading) {
+      setShowKeyPairModal(true);
+    }
+  }, [encryption, authenticated]);
+
+  const handleGenerateKeyPair = async () => {
+    if (!encryption) return;
+    try {
+      setGeneratingKeyPair(true);
+      await encryption.generateKeyPair();
+      setShowKeyPairModal(false);
+    } catch (error) {
+      console.error("Error generating key pair:", error);
+    } finally {
+      setGeneratingKeyPair(false);
+    }
+  };
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -172,17 +220,34 @@ export default function MessagesPage() {
       console.error("Socket connection error:", error);
     });
 
-    socketRef.current.on("newDirectMessage", (message: Message) => {
+    socketRef.current.on("newDirectMessage", async (message: Message) => {
       // Only add message if it's for the current conversation
       if (
         (message.senderId === selectedUserId && message.receiverId === userId) ||
         (message.senderId === userId && message.receiverId === selectedUserId)
       ) {
+        // Decrypt message if encrypted
+        let decryptedMessage = message;
+        if (encryption && message.encryptedContent && message.senderId !== userId && encryption.hasKeys) {
+          try {
+            const senderPublicKey = await encryption.getUserPublicKey(message.senderId);
+            if (senderPublicKey) {
+              const encrypted = JSON.parse(message.encryptedContent);
+              const decrypted = await encryption.decryptFromUser(encrypted, senderPublicKey);
+              if (decrypted) {
+                decryptedMessage = { ...message, content: decrypted };
+              }
+            }
+          } catch (error) {
+            console.error("Error decrypting incoming message:", error);
+          }
+        }
+
         // Check if message already exists (to prevent duplicates from optimistic updates)
         setMessages((prev) => {
-          const exists = prev.some((msg) => msg.id === message.id);
+          const exists = prev.some((msg) => msg.id === decryptedMessage.id);
           if (!exists) {
-            return [...prev, message];
+            return [...prev, decryptedMessage];
           }
           return prev;
         });
@@ -209,10 +274,57 @@ export default function MessagesPage() {
     }
   };
 
+  const loadReceiverPublicKey = async (userId: string) => {
+    if (!encryption || !encryption.hasKeys) {
+      setReceiverPublicKey(null);
+      setEnableEncryption(false);
+      return;
+    }
+
+    try {
+      const publicKey = await encryption.getUserPublicKey(userId);
+      setReceiverPublicKey(publicKey);
+      setEnableEncryption(!!publicKey);
+    } catch (error) {
+      console.error("Error loading receiver public key:", error);
+      setReceiverPublicKey(null);
+      setEnableEncryption(false);
+    }
+  };
+
   const fetchMessages = async (otherUserId: string) => {
     try {
       const response = await AxiosInstance.get(`/direct-messages/${otherUserId}`);
-      setMessages(response.data.messages || []);
+      const fetchedMessages = response.data.messages || [];
+      
+      if (encryption && encryption.hasKeys) {
+        const decryptedMessages = await Promise.all(
+          fetchedMessages.map(async (msg: Message) => {
+            if (msg.encryptedContent && msg.senderId !== userId) {
+              try {
+                const senderPublicKey = await encryption.getUserPublicKey(msg.senderId);
+                if (senderPublicKey) {
+                  const encrypted = JSON.parse(msg.encryptedContent);
+                  const decrypted = await encryption.decryptFromUser(
+                    encrypted,
+                    senderPublicKey
+                  );
+                  if (decrypted) {
+                    return { ...msg, content: decrypted, isDecrypted: true };
+                  }
+                }
+              } catch (error) {
+                console.error("Error decrypting message:", error);
+              }
+            }
+            return msg;
+          })
+        );
+        setMessages(decryptedMessages);
+      } else {
+        setMessages(fetchedMessages);
+      }
+      
       markAsRead(otherUserId);
     } catch (error: any) {
       console.error("Error fetching messages:", error);
@@ -468,10 +580,29 @@ export default function MessagesPage() {
     // Get selected conversation for receiver data
     const selectedConv = conversations.find((c) => c.user.id === selectedUserId);
     
+    // Encrypt message if encryption is enabled
+    let encryptedContent: string | null = null;
+    let encryptionKeyId: string | null = null;
+    
+    if (encryption && enableEncryption && receiverPublicKey && encryption.hasKeys) {
+      try {
+        const encrypted = await encryption.encryptForUser(messageContent, receiverPublicKey);
+        if (encrypted) {
+          encryptedContent = JSON.stringify(encrypted);
+          encryptionKeyId = encryption.keyPair?.keyId || null;
+        }
+      } catch (error) {
+        console.error("Error encrypting message:", error);
+        toast.error("Gagal mengenkripsi pesan. Mengirim sebagai plain text.");
+      }
+    }
+    
     // Create optimistic message - message appears immediately without waiting for server
     const optimisticMessage: Message = {
       id: tempMessageId,
       content: messageContent,
+      encryptedContent: encryptedContent,
+      encryptionKeyId: encryptionKeyId,
       senderId: userId,
       receiverId: selectedUserId,
       type: "text",
@@ -480,8 +611,8 @@ export default function MessagesPage() {
       createdAt: new Date().toISOString(),
       sender: {
         id: userId,
-        name: "You", // Will show as "You" in UI for own messages
-        profilePicture: null, // Will be replaced when server responds
+        name: currentUserProfile?.name || "You",
+        profilePicture: currentUserProfile?.profilePicture || null,
       },
       receiver: {
         id: selectedUserId,
@@ -498,14 +629,15 @@ export default function MessagesPage() {
     try {
       const response = await AxiosInstance.post("/direct-messages", {
         receiverId: selectedUserId,
-        content: messageContent,
+        content: encryptedContent ? "" : messageContent,
+        encryptedContent: encryptedContent,
+        encryptionKeyId: encryptionKeyId,
         type: "text",
       });
 
       // Replace optimistic message with real message from server
       setMessages((prev) => {
         const filtered = prev.filter((msg) => msg.id !== tempMessageId);
-        // Check if message already exists (from socket)
         const exists = filtered.some((msg) => msg.id === response.data.directMessage.id);
         if (!exists) {
           return [...filtered, response.data.directMessage];
@@ -516,9 +648,8 @@ export default function MessagesPage() {
       fetchConversations();
     } catch (error: any) {
       console.error("Error sending message:", error);
-      // Rollback optimistic update on error
       setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));
-      setNewMessage(messageContent); // Restore message content
+      setNewMessage(messageContent);
       toast.error(error.response?.data?.error || "Gagal mengirim pesan");
     } finally {
       setSending(false);
@@ -631,32 +762,52 @@ export default function MessagesPage() {
               {selectedUserId ? (
                 <>
                   {/* Header */}
-                  <div className="p-4 border-b border-border flex items-center gap-3">
-                    <button
-                      onClick={() => setSelectedUserId(null)}
-                      className="md:hidden p-2 hover:bg-accent rounded-lg"
-                    >
-                      <ArrowLeft className="h-5 w-5" />
-                    </button>
-                    <div className="relative w-10 h-10 rounded-full overflow-hidden">
-                      {selectedConversation?.user.profilePicture ? (
-                        <Image
-                          src={selectedConversation.user.profilePicture}
-                          alt={selectedConversation.user.name}
-                          fill
-                          className="object-cover"
-                          sizes="40px"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-primary/20 flex items-center justify-center">
-                          <User className="h-5 w-5 text-primary" />
+                  <div className="p-4 border-b border-border flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <button
+                        onClick={() => setSelectedUserId(null)}
+                        className="md:hidden p-2 hover:bg-accent rounded-lg"
+                      >
+                        <ArrowLeft className="h-5 w-5" />
+                      </button>
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                        {selectedConversation?.user.profilePicture ? (
+                          <Image
+                            src={selectedConversation.user.profilePicture}
+                            alt={selectedConversation.user.name}
+                            fill
+                            className="object-cover"
+                            sizes="40px"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                            <User className="h-5 w-5 text-primary" />
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <p className="font-semibold">
+                          {selectedConversation?.user.name}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {enableEncryption && (
+                        <div className="flex items-center gap-1.5 px-2 py-1 bg-green-500/10 text-green-500 rounded-lg text-xs">
+                          <Lock className="h-3.5 w-3.5" />
+                          <span>E2EE</span>
                         </div>
                       )}
-                    </div>
-                    <div>
-                      <p className="font-semibold">
-                        {selectedConversation?.user.name}
-                      </p>
+                      {encryption && !encryption.hasKeys && (
+                        <button
+                          onClick={() => setShowKeyPairModal(true)}
+                          className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 text-primary rounded-lg text-xs hover:bg-primary/20 transition-colors"
+                          title="Aktifkan enkripsi end-to-end"
+                        >
+                          <Key className="h-3.5 w-3.5" />
+                          <span>Aktifkan E2EE</span>
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -963,6 +1114,18 @@ export default function MessagesPage() {
         imageUrl={viewingImage}
         onClose={() => setViewingImage(null)}
         alt="Direct message image"
+      />
+
+      {/* Key Pair Modal */}
+      <ConfirmModal
+        isOpen={showKeyPairModal}
+        onClose={() => setShowKeyPairModal(false)}
+        onConfirm={handleGenerateKeyPair}
+        title="Aktifkan Enkripsi End-to-End"
+        message="Enkripsi end-to-end belum diaktifkan. Aktifkan sekarang untuk keamanan pesan? (Anda bisa skip jika tidak ingin menggunakan enkripsi)"
+        confirmText="Aktifkan"
+        cancelText="Skip"
+        isLoading={generatingKeyPair}
       />
     </div>
   );

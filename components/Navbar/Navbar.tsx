@@ -224,9 +224,6 @@ export default function Navbar() {
           { name: "Group Chat", href: "/groupchat", icon: MessageCircle },
         ]
       : []),
-    ...(user?.isAdmin || user?.isOwner
-      ? [{ name: "Admin", href: "/admin", icon: Shield }]
-      : []),
   ];
 
   useEffect(() => {
@@ -403,7 +400,7 @@ export default function Navbar() {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -10, scale: 0.95 }}
                         transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50"
+                        className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-[60]"
                       >
                         <motion.div
                           whileTap={{ scale: 0.97 }}
@@ -431,6 +428,24 @@ export default function Navbar() {
                             <span className="text-sm text-foreground">Pengaturan</span>
                           </Link>
                         </motion.div>
+                        {(user?.isAdmin || user?.isOwner) && (
+                          <>
+                            <div className="border-t border-border"></div>
+                            <motion.div
+                              whileTap={{ scale: 0.97 }}
+                              transition={{ duration: 0.15, ease: "easeOut" }}
+                            >
+                              <Link
+                                href="/admin"
+                                onClick={() => setProfileMenuOpen(false)}
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-accent transition-all"
+                              >
+                                <Shield className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm text-foreground">Admin Panel</span>
+                              </Link>
+                            </motion.div>
+                          </>
+                        )}
                         <div className="border-t border-border"></div>
                         <motion.div
                           whileTap={{ scale: 0.97 }}
@@ -641,10 +656,29 @@ export default function Navbar() {
                         <span className="text-sm font-medium">Pengaturan</span>
                       </Link>
                     </motion.div>
+                    {(user?.isAdmin || user?.isOwner) && (
+                      <motion.div
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3, delay: (navItems.length + 2) * 0.05 }}
+                        whileTap={{ scale: 0.97 }}
+                      >
+                        <Link
+                          href="/admin"
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-card/50 border border-border/50 text-foreground/80 hover:text-primary hover:bg-accent/50 hover:border-primary/20 transition-all group"
+                        >
+                          <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                            <Shield className="h-4 w-4 text-foreground/60 group-hover:text-primary transition-colors" />
+                          </div>
+                          <span className="text-sm font-medium">Admin Panel</span>
+                        </Link>
+                      </motion.div>
+                    )}
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: 0.3, delay: (navItems.length + 2) * 0.05 }}
+                      transition={{ duration: 0.3, delay: (navItems.length + (user?.isAdmin || user?.isOwner ? 3 : 2)) * 0.05 }}
                       whileTap={{ scale: 0.97 }}
                     >
                       <button

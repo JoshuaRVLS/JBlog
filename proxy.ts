@@ -1,21 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedRoutes = ["/dashboard", "/profile", "/feed", "/bookmarks", "/messages", "/admin"]; // Add your protected routes
-const publicRoutes = ["/login", "/register"];
+const protectedRoutes = ["/dashboard", "/profile", "/feed", "/bookmarks", "/messages", "/admin", "/groupchat"]; // Add your protected routes
+const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
 
-export default function middleware(req: NextRequest) {
+export default async function middleware(req: NextRequest) {
   const accessToken = req.cookies.get("accessToken");
+  const refreshToken = req.cookies.get("refreshToken");
   const path = req.nextUrl.pathname;
 
-
-  // If user is on a public route (login/register) and has a token, redirect to home (not dashboard)
-  if (publicRoutes.includes(path) && accessToken) {
-    return NextResponse.redirect(new URL("/", req.url));
+  // Always allow access to public routes (login, register, etc)
+  // Don't redirect if user has token - let them access login page if they want to switch account
+  if (publicRoutes.some(route => path.startsWith(route))) {
+    return NextResponse.next();
   }
 
-  // If user is on a protected route and doesn't have a token, redirect to login
-  if (protectedRoutes.some(route => path.startsWith(route)) && !accessToken) {
-    return NextResponse.redirect(new URL("/login", req.url));
+  // For protected routes, check if user has valid token
+  if (protectedRoutes.some(route => path.startsWith(route))) {
+    // If no tokens at all, redirect to login
+    if (!accessToken && !refreshToken) {
+      const loginUrl = new URL("/login", req.url);
+      loginUrl.searchParams.set("redirect", path);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    // If has refresh token but no access token, allow through
+    // The frontend will handle token refresh
+    if (!accessToken && refreshToken) {
+      return NextResponse.next();
+    }
+
+    // If has access token, allow through (validation will happen on backend)
+    if (accessToken) {
+      return NextResponse.next();
+    }
   }
 
   // Allow the request to continue
@@ -35,3 +52,4 @@ export const config = {
     "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
+

@@ -8,10 +8,11 @@ import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
 import { io, Socket } from "socket.io-client";
-import { MessageCircle, Plus, Send, Users, ArrowLeft, Loader2, Image as ImageIcon, Video, Mic, VideoIcon, X, Play, Pause, Lock, Globe, Settings, Crown, UserMinus, UserPlus, Search, Compass } from "lucide-react";
+import { MessageCircle, Plus, Send, Users, ArrowLeft, Loader2, Image as ImageIcon, Video, Mic, VideoIcon, X, Play, Pause, Lock, Globe, Settings, Crown, UserMinus, UserPlus, Search, Compass, Key } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
 import ImageViewer from "@/components/ImageViewer";
+import ConfirmModal from "@/components/modals/ConfirmModal";
 
 interface GroupChat {
   id: string;
@@ -19,6 +20,7 @@ interface GroupChat {
   description: string | null;
   logo: string | null;
   isPublic: boolean;
+  encryptionEnabled?: boolean;
   createdBy: string;
   creator: {
     id: string;
@@ -45,8 +47,11 @@ interface GroupChat {
 interface Message {
   id: string;
   content: string;
+  encryptedContent?: string | null;
+  encryptionKeyId?: string | null;
   type: string;
   mediaUrl?: string | null;
+  encryptedMediaUrl?: string | null;
   mediaThumbnail?: string | null;
   createdAt: string;
   user: {
@@ -67,6 +72,7 @@ export default function GroupChatPage() {
   const [loadingGroups, setLoadingGroups] = useState(false);
   const [sending, setSending] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<{ name: string; profilePicture: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   
@@ -143,6 +149,22 @@ export default function GroupChatPage() {
       return;
     }
     if (authenticated && !isSuspended) {
+      // Fetch current user profile
+      const fetchCurrentUserProfile = async () => {
+        try {
+          const response = await AxiosInstance.get("/profile");
+          if (response.data) {
+            setCurrentUserProfile({
+              name: response.data.name || "You",
+              profilePicture: response.data.profilePicture || null,
+            });
+          }
+        } catch (error) {
+          console.error("Error fetching current user profile:", error);
+        }
+      };
+      
+      fetchCurrentUserProfile();
       fetchGroupChats();
     }
   }, [authenticated, isSuspended, router]);
@@ -163,6 +185,7 @@ export default function GroupChatPage() {
       console.error("Error fetching group details:", error);
     }
   };
+
 
   useEffect(() => {
     if (selectedGroup) {
@@ -548,13 +571,21 @@ export default function GroupChatPage() {
         return;
       }
 
+      // Determine backend/socket URL from env (for Vercel) or fallback to localhost (dev)
+      const backendUrl =
+        process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+        "http://localhost:8000";
+      const socketUrl = backendUrl.startsWith("http")
+        ? backendUrl
+        : `http://${backendUrl}`;
+
       // Disconnect existing socket if any
       if (socket) {
         socket.disconnect();
         setSocket(null);
       }
 
-      const newSocket = io("http://localhost:8000", {
+      const newSocket = io(socketUrl, {
         auth: {
           token,
         },
@@ -580,25 +611,27 @@ export default function GroupChatPage() {
       }
     });
 
-    socketInstance.on("new-message", (message: Message) => {
+    socketInstance.on("new-message", async (message: Message) => {
+      const decryptedMessage = message;
+
       setMessages((prev) => {
         const filtered = prev.filter((msg) => {
-          if (msg.id.startsWith("temp-") && msg.user.id === message.user.id) {
-            if (message.type === "text" && msg.type === "text") {
-              return msg.content !== message.content;
+          if (msg.id.startsWith("temp-") && msg.user.id === decryptedMessage.user.id) {
+            if (decryptedMessage.type === "text" && msg.type === "text") {
+              return msg.content !== decryptedMessage.content;
             }
-            if (message.type !== "text" && msg.type !== "text" && message.mediaUrl) {
-              return msg.mediaUrl !== message.mediaUrl;
+            if (decryptedMessage.type !== "text" && msg.type !== "text" && decryptedMessage.mediaUrl) {
+              return msg.mediaUrl !== decryptedMessage.mediaUrl;
             }
             return true;
           }
           return true;
         });
-        const messageExists = filtered.some((msg) => msg.id === message.id);
+        const messageExists = filtered.some((msg) => msg.id === decryptedMessage.id);
         if (messageExists) {
           return filtered;
         }
-        return [...filtered, message];
+        return [...filtered, decryptedMessage];
       });
     });
 
@@ -681,10 +714,10 @@ export default function GroupChatPage() {
       const response = await AxiosInstance.get(`/groupchat/${selectedGroup.id}/messages`, {
         params: { limit: 100 },
       });
-      setMessages(response.data.messages || []);
+      const fetchedMessages = response.data.messages || [];
+      setMessages(fetchedMessages);
     } catch (error: any) {
       console.error("Error fetching messages:", error);
-      // Don't show error if it's just a permission issue for non-members viewing private groups
       if (error.response?.status !== 403) {
         toast.error(error.response?.data?.msg || "Gagal mengambil messages");
       }
@@ -719,16 +752,17 @@ export default function GroupChatPage() {
       if (selectedMedia) {
         await handleUploadAndSendMedia(selectedMedia);
       } else {
+        const messageContent = messageInput.trim();
         const tempId = `temp-${Date.now()}`;
         const optimisticMessage: Message = {
           id: tempId,
-          content: messageInput.trim(),
+          content: messageContent,
           type: "text",
           createdAt: new Date().toISOString(),
           user: {
             id: userId!,
-            name: "You", // Will be replaced by server response
-            profilePicture: null,
+            name: currentUserProfile?.name || "You",
+            profilePicture: currentUserProfile?.profilePicture || null,
           },
         };
 
@@ -737,7 +771,7 @@ export default function GroupChatPage() {
 
         socket.emit("send-message", {
           groupId: selectedGroup.id,
-          content: messageInput.trim(),
+          content: messageContent,
           type: "text",
         });
       }
@@ -781,8 +815,8 @@ export default function GroupChatPage() {
         createdAt: new Date().toISOString(),
         user: {
           id: userId!,
-          name: "You", // Will be replaced by server response
-          profilePicture: null,
+          name: currentUserProfile?.name || "You",
+          profilePicture: currentUserProfile?.profilePicture || null,
         },
       };
 
@@ -1993,6 +2027,7 @@ export default function GroupChatPage() {
                 />
               </div>
 
+
               <div className="flex gap-4 pt-4">
                 <button
                   type="button"
@@ -2279,6 +2314,8 @@ export default function GroupChatPage() {
         onClose={() => setViewingImage(null)}
         alt="Group chat image"
       />
+
+
     </div>
   );
 }

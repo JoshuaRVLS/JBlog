@@ -75,7 +75,14 @@ export default function NotificationsDropdown() {
 
       if (!token) return;
 
-      const socket = io("http://localhost:8000", {
+      const backendUrl =
+        process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
+        "http://localhost:8000";
+      const socketUrl = backendUrl.startsWith("http")
+        ? backendUrl
+        : `http://${backendUrl}`;
+
+      const socket = io(socketUrl, {
         auth: { token },
         transports: ["websocket"],
         reconnection: true,

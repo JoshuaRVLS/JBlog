@@ -6,8 +6,15 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const limit = searchParams.get("limit") || "10";
+    const cursor = searchParams.get("cursor") || undefined;
     
-    const response = await fetch(`${BACKEND_URL}/updatelog/?limit=${limit}`, {
+    const url = new URL(`${BACKEND_URL}/updatelog/`);
+    url.searchParams.set("limit", limit);
+    if (cursor) {
+      url.searchParams.set("cursor", cursor);
+    }
+    
+    const response = await fetch(url.toString(), {
       method: "GET",
       headers: {
         "Content-Type": "application/json",
@@ -16,14 +23,14 @@ export async function GET(request: NextRequest) {
     });
 
     if (!response.ok) {
-      return NextResponse.json({ logs: [] });
+      return NextResponse.json({ logs: [], pagination: { hasMore: false } });
     }
 
     const data = await response.json();
     return NextResponse.json(data);
   } catch (error: any) {
     console.error("Error fetching update logs:", error);
-    return NextResponse.json({ logs: [] });
+    return NextResponse.json({ logs: [], pagination: { hasMore: false } });
   }
 }
 
