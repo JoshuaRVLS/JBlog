@@ -50,7 +50,8 @@ export class EncryptionService {
     }
 
     return {
-      publicKey: this.arrayBufferToBase64(normalizedPublicKey.buffer),
+      // Pass Uint8Array directly to avoid ArrayBufferLike typing issues
+      publicKey: this.arrayBufferToBase64(normalizedPublicKey),
       privateKey: this.arrayBufferToBase64(privateKeyBuffer),
     };
   }
