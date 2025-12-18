@@ -10,7 +10,8 @@ import Link from "next/link";
 import { useContext, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import toast from "react-hot-toast";
-import { Mail, Loader2, ArrowRight, Sparkles, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Mail, Loader2, ArrowRight, RefreshCw, CheckCircle2 } from "lucide-react";
+import Image from "next/image";
 import ParticleBackground from "@/components/ParticleBackground";
 
 export default function VerifyEmailPage() {
@@ -75,8 +76,15 @@ export default function VerifyEmailPage() {
         <div className="max-w-md w-full mx-auto">
           {/* Logo/Brand */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 mb-4 shadow-lg shadow-primary/20">
-              <Mail className="h-8 w-8 text-primary-foreground" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-card border border-border/60 mb-4 shadow-lg shadow-primary/20 overflow-hidden">
+              <Image
+                src="/jblog-logo.svg"
+                alt="jblog.space logo"
+                width={48}
+                height={48}
+                className="object-contain"
+                priority
+              />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent mb-2">
               Verifikasi Email

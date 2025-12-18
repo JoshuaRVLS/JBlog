@@ -6,7 +6,8 @@ import { useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { FormInput } from "@/components/ui/FormInput";
 import Link from "next/link";
-import { Mail, Lock, Loader2, ArrowRight, Sparkles } from "lucide-react";
+import { Mail, Lock, Loader2, ArrowRight } from "lucide-react";
+import Image from "next/image";
 import ParticleBackground from "@/components/ParticleBackground";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
@@ -49,11 +50,18 @@ export default function LoginPage() {
         <div className="max-w-md w-full mx-auto">
           {/* Logo/Brand */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-primary/60 mb-4 shadow-lg shadow-primary/20">
-              <Sparkles className="h-8 w-8 text-primary-foreground" />
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-card border border-border/60 mb-4 shadow-lg shadow-primary/20 overflow-hidden">
+              <Image
+                src="/jblog-logo.svg"
+                alt="jblog.space logo"
+                width={48}
+                height={48}
+                className="object-contain"
+                priority
+              />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-primary via-primary/80 to-primary bg-clip-text text-transparent mb-2">
-              JBlog
+              jblog.space
             </h1>
             <p className="text-muted-foreground">Selamat datang kembali!</p>
           </div>

@@ -285,7 +285,16 @@ export default function Navbar() {
               whileHover={{ scale: 1.05 }}
               className="flex items-center gap-2 cursor-pointer"
             >
-              <Terminal className="h-6 w-6 text-primary" />
+              <div className="relative h-8 w-8 rounded-xl overflow-hidden bg-card border border-border/60 shadow-sm">
+                <Image
+                  src="/jblog-logo.svg"
+                  alt="jblog.space logo"
+                  fill
+                  sizes="32px"
+                  className="object-contain"
+                  priority
+                />
+              </div>
               <span className="text-xl font-bold text-foreground terminal-glow tracking-tight">
                 jblog<span className="text-primary">.space</span>
               </span>

@@ -11,9 +11,8 @@ import HobbiesSection from "@/components/sections/HobbiesSection";
 import SkillsSection from "@/components/sections/SkillsSection";
 import UsersWorldChartSection from "@/components/sections/UsersWorldChartSection";
 import CTASection from "@/components/sections/CTASection";
-import JPlusBanner from "@/components/sections/JPlusBanner";
 import BroadcastParticles from "@/components/BroadcastParticles";
-import { Menu, X, Home as HomeIcon, Briefcase, Building2, Heart, Lightbulb, Bug, Send, Loader2 } from "lucide-react";
+import { Menu, X, Home as HomeIcon, Briefcase, Building2, Heart, Lightbulb, Bug, Send, Loader2, Globe2, Sparkles, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import AxiosInstance from "@/utils/api";
 import toast from "react-hot-toast";
@@ -233,13 +232,16 @@ export default function Home() {
   const projects = githubData?.projects || [];
   const organizations = githubData?.organizations || [];
 
-  // Navigation menu sections
+  // Navigation menu sections (built dynamically for responsiveness)
   const navSections = [
     { id: "hero", label: "Home", icon: HomeIcon },
     { id: "projects", label: "Projects", icon: Briefcase },
     { id: "organizations", label: "Organizations", icon: Building2 },
     { id: "hobbies", label: "Hobbies", icon: Heart },
     { id: "skills", label: "Skills", icon: Lightbulb },
+    { id: "world", label: "World", icon: Globe2 },
+    ...(updateLogs.length > 0 ? [{ id: "updates", label: "Updates", icon: Sparkles }] : []),
+    { id: "contact", label: "Contact", icon: Mail },
   ];
 
   // Smooth scroll to section
@@ -333,16 +335,24 @@ export default function Home() {
         return;
       }
 
-      const sectionIds = ["hero", "projects", "organizations", "hobbies", "skills"];
+      const sectionIds = ["hero", "projects", "organizations", "hobbies", "skills", "world", "updates", "contact"];
       const scrollPosition = currentScrollY + 150;
 
-      for (let i = sectionIds.length - 1; i >= 0; i--) {
-        const section = document.getElementById(sectionIds[i]);
-        if (section) {
-          const sectionTop = section.offsetTop;
-          if (scrollPosition >= sectionTop) {
-            setActiveSection(sectionIds[i]);
-            break;
+      // If user is at (or very near) the bottom, force active section to "contact"
+      const doc = document.documentElement;
+      const atBottom = window.innerHeight + currentScrollY >= (doc.scrollHeight - 10);
+
+      if (atBottom) {
+        setActiveSection("contact");
+      } else {
+        for (let i = sectionIds.length - 1; i >= 0; i--) {
+          const section = document.getElementById(sectionIds[i]);
+          if (section) {
+            const sectionTop = section.offsetTop;
+            if (scrollPosition >= sectionTop) {
+              setActiveSection(sectionIds[i]);
+              break;
+            }
           }
         }
       }
@@ -368,6 +378,15 @@ export default function Home() {
       }
     };
   }, []);
+  
+  // Auto-scroll mobile bottom nav so active item selalu kelihatan
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const el = document.getElementById(`mobile-nav-${activeSection}`);
+    if (el && el.scrollIntoView) {
+      el.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+    }
+  }, [activeSection]);
 
 
   useEffect(() => {
@@ -1106,51 +1125,54 @@ export default function Home() {
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 lg:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl">
-        <div className="flex items-center justify-around px-2 py-2 safe-area-bottom">
-          {navSections.map((section) => {
-            const Icon = section.icon;
-            const isActive = activeSection === section.id;
-            
-            return (
-              <motion.button
-                key={section.id}
-                onClick={() => scrollToSection(section.id)}
-                whileTap={{ scale: 0.9 }}
-                className={`relative flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[60px] ${
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
-              >
-                {/* Active indicator */}
-                {isActive && (
-                  <motion.div
-                    layoutId="mobileBottomNavActive"
-                    className="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-primary rounded-b-full"
-                    transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                  />
-                )}
-                
-                {/* Icon */}
-                <div className={`relative z-10 p-1.5 rounded-lg transition-colors ${
-                  isActive 
-                    ? "bg-primary/10" 
-                    : ""
-                }`}>
-                  <Icon className={`h-5 w-5 transition-colors ${
+        <div className="safe-area-bottom px-2 py-2">
+          <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {navSections.map((section) => {
+              const Icon = section.icon;
+              const isActive = activeSection === section.id;
+              
+              return (
+                <motion.button
+                  key={section.id}
+                  id={`mobile-nav-${section.id}`}
+                  onClick={() => scrollToSection(section.id)}
+                  whileTap={{ scale: 0.9 }}
+                  className={`relative flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-xl transition-all min-w-[64px] flex-shrink-0 text-[10px] ${
+                    isActive
+                      ? "text-primary bg-primary/5"
+                      : "text-muted-foreground"
+                  }`}
+                >
+                  {/* Active indicator */}
+                  {isActive && (
+                    <motion.div
+                      layoutId="mobileBottomNavActive"
+                      className="absolute top-0 left-1/2 -translate-x-1/2 w-10 h-1 bg-primary rounded-b-full"
+                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                  
+                  {/* Icon */}
+                  <div className={`relative z-10 p-1.5 rounded-lg transition-colors ${
+                    isActive 
+                      ? "bg-primary/10" 
+                      : ""
+                  }`}>
+                    <Icon className={`h-5 w-5 transition-colors ${
+                      isActive ? "text-primary" : "text-muted-foreground"
+                    }`} />
+                  </div>
+                  
+                  {/* Label */}
+                  <span className={`font-medium transition-colors whitespace-nowrap ${
                     isActive ? "text-primary" : "text-muted-foreground"
-                  }`} />
-                </div>
-                
-                {/* Label */}
-                <span className={`text-[10px] font-medium transition-colors ${
-                  isActive ? "text-primary" : "text-muted-foreground"
-                }`}>
-                  {section.label}
-                </span>
-              </motion.button>
-            );
-          })}
+                  }`}>
+                    {section.label}
+                  </span>
+                </motion.button>
+              );
+            })}
+          </div>
         </div>
       </nav>
 
@@ -1391,7 +1413,9 @@ export default function Home() {
         <div className="h-12 sm:h-16 md:h-20 bg-gradient-to-b from-background via-background to-background"></div>
 
         {/* Users World Chart Section */}
-        <UsersWorldChartSection />
+        <section id="world">
+          <UsersWorldChartSection />
+        </section>
 
         {/* Gradient Transition Globe to CTA */}
         <div className="h-12 sm:h-16 md:h-20 bg-gradient-to-b from-background via-background to-background"></div>
@@ -1581,7 +1605,8 @@ export default function Home() {
 
         <div className="h-12 sm:h-16 md:h-20 bg-gradient-to-b from-background via-background to-background"></div>
 
-        <JPlusBanner />
+        {/* J+ banner temporarily hidden */}
+        {/* <JPlusBanner /> */}
         <CTASection ref={ctaSectionRef} />
       </main>
     </div>

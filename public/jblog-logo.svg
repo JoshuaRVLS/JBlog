@@ -1,0 +1,36 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background pill -->
+  <rect x="8" y="16" width="112" height="96" rx="32" fill="#020617"/>
+  <!-- Gradient accent ring -->
+  <rect x="10" y="18" width="108" height="92" rx="30" stroke="url(#paint0_linear)" stroke-width="2" fill="none"/>
+  <!-- Inner glow -->
+  <rect x="20" y="26" width="88" height="80" rx="26" fill="#020617"/>
+  <rect x="20" y="26" width="88" height="80" rx="26" fill="url(#paint1_radial)" fill-opacity="0.45"/>
+
+  <!-- Stylized "J" -->
+  <path
+    d="M56 34C51.5817 34 48 37.5817 48 42V46C48 48.2091 49.7909 50 52 50C54.2091 50 56 48.2091 56 46V42H64V80C64 85.5228 59.5228 90 54 90C49.736 90 46.0629 87.344 44.733 83.4C44.0051 81.2525 42.0198 79.9 39.7548 80.0435C37.4897 80.187 35.7 81.8706 35.7 84.141C35.7 84.7618 35.7989 85.3731 35.9925 85.9524C38.167 92.4954 45.3435 98 54 98C65.0457 98 74 89.0457 74 78V42C74 37.5817 70.4183 34 66 34H56Z"
+    fill="white"
+  />
+
+  <!-- Dot accent for ".space" -->
+  <circle cx="90" cy="44" r="6" fill="url(#paint0_linear)"/>
+
+  <!-- Gradients -->
+  <defs>
+    <linearGradient id="paint0_linear" x1="8" y1="16" x2="120" y2="112" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6366F1"/>
+      <stop offset="0.4" stop-color="#8B5CF6"/>
+      <stop offset="0.75" stop-color="#EC4899"/>
+      <stop offset="1" stop-color="#F97316"/>
+    </linearGradient>
+    <radialGradient id="paint1_radial" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(40 32) rotate(45) scale(96 80)">
+      <stop stop-color="#6366F1"/>
+      <stop offset="0.4" stop-color="#8B5CF6" stop-opacity="0.9"/>
+      <stop offset="0.8" stop-color="#020617" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+</svg>
+
+
