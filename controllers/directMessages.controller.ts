@@ -88,7 +88,7 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
     });
 
     // Create notification untuk receiver
-    await createNotification({
+    const notification = await createNotification({
       type: "direct_message",
       userId: receiverId,
       actorId: senderId,
@@ -97,7 +97,12 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
     // Emit real-time event via Socket.IO to both sender and receiver rooms
     const io = getIO();
     if (io) {
+      // Realtime DM di kedua sisi
       io.to(`user:${receiverId}`).to(`user:${senderId}`).emit("newDirectMessage", message);
+      // Realtime notification badge / list untuk receiver
+      if (notification) {
+        io.to(`user:${receiverId}`).emit("new-notification", notification);
+      }
     }
 
     console.log(`✅ User ${senderId} sent DM to ${receiverId}`);
