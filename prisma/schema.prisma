@@ -289,6 +289,8 @@ model Message {
   @@index([groupChatId])
   @@index([userId])
   @@index([createdAt])
+  // For fetching messages per group ordered by time
+  @@index([groupChatId, createdAt])
   @@index([encryptionKeyId])
 }
 
@@ -313,6 +315,8 @@ model Notification {
   @@index([userId])
   @@index([read])
   @@index([createdAt])
+  // For fetching unread notifications per user by newest first
+  @@index([userId, read, createdAt])
   @@index([postId])
   @@index([type])
 }
@@ -391,6 +395,11 @@ model DirectMessage {
   @@index([receiverId])
   @@index([read])
   @@index([createdAt])
+  // For conversations between two users ordered by time
+  @@index([senderId, receiverId, createdAt])
+  @@index([receiverId, senderId, createdAt])
+  // For unread counts per receiver
+  @@index([receiverId, read, createdAt])
   @@index([encryptionKeyId])
 }
 
