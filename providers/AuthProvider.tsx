@@ -42,7 +42,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const checkAuth = async () => {
     setLoading(true);
     try {
-      const response = await AxiosInstance.post("/auth/validate");
+      const response = await AxiosInstance.post("/api/auth/validate");
       if (response.data.isSuspended) {
         setUserId(response.data.userId || "");
         setAuthenticated(false);
@@ -81,7 +81,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       }
 
       try {
-        const refreshResponse = await AxiosInstance.post("/auth/refresh");
+        const refreshResponse = await AxiosInstance.post("/api/auth/refresh");
         if (refreshResponse.data.isSuspended) {
           setUserId(refreshResponse.data.userId || "");
           setAuthenticated(false);
@@ -112,7 +112,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { email, password } = data;
 
-      const response = await AxiosInstance.post("/auth/login", {
+      const response = await AxiosInstance.post("/api/auth/login", {
         email,
         password,
       });
@@ -163,7 +163,7 @@ const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const logout = async () => {
     try {
-      await AxiosInstance.delete("/auth/logout");
+      await AxiosInstance.delete("/api/auth/logout");
       setUserId("");
       setAuthenticated(false);
       setIsSuspended(false);
