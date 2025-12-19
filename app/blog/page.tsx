@@ -390,20 +390,20 @@ export default function BlogPage() {
                       )}
                       <div className="p-6">
                         <div className="flex items-center gap-3 mb-4">
-                          <div className="relative">
+                          <div className="relative w-8 h-8 rounded-full overflow-hidden ring-2 ring-border flex-shrink-0">
                             {post.author.profilePicture ? (
                               <Image
                                 src={post.author.profilePicture}
                                 alt={post.author.name}
-                                width={32}
-                                height={32}
-                                className="rounded-full ring-2 ring-border"
+                                fill
+                                className="object-cover"
+                                sizes="32px"
                               />
                             ) : (
-                              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent"></div>
+                              <div className="w-full h-full rounded-full bg-gradient-to-br from-primary to-accent" />
                             )}
                           </div>
-                          <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-foreground truncate">
                               {post.author.name}
                             </p>
@@ -481,17 +481,19 @@ export default function BlogPage() {
                       )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-3 mb-3">
-                          {post.author.profilePicture ? (
-                            <Image
-                              src={post.author.profilePicture}
-                              alt={post.author.name}
-                              width={24}
-                              height={24}
-                              className="rounded-full"
-                            />
-                          ) : (
-                            <div className="w-6 h-6 rounded-full bg-gradient-to-br from-primary to-accent"></div>
-                          )}
+                          <div className="relative w-6 h-6 rounded-full overflow-hidden flex-shrink-0">
+                            {post.author.profilePicture ? (
+                              <Image
+                                src={post.author.profilePicture}
+                                alt={post.author.name}
+                                fill
+                                className="object-cover"
+                                sizes="24px"
+                              />
+                            ) : (
+                              <div className="w-full h-full rounded-full bg-gradient-to-br from-primary to-accent" />
+                            )}
+                          </div>
                           <span className="text-sm font-medium text-foreground">
                             {post.author.name}
                           </span>

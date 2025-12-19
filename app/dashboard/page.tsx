@@ -81,13 +81,14 @@ export default function Dashboard() {
         const allPostsRes = await AxiosInstance.get(`/posts`);
         setPosts(allPostsRes.data.posts || []);
       } else {
-        // User biasa lihat published posts + post mereka sendiri
-        const postsRes = await AxiosInstance.get(`/posts`);
-        // Filter: published posts atau post milik user
-        const filteredPosts = (postsRes.data.posts || []).filter(
-          (post: Post) => post.published || post.author.id === userId
-        );
-        setPosts(filteredPosts);
+        // User biasa: dashboard hanya untuk post milik sendiri (published + draft)
+        const postsRes = await AxiosInstance.get(`/posts`, {
+          params: {
+            authorId: userId,
+            limit: 100,
+          },
+        });
+        setPosts(postsRes.data.posts || []);
       }
     } catch (error) {
       console.error(error);
@@ -318,19 +319,21 @@ export default function Dashboard() {
                       <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm mb-3">
                         {/* Author info */}
                         <div className="flex items-center gap-2">
-                          {post.author.profilePicture ? (
-                            <Image
-                              src={post.author.profilePicture}
-                              alt={post.author.name}
-                              width={20}
-                              height={20}
-                              className="rounded-full flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
-                              <User className="h-3 w-3 text-primary" />
-                            </div>
-                          )}
+                          <div className="relative w-5 h-5 rounded-full overflow-hidden flex-shrink-0">
+                            {post.author.profilePicture ? (
+                              <Image
+                                src={post.author.profilePicture}
+                                alt={post.author.name}
+                                fill
+                                className="object-cover"
+                                sizes="20px"
+                              />
+                            ) : (
+                              <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center">
+                                <User className="h-3 w-3 text-primary" />
+                              </div>
+                            )}
+                          </div>
                           <span className="text-muted-foreground font-medium truncate max-w-[100px] sm:max-w-none">
                             {post.author.name}
                           </span>

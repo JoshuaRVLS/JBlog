@@ -15,6 +15,7 @@ import {
   Loader2,
   Eye,
   EyeOff,
+  User,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
@@ -45,6 +46,22 @@ export default function EditPost() {
   const coverInputRef = useRef<HTMLInputElement>(null);
   const inlineImageInputRef = useRef<HTMLInputElement>(null);
   const tagInputRef = useRef<HTMLDivElement>(null);
+
+  const [versions, setVersions] = useState<
+    Array<{
+      id: string;
+      title: string;
+      createdAt: string;
+      createdBy: {
+        id: string;
+        name: string;
+        profilePicture: string | null;
+      } | null;
+    }>
+  >([]);
+  const [loadingVersions, setLoadingVersions] = useState(false);
+  const [restoringVersionId, setRestoringVersionId] = useState<string | null>(null);
+  const hasRetriedUpdateRef = useRef(false);
 
   // Fetch available tags
   useEffect(() => {
@@ -95,6 +112,7 @@ export default function EditPost() {
     }
     if (params.id) {
       fetchPost();
+      fetchVersions();
     }
   }, [params.id, authenticated]);
 
@@ -116,6 +134,61 @@ export default function EditPost() {
       router.push("/dashboard");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchVersions = async () => {
+    if (!params.id) return;
+    try {
+      setLoadingVersions(true);
+      const response = await AxiosInstance.get(`/posts/${params.id}/versions`);
+      const list =
+        response.data?.versions?.map((v: any) => ({
+          id: v.id,
+          title: v.title,
+          createdAt: v.createdAt,
+          createdBy: v.user
+            ? {
+                id: v.user.id,
+                name: v.user.name,
+                profilePicture: v.user.profilePicture || null,
+              }
+            : null,
+        })) || [];
+      setVersions(list);
+    } catch (error: any) {
+      console.error("Error fetching post versions:", error);
+      // Jangan spam toast, cukup log saja
+    } finally {
+      setLoadingVersions(false);
+    }
+  };
+
+  const handleRestoreVersion = async (versionId: string) => {
+    if (!params.id) return;
+    try {
+      setRestoringVersionId(versionId);
+      const response = await AxiosInstance.post(
+        `/posts/${params.id}/versions/${versionId}/restore`
+      );
+      const post = response.data?.post;
+      if (post) {
+        setTitle(post.title);
+        setContent(post.content);
+        setExcerpt(post.excerpt || "");
+        setCoverImage(post.coverImage || null);
+        setCoverImagePreview(post.coverImage || null);
+        toast.success("Post berhasil direstore ke versi terpilih");
+        // Refresh daftar versi karena versi baru akan dibuat saat restore
+        fetchVersions();
+      } else {
+        toast.success("Post berhasil direstore");
+      }
+    } catch (error: any) {
+      console.error("Error restoring post version:", error);
+      toast.error(error.response?.data?.error || "Gagal merestore versi post");
+    } finally {
+      setRestoringVersionId(null);
     }
   };
 
@@ -282,9 +355,21 @@ export default function EditPost() {
       return;
     }
 
-    try {
-      setSaving(true);
-      await AxiosInstance.put(`/posts/${params.id}`, {
+    // Kalau ternyata sudah tidak authenticated (misal tab lama), langsung arahkan ke login
+    if (!authenticated) {
+      toast.error("Sesi login kamu sudah habis. Silakan login lagi untuk update post.", {
+        duration: 5000,
+      });
+      const id = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : "";
+      const redirectPath = id ? `/dashboard/posts/${id}/edit` : "/dashboard";
+      router.push(`/login?redirect=${encodeURIComponent(redirectPath)}`);
+      return;
+    }
+
+    const id = typeof params.id === "string" ? params.id : Array.isArray(params.id) ? params.id[0] : "";
+
+    const doUpdate = async () => {
+      await AxiosInstance.put(`/posts/${id}`, {
         title,
         content,
         excerpt: excerpt || null,
@@ -292,11 +377,61 @@ export default function EditPost() {
         tags,
         published,
       });
+    };
+
+    try {
+      setSaving(true);
+      await doUpdate();
       toast.success("Post berhasil diperbarui");
       router.push("/dashboard");
     } catch (error: any) {
       console.error("Error updating post:", error);
-      toast.error(error.response?.data?.error || "Gagal memperbarui post");
+
+      const status = error?.response?.status;
+      const code = error?.response?.data?.code;
+      const backendMsg = error?.response?.data?.error || error?.response?.data?.msg;
+
+      // Auto-refresh token sekali kalau 401, lalu retry update
+      if (status === 401 && !hasRetriedUpdateRef.current) {
+        hasRetriedUpdateRef.current = true;
+        try {
+          await AxiosInstance.post("/auth/refresh");
+          await doUpdate();
+          toast.success("Post berhasil diperbarui");
+          router.push("/dashboard");
+          return;
+        } catch (refreshError: any) {
+          console.error("Error refreshing token atau retry update:", refreshError);
+          const refreshStatus = refreshError?.response?.status;
+          const refreshCode = refreshError?.response?.data?.code;
+          const refreshMsg = refreshError?.response?.data?.error || refreshError?.response?.data?.msg;
+
+          if (refreshStatus === 401) {
+            if (refreshCode === "NO_TOKEN") {
+              toast.error("Sesi login kamu sudah habis. Silakan login lagi untuk update post.", {
+                duration: 5000,
+              });
+            } else if (refreshCode === "TOKEN_EXPIRED") {
+              toast.error("Token sudah kedaluwarsa. Silakan login ulang.", {
+                duration: 5000,
+              });
+            } else {
+              toast.error(refreshMsg || "Tidak terautentikasi. Silakan login ulang.", {
+                duration: 5000,
+              });
+            }
+
+            const redirectPath = id ? `/dashboard/posts/${id}/edit` : "/dashboard";
+            router.push(`/login?redirect=${encodeURIComponent(redirectPath)}`);
+            return;
+          }
+
+          toast.error(refreshMsg || "Gagal memperbarui post setelah refresh sesi.");
+          return;
+        }
+      }
+
+      toast.error(backendMsg || "Gagal memperbarui post");
     } finally {
       setSaving(false);
     }
@@ -577,6 +712,73 @@ export default function EditPost() {
               <p className="text-xs text-muted-foreground">
                 💡 Tip: Susun paragraf dan gambar dengan drag & drop untuk membuat layout post yang rapi.
               </p>
+            </div>
+
+            {/* Versions History */}
+            <div className="border border-border/60 rounded-xl p-4 bg-card/60 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold text-foreground">
+                  Riwayat Versi
+                </h3>
+                {loadingVersions && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    <span>Memuat...</span>
+                  </div>
+                )}
+              </div>
+              {versions.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Belum ada riwayat versi. Setiap kali kamu mengupdate post, versi lama akan disimpan di sini.
+                </p>
+              ) : (
+                <div className="space-y-2 max-h-64 overflow-y-auto">
+                  {versions.map((v) => (
+                    <div
+                      key={v.id}
+                      className="flex items-center justify-between gap-3 px-3 py-2 rounded-lg hover:bg-muted/60 transition-colors"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        {v.createdBy?.profilePicture ? (
+                          <Image
+                            src={v.createdBy.profilePicture}
+                            alt={v.createdBy.name}
+                            width={28}
+                            height={28}
+                            className="rounded-full flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center flex-shrink-0">
+                            <User className="h-3.5 w-3.5 text-primary" />
+                          </div>
+                        )}
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-foreground truncate">
+                            {v.title}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            {new Date(v.createdAt).toLocaleString("id-ID", {
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRestoreVersion(v.id)}
+                        disabled={restoringVersionId === v.id}
+                        className="px-3 py-1.5 text-[11px] rounded-lg border border-border bg-background hover:bg-primary/10 hover:border-primary/60 text-foreground font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap"
+                      >
+                        {restoringVersionId === v.id ? "Merestore..." : "Restore"}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Actions */}

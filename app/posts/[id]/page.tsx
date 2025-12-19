@@ -8,7 +8,7 @@ import { ArticleJsonLd } from "next-seo";
 import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
-import { Clock, Heart, MessageCircle, User, ArrowLeft } from "lucide-react";
+import { Clock, Heart, MessageCircle, User, ArrowLeft, ThumbsUp } from "lucide-react";
 import { motion } from "motion/react";
 import toast from "react-hot-toast";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
@@ -49,6 +49,10 @@ interface Post {
   isReposted?: boolean;
 }
 
+interface CommentLikeMeta {
+  userId: string;
+}
+
 interface Comment {
   id: string;
   content: string;
@@ -59,6 +63,9 @@ interface Comment {
     profilePicture: string | null;
   };
   replies: Comment[];
+  likes?: CommentLikeMeta[];
+  hasLiked?: boolean;
+  likesCount?: number;
 }
 
 export default function PostDetail() {
@@ -284,19 +291,21 @@ export default function PostDetail() {
                     href={`/users/${post.author.id}`}
                     className="flex items-center gap-3 bg-background/90 backdrop-blur-sm px-4 py-2 rounded-full hover:bg-background transition-colors"
                   >
-                    {post.author.profilePicture ? (
-                      <Image
-                        src={post.author.profilePicture}
-                        alt={post.author.name}
-                        width={40}
-                        height={40}
-                        className="rounded-full"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center">
-                        <User className="h-5 w-5 text-primary" />
-                      </div>
-                    )}
+                    <div className="relative w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
+                      {post.author.profilePicture ? (
+                        <Image
+                          src={post.author.profilePicture}
+                          alt={post.author.name}
+                          fill
+                          className="object-cover"
+                          sizes="40px"
+                        />
+                      ) : (
+                        <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                      )}
+                    </div>
                     <div>
                       <p className="font-semibold text-sm">{post.author.name}</p>
                       <div className="flex items-center gap-3 text-xs text-muted-foreground">
@@ -348,19 +357,21 @@ export default function PostDetail() {
                   href={`/users/${post.author.id}`}
                   className="flex items-center gap-3"
                 >
-                  {post.author.profilePicture ? (
-                    <Image
-                      src={post.author.profilePicture}
-                      alt={post.author.name}
-                      width={48}
-                      height={48}
-                      className="rounded-full"
-                    />
-                  ) : (
-                    <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center">
-                      <User className="h-6 w-6 text-primary" />
-                    </div>
-                  )}
+                  <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                    {post.author.profilePicture ? (
+                      <Image
+                        src={post.author.profilePicture}
+                        alt={post.author.name}
+                        fill
+                        className="object-cover"
+                        sizes="48px"
+                      />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-primary/20 flex items-center justify-center">
+                        <User className="h-6 w-6 text-primary" />
+                      </div>
+                    )}
+                  </div>
                   <div>
                     <p className="font-semibold">{post.author.name}</p>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground">
@@ -490,7 +501,12 @@ export default function PostDetail() {
                   </div>
                 ) : (
                   comments.map((comment) => (
-                    <CommentItem key={comment.id} comment={comment} />
+                    <CommentItem
+                      key={comment.id}
+                      comment={comment}
+                      postId={post.id}
+                      onCommentUpdated={fetchComments}
+                    />
                   ))
                 )}
               </div>
@@ -502,7 +518,68 @@ export default function PostDetail() {
   );
 }
 
-function CommentItem({ comment }: { comment: Comment }) {
+function CommentItem({ comment, postId, onCommentUpdated }: { comment: Comment; postId: string; onCommentUpdated?: () => void }) {
+  const { authenticated } = useContext(AuthContext);
+  const router = useRouter();
+  const [replying, setReplying] = useState(false);
+  const [replyContent, setReplyContent] = useState("");
+  const [submittingReply, setSubmittingReply] = useState(false);
+  const [likesCount, setLikesCount] = useState<number>(comment.likesCount ?? 0);
+  const [hasLiked, setHasLiked] = useState<boolean>(comment.hasLiked ?? false);
+
+  const handleSubmitReply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!authenticated) {
+      toast.error("Silakan login dulu untuk membalas komentar");
+      router.push("/login");
+      return;
+    }
+    if (!replyContent.trim()) return;
+
+    try {
+      setSubmittingReply(true);
+      await AxiosInstance.post(`/comments/${postId}`, {
+        content: replyContent,
+        parentId: comment.id,
+      });
+      setReplyContent("");
+      setReplying(false);
+      toast.success("Balasan berhasil ditambahkan");
+      onCommentUpdated?.();
+    } catch (error: any) {
+      console.error("Error submitting reply:", error);
+      toast.error(error.response?.data?.msg || "Gagal menambahkan balasan");
+    } finally {
+      setSubmittingReply(false);
+    }
+  };
+
+  const handleToggleLike = async () => {
+    if (!authenticated) {
+      toast.error("Silakan login dulu untuk menyukai komentar");
+      router.push("/login");
+      return;
+    }
+
+    try {
+      // Optimistic update
+      const prevLiked = hasLiked;
+      const prevCount = likesCount;
+      setHasLiked(!prevLiked);
+      setLikesCount(prevLiked ? Math.max(0, prevCount - 1) : prevCount + 1);
+
+      const response = await AxiosInstance.post(`/comments/${comment.id}/like`);
+      if (typeof response.data.liked === "boolean" && typeof response.data.likesCount === "number") {
+        setHasLiked(response.data.liked);
+        setLikesCount(response.data.likesCount);
+      }
+    } catch (error: any) {
+      console.error("Error toggling comment like:", error);
+      toast.error(error.response?.data?.msg || "Gagal menyukai komentar");
+      // We don't know exact previous value from server, so safest is to refetch comments
+      onCommentUpdated?.();
+    }
+  };
   return (
     <div className="group">
       <div className="flex items-start gap-4">
@@ -542,10 +619,61 @@ function CommentItem({ comment }: { comment: Comment }) {
             </div>
             <p className="text-foreground whitespace-pre-wrap leading-relaxed">{comment.content}</p>
           </div>
-          {comment.replies.length > 0 && (
+          <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+            <button
+              type="button"
+              onClick={() => setReplying((prev) => !prev)}
+              className="font-medium hover:text-primary transition-colors"
+            >
+              Balas
+            </button>
+            <button
+              type="button"
+              onClick={handleToggleLike}
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full border text-xs transition-colors ${
+                hasLiked
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border hover:border-primary/60 hover:text-primary"
+              }`}
+            >
+              <ThumbsUp className={`h-3 w-3 ${hasLiked ? "fill-primary" : ""}`} />
+              <span>{likesCount}</span>
+            </button>
+          </div>
+          {replying && (
+            <form onSubmit={handleSubmitReply} className="mt-3">
+              <textarea
+                value={replyContent}
+                onChange={(e) => setReplyContent(e.target.value)}
+                placeholder="Tulis balasan kamu..."
+                rows={2}
+                className="w-full px-3 py-2 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none text-sm"
+              />
+              <div className="flex justify-end mt-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReplying(false);
+                    setReplyContent("");
+                  }}
+                  className="px-3 py-1.5 text-xs rounded-lg bg-muted hover:bg-accent text-muted-foreground transition-colors"
+                >
+                  Batal
+                </button>
+                <button
+                  type="submit"
+                  disabled={submittingReply || !replyContent.trim()}
+                  className="px-4 py-1.5 text-xs rounded-lg bg-primary text-primary-foreground font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {submittingReply ? "Mengirim..." : "Kirim Balasan"}
+                </button>
+              </div>
+            </form>
+          )}
+          {Array.isArray(comment.replies) && comment.replies.length > 0 && (
             <div className="mt-4 ml-4 space-y-4 border-l-2 border-border pl-4">
               {comment.replies.map((reply) => (
-                <CommentItem key={reply.id} comment={reply} />
+                <CommentItem key={reply.id} comment={reply} postId={postId} onCommentUpdated={onCommentUpdated} />
               ))}
             </div>
           )}

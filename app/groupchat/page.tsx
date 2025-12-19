@@ -19,6 +19,7 @@ interface GroupChat {
   name: string;
   description: string | null;
   logo: string | null;
+  banner?: string | null;
   isPublic: boolean;
   encryptionEnabled?: boolean;
   createdBy: string;
@@ -70,6 +71,7 @@ export default function GroupChatPage() {
   const [messageInput, setMessageInput] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadingGroups, setLoadingGroups] = useState(false);
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [sending, setSending] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<{ name: string; profilePicture: string | null } | null>(null);
@@ -125,6 +127,7 @@ export default function GroupChatPage() {
   const [editingDescription, setEditingDescription] = useState("");
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
   
   const [showExplore, setShowExplore] = useState(false);
   const [exploreGroups, setExploreGroups] = useState<GroupChat[]>([]);
@@ -327,6 +330,36 @@ export default function GroupChatPage() {
       toast.error(error.response?.data?.msg || "Gagal upload logo");
     } finally {
       setUploadingLogo(false);
+    }
+  };
+
+  const handleUploadBanner = async (file: File) => {
+    if (!selectedGroup) return;
+
+    try {
+      setUploadingBanner(true);
+      const formData = new FormData();
+      formData.append("banner", file);
+
+      const response = await AxiosInstance.post(
+        `/upload/group-banner/${selectedGroup.id}`,
+        formData,
+        {
+          headers: { "Content-Type": "multipart/form-data" },
+        },
+      );
+
+      toast.success("Banner berhasil diupload!");
+      await fetchGroupChats();
+      const updatedGroup = groupChats.find((g) => g.id === selectedGroup.id);
+      if (updatedGroup) {
+        setSelectedGroup({ ...updatedGroup, banner: response.data.banner });
+      }
+    } catch (error: any) {
+      console.error("Error uploading banner:", error);
+      toast.error(error.response?.data?.msg || "Gagal upload banner");
+    } finally {
+      setUploadingBanner(false);
     }
   };
   
@@ -711,6 +744,7 @@ export default function GroupChatPage() {
     if (!selectedGroup) return;
 
     try {
+      setLoadingMessages(true);
       const response = await AxiosInstance.get(`/groupchat/${selectedGroup.id}/messages`, {
         params: { limit: 100 },
       });
@@ -721,6 +755,8 @@ export default function GroupChatPage() {
       if (error.response?.status !== 403) {
         toast.error(error.response?.data?.msg || "Gagal mengambil messages");
       }
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -992,10 +1028,10 @@ export default function GroupChatPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-24 pb-16">
+      <div className="pt-24 pb-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-6">
             <Link
               href="/blog"
               className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors mb-4"
@@ -1005,22 +1041,22 @@ export default function GroupChatPage() {
             </Link>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
                   <MessageCircle className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <h1 className="text-4xl font-bold text-gradient">Group Chat</h1>
-                  <p className="text-muted-foreground">Chat dengan komunitas</p>
+                  <p className="text-muted-foreground">Komunitas JBlog dalam satu tempat</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="hidden sm:flex items-center gap-3">
                 <button
                   onClick={() => setShowExplore(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-accent/50 hover:bg-accent text-accent-foreground rounded-lg font-medium transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 bg-accent/60 hover:bg-accent text-accent-foreground rounded-lg font-medium transition-colors"
                   title="Explore Groups"
                 >
                   <Compass className="h-4 w-4" />
-                  <span className="hidden sm:inline">Explore</span>
+                  <span className="hidden md:inline">Explore</span>
                 </button>
                 <button
                   onClick={() => setShowCreateModal(true)}
@@ -1028,85 +1064,146 @@ export default function GroupChatPage() {
                   title="Create Group"
                 >
                   <Plus className="h-4 w-4" />
-                  <span className="hidden sm:inline">Buat Group</span>
+                  <span className="hidden md:inline">Buat Group</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 h-[calc(100vh-12rem)]">
-            {/* Group List - Hidden on mobile when group is selected */}
-            <div className={`${selectedGroup ? "hidden lg:block" : "block"} lg:col-span-1 bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-4 overflow-y-auto shadow-lg overscroll-contain`} data-lenis-prevent="true">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-bold text-lg text-gradient">Group Chats</h2>
-                <div className="flex items-center gap-2">
+          <div className="flex gap-4 h-[calc(100vh-11rem)]">
+            {/* Server rail ala Discord (desktop only) */}
+            <aside className="hidden lg:flex flex-col items-center gap-3 w-20 py-4 mr-1 rounded-2xl bg-card/90 border border-border/60 shadow-xl">
+              {/* JBlog home icon */}
+              <Link
+                href="/"
+                className="flex items-center justify-center w-10 h-10 rounded-2xl bg-primary text-primary-foreground font-bold text-xs hover:rounded-3xl transition-all"
+                title="Kembali ke Home"
+              >
+                J+
+              </Link>
+              <div className="w-8 border-t border-border/40 my-2" />
+              {/* Group icons */}
+              <div className="flex-1 flex flex-col items-center gap-2 overflow-y-auto scrollbar-thin scrollbar-thumb-border/60 scrollbar-track-transparent">
+                {groupChats.map((group) => (
                   <button
-                    onClick={() => setShowExplore(true)}
-                    className="p-2 rounded-lg hover:bg-accent/50 transition-colors"
-                    title="Explore Groups"
+                    key={group.id}
+                    onClick={() => setSelectedGroup(group)}
+                    className={`relative flex items-center justify-center w-10 h-10 rounded-2xl overflow-hidden transition-all ${
+                      selectedGroup?.id === group.id
+                        ? "bg-primary/90 shadow-lg shadow-primary/30 scale-105"
+                        : "bg-muted/60 hover:bg-accent/60 hover:rounded-3xl"
+                    }`}
+                    title={group.name}
                   >
-                    <Compass className="h-5 w-5 text-foreground" />
+                    {group.logo ? (
+                      <Image
+                        src={group.logo}
+                        alt={group.name}
+                        width={40}
+                        height={40}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs font-semibold text-primary">
+                        {group.name.charAt(0).toUpperCase()}
+                      </span>
+                    )}
                   </button>
-                  <button
-                    onClick={() => setShowCreateModal(true)}
-                    className="p-2 rounded-lg hover:bg-accent/50 transition-colors"
-                    title="Create Group"
-                  >
-                    <Plus className="h-5 w-5 text-foreground" />
-                  </button>
-                </div>
+                ))}
+                <button
+                  onClick={() => setShowExplore(true)}
+                  className="mt-1 flex items-center justify-center w-10 h-10 rounded-2xl border border-dashed border-border/70 text-muted-foreground hover:border-primary/60 hover:text-primary hover:rounded-3xl transition-all"
+                  title="Explore Groups"
+                >
+                  <Compass className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="flex items-center justify-center w-10 h-10 rounded-2xl border border-dashed border-border/70 text-muted-foreground hover:border-primary/60 hover:text-primary hover:rounded-3xl transition-all"
+                  title="Buat Group"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
               </div>
+            </aside>
 
-              {loadingGroups ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : groupChats.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  Tidak ada group chat
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {groupChats.map((group) => (
-                    <button
-                      key={group.id}
-                      onClick={() => setSelectedGroup(group)}
-                      className={`w-full text-left p-3 rounded-lg transition-colors ${
-                        selectedGroup?.id === group.id
-                          ? "bg-primary/10 text-primary border border-primary/20"
-                          : "hover:bg-accent/50 text-foreground"
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-primary/10 flex items-center justify-center">
-                          {group.logo ? (
-                            <Image
-                              src={group.logo}
-                              alt={group.name}
-                              width={40}
-                              height={40}
-                              className="w-full h-full object-cover"
-                            />
-                          ) : (
-                            <MessageCircle className="h-5 w-5 text-primary" />
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-semibold text-sm mb-1 truncate">{group.name}</div>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                            <Users className="h-3 w-3" />
-                            <span>{group._count?.members || 0} members</span>
+            {/* Main columns (list + chat) */}
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 h-full">
+              {/* Group List - mobile / small sidebar */}
+              {!selectedGroup && (
+                <div className="block lg:hidden bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-4 overflow-y-auto shadow-lg overscroll-contain" data-lenis-prevent="true">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-bold text-lg text-gradient">Group Chats</h2>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowExplore(true)}
+                        className="p-2 rounded-lg hover:bg-accent/50 transition-colors"
+                        title="Explore Groups"
+                      >
+                        <Compass className="h-5 w-5 text-foreground" />
+                      </button>
+                      <button
+                        onClick={() => setShowCreateModal(true)}
+                        className="p-2 rounded-lg hover:bg-accent/50 transition-colors"
+                        title="Create Group"
+                      >
+                        <Plus className="h-5 w-5 text-foreground" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {loadingGroups ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : groupChats.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground text-sm">
+                      Tidak ada group chat
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {groupChats.map((group) => (
+                        <button
+                          key={group.id}
+                          onClick={() => setSelectedGroup(group)}
+                          className="w-full text-left p-3 rounded-lg transition-colors hover:bg-accent/50 text-foreground"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0 bg-primary/10 flex items-center justify-center">
+                              {group.logo ? (
+                                <Image
+                                  src={group.logo}
+                                  alt={group.name}
+                                  width={40}
+                                  height={40}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <MessageCircle className="h-5 w-5 text-primary" />
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="font-semibold text-sm mb-1 truncate">{group.name}</div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Users className="h-3 w-3" />
+                                <span>{group._count?.members || 0} members</span>
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
-            </div>
-
-            {/* Chat Area */}
-            <div className={`${selectedGroup ? "col-span-1 lg:col-span-3" : "hidden lg:flex lg:col-span-3"} flex flex-col bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-lg`}>
+              {/* Chat Area */}
+              <div
+                className={`${
+                  selectedGroup 
+                    ? "col-span-1 lg:col-span-4" 
+                    : "hidden lg:flex lg:col-span-4"
+                } flex flex-col bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl overflow-hidden shadow-lg h-full min-h-0`}
+              >
               {selectedGroup ? (
                 <>
                   {/* Chat Header */}
@@ -1182,7 +1279,19 @@ export default function GroupChatPage() {
                       scrollBehavior: 'smooth'
                     }}
                   >
-                    {messages.map((message) => {
+                    {loadingMessages ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                        <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
+                        <p className="text-muted-foreground text-sm">Memuat pesan...</p>
+                      </div>
+                    ) : messages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                        <MessageCircle className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
+                        <p className="text-muted-foreground text-lg font-medium mb-2">Belum ada pesan</p>
+                        <p className="text-muted-foreground/70 text-sm">Mulai percakapan dengan mengirim pesan pertama!</p>
+                      </div>
+                    ) : (
+                      messages.map((message) => {
                       const isOwnMessage = message.user.id === userId;
                       return (
                         <div
@@ -1324,7 +1433,7 @@ export default function GroupChatPage() {
                           </div>
                         </div>
                       );
-                    })}
+                    }))}
                     {/* Typing Indicator */}
                     {typingUsers.size > 0 && (
                       <div className="flex gap-3 items-start">
@@ -1727,12 +1836,13 @@ export default function GroupChatPage() {
                   </div>
                 </div>
               )}
+              </div>
             </div>
           </div>
         </div>
-      </main>
+      </div>
 
-      {/* Create Group Modal */}
+        {/* Create Group Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-lg max-w-md w-full relative">
@@ -1867,7 +1977,7 @@ export default function GroupChatPage() {
                 />
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto space-y-2">
+            <div className="flex-1 overflow-y-auto space-y-4">
               {loadingExplore ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-primary" />
@@ -1877,71 +1987,108 @@ export default function GroupChatPage() {
                   Tidak ada group chat ditemukan
                 </div>
               ) : (
-                exploreGroups.map((group) => (
-                  <div
-                    key={group.id}
-                    className="p-4 rounded-lg border border-border/50 bg-background/50 hover:bg-accent/30 transition-colors"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-primary/10 flex items-center justify-center">
-                        {group.logo ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {exploreGroups.map((group) => (
+                    <div
+                      key={group.id}
+                      className="rounded-xl border border-border/60 bg-card/70 hover:bg-accent/40 transition-all shadow-sm hover:shadow-lg overflow-hidden flex flex-col"
+                    >
+                      {/* Banner */}
+                      <div className="relative w-full h-24 bg-gradient-to-r from-primary/20 via-background to-accent/20">
+                        {group.banner ? (
                           <Image
-                            src={group.logo}
+                            src={group.banner}
                             alt={group.name}
-                            width={48}
-                            height={48}
-                            className="w-full h-full object-cover"
+                            fill
+                            className="object-cover"
                           />
-                        ) : (
-                          <MessageCircle className="h-6 w-6 text-primary" />
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-foreground truncate">{group.name}</h3>
-                        {group.description && (
-                          <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-                            {group.description}
-                          </p>
-                        )}
-                        <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                          <div className="flex items-center gap-1">
-                            <Users className="h-3 w-3" />
-                            <span>{group._count?.members || 0} members</span>
+                        ) : null}
+                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
+                        {/* Logo bubble */}
+                        <div className="absolute left-4 bottom-[-20px]">
+                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-primary/10 flex items-center justify-center border border-border/80 shadow-md">
+                            {group.logo ? (
+                              <Image
+                                src={group.logo}
+                                alt={group.name}
+                                width={40}
+                                height={40}
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <MessageCircle className="h-5 w-5 text-primary" />
+                            )}
                           </div>
-                          {group.isPublic ? (
-                            <div className="flex items-center gap-1">
-                              <Globe className="h-3 w-3" />
-                              <span>Public</span>
+                        </div>
+                      </div>
+
+                      {/* Content */}
+                      <div className="pt-6 px-4 pb-4 flex-1 flex flex-col">
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <div className="pr-2">
+                            <h3 className="font-semibold text-foreground truncate max-w-[150px]">
+                              {group.name}
+                            </h3>
+                            {group.description && (
+                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                {group.description}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                              <div className="flex items-center gap-1">
+                                <Users className="h-3 w-3" />
+                                <span>{group._count?.members || 0}</span>
+                              </div>
+                              {group.isPublic ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                                  <Globe className="h-3 w-3" />
+                                  Public
+                                </span>
+                              ) : (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                                  <Lock className="h-3 w-3" />
+                                  Private
+                                </span>
+                              )}
                             </div>
+                            <span className="text-[10px] text-muted-foreground/80">
+                              {group._count?.messages || 0} messages
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="mt-3 flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/5 border border-primary/20">
+                              <Crown className="h-3 w-3 text-primary" />
+                              {group.creator?.name || "Creator"}
+                            </span>
+                          </div>
+                          {group.isMember ? (
+                            <button
+                              onClick={() => {
+                                setSelectedGroup(group);
+                                setShowExplore(false);
+                              }}
+                              className="px-3 py-1.5 bg-muted text-foreground rounded-lg text-xs font-medium hover:bg-accent transition-colors"
+                            >
+                              Buka
+                            </button>
                           ) : (
-                            <div className="flex items-center gap-1">
-                              <Lock className="h-3 w-3" />
-                              <span>Private</span>
-                            </div>
+                            <button
+                              onClick={() => handleJoinGroup(group.id)}
+                              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
+                            >
+                              Join
+                            </button>
                           )}
                         </div>
                       </div>
-                      {group.isMember ? (
-                        <button
-                          onClick={() => {
-                            setSelectedGroup(group);
-                            setShowExplore(false);
-                          }}
-                          className="px-4 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors"
-                        >
-                          Buka
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => handleJoinGroup(group.id)}
-                          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity"
-                        >
-                          Join
-                        </button>
-                      )}
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           </div>
@@ -1959,9 +2106,59 @@ export default function GroupChatPage() {
               <X className="h-5 w-5" />
             </button>
             <h2 className="text-2xl font-bold mb-6 text-gradient">Group Settings</h2>
-            <div className="space-y-4">
+            <div className="space-y-6">
+              {/* Banner */}
               <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Logo Group</label>
+                <label className="text-sm font-medium text-foreground">
+                  Banner (Explore)
+                </label>
+                <div className="space-y-3">
+                  <div className="relative w-full h-32 rounded-xl overflow-hidden bg-primary/5 border border-border/60 flex items-center justify-center">
+                    {selectedGroup.banner ? (
+                      <Image
+                        src={selectedGroup.banner}
+                        alt={selectedGroup.name}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        Banner belum diatur – akan ditampilkan di kartu Explore
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          handleUploadBanner(file);
+                        }
+                      }}
+                      className="hidden"
+                      id="banner-upload"
+                      disabled={uploadingBanner}
+                    />
+                    <label
+                      htmlFor="banner-upload"
+                      className="px-4 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors cursor-pointer inline-block disabled:opacity-50 text-sm"
+                    >
+                      {uploadingBanner ? "Uploading..." : "Upload Banner"}
+                    </label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Disarankan rasio 3:1 (misal 1200x400) untuk tampilan terbaik.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Logo */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Logo Group
+                </label>
                 <div className="flex items-center gap-4">
                   <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-primary/10 flex items-center justify-center">
                     {selectedGroup.logo ? (
@@ -1992,7 +2189,7 @@ export default function GroupChatPage() {
                     />
                     <label
                       htmlFor="logo-upload"
-                      className="px-4 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors cursor-pointer inline-block disabled:opacity-50"
+                      className="px-4 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors cursor-pointer inline-block disabled:opacity-50 text-sm"
                     >
                       {uploadingLogo ? "Uploading..." : "Upload Logo"}
                     </label>
@@ -2302,21 +2499,22 @@ export default function GroupChatPage() {
               @everyone
             </h4>
             <p className="text-xs text-muted-foreground">
-              Tag semua member dalam grup ini ({selectedGroup?._count?.members || selectedGroup?.members?.length || 0} members)
+              Tag semua member dalam grup ini (
+              {selectedGroup?._count?.members ||
+                selectedGroup?.members?.length ||
+                0}{" "}
+              members)
             </p>
           </div>
         </div>
       )}
-      
+
       {/* Image Viewer Modal */}
       <ImageViewer
         imageUrl={viewingImage}
         onClose={() => setViewingImage(null)}
         alt="Group chat image"
       />
-
-
     </div>
   );
 }
-

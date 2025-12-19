@@ -88,6 +88,40 @@ export default function MarkdownRenderer({ content }: { content: string }) {
       return `<img src='${escapedUrl}' alt='${escapedAlt}'${imgTitle} class='rounded-lg my-6 w-full max-w-full h-auto' loading='lazy' />`;
     });
 
+    // Standalone embed links (YouTube, etc.)
+    // A line that only contains a URL will be treated as an embed block
+    html = html.replace(/^(https?:\/\/[^\s]+)$/gim, (match) => {
+      const url = match.trim();
+
+      // YouTube embed
+      const ytMatch =
+        /^https?:\/\/(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\s]+).*/i.exec(
+          url,
+        );
+      if (ytMatch && ytMatch[1]) {
+        const videoId = ytMatch[1];
+        const embedUrl = `https://www.youtube.com/embed/${videoId}`;
+        return [
+          `<div class='my-8 rounded-xl overflow-hidden bg-black/80 border border-border/60'>`,
+          `<div class='relative w-full' style='padding-bottom: 56.25%;'>`,
+          `<iframe`,
+          `  src='${embedUrl}'`,
+          `  title='YouTube video'`,
+          `  class='absolute inset-0 w-full h-full'`,
+          `  frameborder='0'`,
+          `  allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share'`,
+          `  referrerpolicy='strict-origin-when-cross-origin'`,
+          `  allowfullscreen`,
+          `></iframe>`,
+          `</div>`,
+          `</div>`,
+        ].join("\n");
+      }
+
+      // Default: render as a nice link preview-style block
+      return `<a href='${url}' class='block my-4 p-4 rounded-xl border border-border bg-card hover:bg-accent/40 transition-colors text-primary break-all' target='_blank' rel='noopener noreferrer'>${url}</a>`;
+    });
+
     // Lists
     html = html.replace(/^\* (.*$)/gim, "<li class='ml-4'>$1</li>");
     html = html.replace(/^- (.*$)/gim, "<li class='ml-4'>$1</li>");
