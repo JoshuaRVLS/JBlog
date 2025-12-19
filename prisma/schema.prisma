@@ -48,6 +48,8 @@ model User {
   sentDirectMessages     DirectMessage[]      @relation("DirectMessageSender")
   receivedDirectMessages DirectMessage[]      @relation("DirectMessageReceiver")
   encryptionKeys         EncryptionKey[]      // User's encryption keys
+  postVersions           PostVersion[]
+  commentLikes           CommentLike[]
 
   // Followers relationship
   followers Follow[] @relation("UserFollowers")
@@ -121,12 +123,30 @@ model Post {
   notifications Notification[]
   bookmarks     Bookmark[]
   reposts       Repost[]
+  versions      PostVersion[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([authorId])
   @@index([published])
+  @@index([createdAt])
+}
+
+model PostVersion {
+  id         String   @id @default(cuid())
+  postId     String
+  post       Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  title      String
+  content    String
+  excerpt    String?
+  coverImage String?
+  createdBy  String
+  user       User     @relation(fields: [createdBy], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([postId])
+  @@index([createdBy])
   @@index([createdAt])
 }
 
@@ -183,6 +203,7 @@ model Comment {
   parent        Comment?       @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
   replies       Comment[]      @relation("CommentReplies")
   notifications Notification[]
+  likes         CommentLike[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -190,6 +211,19 @@ model Comment {
   @@index([postId])
   @@index([userId])
   @@index([parentId])
+}
+
+model CommentLike {
+  id        String   @id @default(cuid())
+  commentId String
+  comment   Comment  @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId])
+  @@index([commentId])
+  @@index([userId])
 }
 
 model VerificationCode {
@@ -239,6 +273,7 @@ model GroupChat {
   name          String
   description   String?
   logo          String? // Logo/avatar group chat
+  banner        String? // Large banner image for explore view
   isPublic      Boolean           @default(true)
   encryptionEnabled Boolean        @default(false) // Enable E2EE for group
   createdBy     String

@@ -68,7 +68,8 @@ export const getAllGroupChats = async (req: AuthRequest, res: Response) => {
 // Get single group chat
 export const getGroupChat = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = String(rawId);
     const userId = req.userId;
 
     const groupChat = await db.groupChat.findUnique({
@@ -135,7 +136,7 @@ export const createGroupChat = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
     }
 
-    const { name, description, isPublic = true } = req.body;
+    const { name, description, isPublic = true, banner } = req.body;
 
     if (!name || name.trim().length === 0) {
       return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Nama group chat harus diisi" });
@@ -145,6 +146,7 @@ export const createGroupChat = async (req: AuthRequest, res: Response) => {
       data: {
         name: name.trim(),
         description: description?.trim() || null,
+        banner: banner || null,
         isPublic: isPublic !== false,
         createdBy: userId,
         members: {
@@ -198,7 +200,8 @@ export const joinGroupChat = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
     }
 
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = String(rawId);
 
     const groupChat = await db.groupChat.findUnique({
       where: { id },
@@ -253,7 +256,8 @@ export const leaveGroupChat = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
     }
 
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = String(rawId);
 
     const member = await db.groupChatMember.findUnique({
       where: {
@@ -300,7 +304,8 @@ export const leaveGroupChat = async (req: AuthRequest, res: Response) => {
 // Get messages for a group chat
 export const getMessages = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = String(rawId);
     const { limit = 50, before } = req.query;
     const userId = req.userId;
 
@@ -463,7 +468,7 @@ export const updateGroupChat = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.FORBIDDEN).json({ msg: "Hanya admin yang bisa update group chat" });
     }
 
-    const { name, description, logo } = req.body;
+    const { name, description, logo, banner } = req.body;
     const updateData: any = {};
 
     if (name !== undefined) {
@@ -479,6 +484,10 @@ export const updateGroupChat = async (req: AuthRequest, res: Response) => {
 
     if (logo !== undefined) {
       updateData.logo = logo || null;
+    }
+
+    if (banner !== undefined) {
+      updateData.banner = banner || null;
     }
 
     const updatedGroupChat = await db.groupChat.update({
@@ -526,7 +535,8 @@ export const updateGroupChat = async (req: AuthRequest, res: Response) => {
 // Upload group chat logo
 export const uploadGroupLogo = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = String(rawId);
     const userId = req.userId;
 
     if (!userId) {
@@ -562,7 +572,7 @@ export const uploadGroupLogo = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.FORBIDDEN).json({ msg: "Hanya admin yang bisa upload logo" });
     }
 
-    const file = req.file;
+    const file = (req as any).file as Express.Multer.File | undefined;
     const fileExt = file.originalname.split(".").pop();
     const fileName = `${id}/logo-${Date.now()}-${Math.round(Math.random() * 1e9)}.${fileExt}`;
     const filePath = fileName;
@@ -632,6 +642,134 @@ export const uploadGroupLogo = async (req: AuthRequest, res: Response) => {
     console.error("❌ Error upload logo:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal upload logo",
+      details: error.message,
+    });
+  }
+};
+
+// Upload group chat banner (wide image for explore)
+export const uploadGroupBanner = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id: rawId } = req.params;
+    const id = String(rawId);
+    const userId = req.userId;
+
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Harus login dulu" });
+    }
+
+    const file = (req as any).file as Express.Multer.File | undefined;
+
+    if (!file) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ msg: "Tidak ada file yang diupload" });
+    }
+
+    // Check if user is admin or creator
+    const member = await db.groupChatMember.findUnique({
+      where: {
+        groupChatId_userId: {
+          groupChatId: id,
+          userId,
+        },
+      },
+    });
+
+    const groupChat = await db.groupChat.findUnique({
+      where: { id },
+    });
+
+    if (!groupChat) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ msg: "Group chat tidak ditemukan" });
+    }
+
+    const isCreator = groupChat.createdBy === userId;
+    const isAdmin = member?.role === "admin";
+
+    if (!isCreator && !isAdmin) {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        msg: "Hanya admin yang bisa upload banner",
+      });
+    }
+
+    const fileExt = file.originalname.split(".").pop();
+    const fileName = `${id}/banner-${Date.now()}-${Math.round(
+      Math.random() * 1e9,
+    )}.${fileExt}`;
+    const filePath = fileName;
+
+    // Delete old banner if exists
+    if (groupChat.banner) {
+      const oldBannerPath = groupChat.banner.split("/").slice(-2).join("/");
+      await supabase.storage.from(BUCKETS.IMAGES).remove([oldBannerPath]);
+    }
+
+    const { data, error } = await supabase.storage
+      .from(BUCKETS.IMAGES)
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("❌ Error upload banner ke Supabase:", error);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        error: "Gagal upload banner ke storage",
+        details: error.message,
+      });
+    }
+
+    const { data: urlData } = supabase.storage
+      .from(BUCKETS.IMAGES)
+      .getPublicUrl(filePath);
+
+    // Update group chat with new banner
+    const updatedGroupChat = await db.groupChat.update({
+      where: { id },
+      data: { banner: urlData.publicUrl },
+      include: {
+        creator: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+          },
+        },
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                profilePicture: true,
+              },
+            },
+          },
+        },
+        _count: {
+          select: {
+            members: true,
+            messages: true,
+          },
+        },
+      },
+    });
+
+    console.log(`✅ Banner group chat diupload - Group: ${id}`);
+    res.json({
+      msg: "Banner berhasil diupload",
+      banner: urlData.publicUrl,
+      groupChat: updatedGroupChat,
+    });
+  } catch (error: any) {
+    console.error("❌ Error upload banner:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal upload banner",
       details: error.message,
     });
   }

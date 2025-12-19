@@ -123,6 +123,18 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
       updateData.readingTime = calculateReadingTime(content);
     }
 
+    // Simpan versi lama sebelum update (versioning)
+    await db.postVersion.create({
+      data: {
+        postId: existingPost.id,
+        title: existingPost.title,
+        content: existingPost.content,
+        excerpt: existingPost.excerpt,
+        coverImage: existingPost.coverImage,
+        createdBy: userId,
+      },
+    });
+
     // Update tags if provided
     if (tags) {
       // Delete existing tags
@@ -166,6 +178,153 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengupdate post" });
+  }
+};
+
+export const getPostVersions = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Harus login dulu" });
+    }
+
+    const post = await db.post.findUnique({
+      where: { id },
+      select: {
+        authorId: true,
+      },
+    });
+
+    if (!post) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ msg: "Post tidak ditemukan" });
+    }
+
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (post.authorId !== userId && !user?.isOwner && !user?.isAdmin) {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        msg: "Hanya author, owner, atau admin yang bisa melihat riwayat versi post",
+      });
+    }
+
+    const versions = await db.postVersion.findMany({
+      where: { postId: id },
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+          },
+        },
+      },
+    });
+
+    res.json({ versions });
+  } catch (error) {
+    console.error("❌ Error mengambil versi post:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal mengambil versi post" });
+  }
+};
+
+export const restorePostVersion = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, versionId } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Harus login dulu" });
+    }
+
+    const post = await db.post.findUnique({
+      where: { id },
+    });
+
+    if (!post) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ msg: "Post tidak ditemukan" });
+    }
+
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (post.authorId !== userId && !user?.isOwner && !user?.isAdmin) {
+      return res.status(StatusCodes.FORBIDDEN).json({
+        msg: "Hanya author, owner, atau admin yang bisa merestore versi post",
+      });
+    }
+
+    const version = await db.postVersion.findUnique({
+      where: { id: versionId },
+    });
+
+    if (!version || version.postId !== id) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ msg: "Versi post tidak ditemukan" });
+    }
+
+    // Simpan versi saat ini sebelum restore (supaya bisa undo)
+    await db.postVersion.create({
+      data: {
+        postId: post.id,
+        title: post.title,
+        content: post.content,
+        excerpt: post.excerpt,
+        coverImage: post.coverImage,
+        createdBy: userId,
+      },
+    });
+
+    const updatedPost = await db.post.update({
+      where: { id },
+      data: {
+        title: version.title,
+        content: version.content,
+        excerpt: version.excerpt,
+        coverImage: version.coverImage,
+        readingTime: calculateReadingTime(version.content),
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+        _count: {
+          select: {
+            claps: true,
+            comments: true,
+          },
+        },
+      },
+    });
+
+    res.json({
+      msg: "Post berhasil direstore ke versi terpilih",
+      post: updatedPost,
+    });
+  } catch (error) {
+    console.error("❌ Error merestore versi post:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal merestore versi post" });
   }
 };
 

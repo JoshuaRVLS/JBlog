@@ -9,6 +9,7 @@ import {
   getMembers,
   updateGroupChat,
   uploadGroupLogo,
+  uploadGroupBanner,
   promoteMember,
   demoteMember,
   removeMember,
@@ -30,6 +31,7 @@ router.delete("/:id/leave", requireAuth, leaveGroupChat);
 router.put("/:id/members/:memberId/promote", requireAuth, promoteMember);
 router.put("/:id/members/:memberId/demote", requireAuth, demoteMember);
 router.delete("/:id/members/:memberId", requireAuth, removeMember);
+// Logo & banner upload handled via separate routes with multer middleware in main index.ts
 
 export default router;
 

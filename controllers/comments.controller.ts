@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Response, Request } from "express";
 import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
@@ -50,8 +50,30 @@ export const createComment = async (req: AuthRequest, res: Response) => {
                 profilePicture: true,
               },
             },
+            likes: {
+              select: {
+                userId: true,
+              },
+            },
+            _count: {
+              select: {
+                likes: true,
+                replies: true,
+              },
+            },
           },
           orderBy: { createdAt: "asc" },
+        },
+        likes: {
+          select: {
+            userId: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+            replies: true,
+          },
         },
       },
     });
@@ -92,9 +114,10 @@ export const createComment = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export const getComments = async (req: Request, res: Response) => {
+export const getComments = async (req: AuthRequest, res: Response) => {
   try {
     const { postId } = req.params;
+    const userId = req.userId;
 
     const comments = await db.comment.findMany({
       where: {
@@ -118,19 +141,147 @@ export const getComments = async (req: Request, res: Response) => {
                 profilePicture: true,
               },
             },
+            likes: {
+              select: {
+                userId: true,
+              },
+            },
+            _count: {
+              select: {
+                likes: true,
+                replies: true,
+              },
+            },
           },
           orderBy: { createdAt: "asc" },
+        },
+        likes: {
+          select: {
+            userId: true,
+          },
+        },
+        _count: {
+          select: {
+            likes: true,
+            replies: true,
+          },
         },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    res.json({ comments });
+    // Attach derived flags for current user (liked)
+    const enrichedComments = comments.map((comment) => {
+      const hasLiked = userId
+        ? comment.likes.some((like) => like.userId === userId)
+        : false;
+
+      const enrichedReplies = comment.replies.map((reply) => {
+        const replyHasLiked = userId
+          ? reply.likes.some((like) => like.userId === userId)
+          : false;
+        return {
+          ...reply,
+          hasLiked: replyHasLiked,
+          likesCount: reply._count?.likes ?? 0,
+        };
+      });
+
+      return {
+        ...comment,
+        hasLiked,
+        likesCount: comment._count?.likes ?? 0,
+        replies: enrichedReplies,
+      };
+    });
+
+    res.json({ comments: enrichedComments });
   } catch (error) {
     console.error("❌ Error mengambil komentar:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil komentar" });
+  }
+};
+
+export const toggleCommentLike = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const userId = req.userId;
+
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Harus login dulu" });
+    }
+
+    const comment = await db.comment.findUnique({
+      where: { id },
+      include: {
+        user: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+
+    if (!comment) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ msg: "Komentar tidak ditemukan" });
+    }
+
+    const existingLike = await db.commentLike.findUnique({
+      where: {
+        commentId_userId: {
+          commentId: id,
+          userId,
+        },
+      },
+    });
+
+    let liked: boolean;
+    if (existingLike) {
+      await db.commentLike.delete({
+        where: { commentId_userId: { commentId: id, userId } },
+      });
+      liked = false;
+    } else {
+      await db.commentLike.create({
+        data: {
+          commentId: id,
+          userId,
+        },
+      });
+      liked = true;
+
+      // Optional: create notification for comment like (avoid self-like notification)
+      if (comment.userId !== userId) {
+        await createNotification({
+          type: "comment_like",
+          userId: comment.userId,
+          actorId: userId,
+          postId: comment.postId,
+          commentId: comment.id,
+        });
+      }
+    }
+
+    const likesCount = await db.commentLike.count({
+      where: { commentId: id },
+    });
+
+    res.json({
+      msg: "Berhasil toggle like komentar",
+      liked,
+      likesCount,
+    });
+  } catch (error) {
+    console.error("❌ Error toggle like komentar:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal toggle like komentar" });
   }
 };
 
