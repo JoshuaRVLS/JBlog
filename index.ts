@@ -138,6 +138,7 @@ const io = new Server(httpServer, {
 });
 
 // Setup Redis adapter for cluster mode (after io is created)
+// Note: This is async but doesn't block server startup
 if (process.env.ENABLE_CLUSTER === "true") {
   (async () => {
     try {
@@ -156,6 +157,7 @@ if (process.env.ENABLE_CLUSTER === "true") {
       console.error("❌ Failed to setup Redis adapter, falling back to in-memory:", error);
       console.warn("⚠️  Socket.IO will work but won't share state across workers");
       console.warn("⚠️  Make sure Redis is running and ENABLE_CLUSTER=true in .env");
+      // Don't crash - continue without Redis adapter
     }
   })();
 } else {
@@ -470,20 +472,22 @@ io.on("connection", (socket) => {
 
 const PORT = process.env.PORT || 8000;
 
-// PM2 cluster mode support
-if (process.env.INSTANCE_ID) {
-  process.send = process.send || (() => {});
-}
-
-httpServer.listen(PORT, async () => {
+// PM2 cluster mode support - signal ready after server starts
+httpServer.listen(PORT, () => {
   const instanceId = process.env.INSTANCE_ID || "single";
   console.log(`🚀 Server berjalan di http://localhost:${PORT} (Instance: ${instanceId})`);
   console.log(`📝 API tersedia di http://localhost:${PORT}/api`);
   console.log(`🔌 Socket.IO ready ${process.env.ENABLE_CLUSTER === "true" ? "(Cluster Mode)" : "(Single Instance)"}`);
   
-  // Signal PM2 that the app is ready
-  if (process.send) {
-    process.send("ready");
+  // Signal PM2 that the app is ready (for wait_ready option)
+  // In cluster mode, process.send is available
+  if (typeof process.send === "function") {
+    try {
+      process.send("ready");
+      console.log("✅ PM2 ready signal sent");
+    } catch (error) {
+      console.warn("⚠️  Could not send PM2 ready signal:", error);
+    }
   }
 });
 
