@@ -691,27 +691,30 @@ export default function GroupChatPage() {
       }
     });
 
+    // Handle real-time new messages (optimistic, appears instantly)
     socketInstance.on("new-message", async (message: Message) => {
-      const decryptedMessage = message;
-
       setMessages((prev) => {
+        // Check if message already exists (avoid duplicates)
+        const messageExists = prev.some((msg) => msg.id === message.id);
+        if (messageExists) {
+          return prev;
+        }
+        
+        // Remove any temp messages from same user with same content (optimistic update replacement)
         const filtered = prev.filter((msg) => {
-          if (msg.id.startsWith("temp-") && msg.user.id === decryptedMessage.user.id) {
-            if (decryptedMessage.type === "text" && msg.type === "text") {
-              return msg.content !== decryptedMessage.content;
+          if (msg.id.startsWith("temp-") && msg.user.id === message.user.id) {
+            if (message.type === "text" && msg.type === "text") {
+              return msg.content !== message.content;
             }
-            if (decryptedMessage.type !== "text" && msg.type !== "text" && decryptedMessage.mediaUrl) {
-              return msg.mediaUrl !== decryptedMessage.mediaUrl;
+            if (message.type !== "text" && msg.type !== "text" && message.mediaUrl) {
+              return msg.mediaUrl !== message.mediaUrl;
             }
             return true;
           }
           return true;
         });
-        const messageExists = filtered.some((msg) => msg.id === decryptedMessage.id);
-        if (messageExists) {
-          return filtered;
-        }
-        const updated = [...filtered, decryptedMessage];
+        
+        const updated = [...filtered, message];
         
         // Update cache
         if (selectedGroup) {

@@ -373,13 +373,14 @@ function MessagesPageContent() {
           encryption.hasKeys
         ) {
           // Use cached public key if available (avoids repeated API calls)
-          let senderPublicKey = publicKeyCacheRef.current.get(message.senderId);
+          let senderPublicKey: string | undefined = publicKeyCacheRef.current.get(message.senderId);
           
           if (!senderPublicKey && encryption.getUserPublicKey) {
             try {
-              senderPublicKey = await encryption.getUserPublicKey(message.senderId) || null;
-              if (senderPublicKey) {
-                publicKeyCacheRef.current.set(message.senderId, senderPublicKey);
+              const fetchedKey = await encryption.getUserPublicKey(message.senderId);
+              if (fetchedKey) {
+                senderPublicKey = fetchedKey;
+                publicKeyCacheRef.current.set(message.senderId, fetchedKey);
               }
             } catch (error) {
               console.error("Error fetching public key:", error);
