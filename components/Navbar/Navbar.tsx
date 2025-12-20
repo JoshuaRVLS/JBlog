@@ -586,9 +586,9 @@ export default function Navbar() {
               transition={{ duration: 0.3 }}
               className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl overflow-hidden"
             >
-              <div className="px-4 py-6">
+              <div className="px-4 py-4">
                 {/* Main Navigation - Grid Layout */}
-                <div className="grid grid-cols-2 gap-3 mb-6">
+                <div className="grid grid-cols-2 gap-2 mb-4">
                   {navItems.map((item: NavItem, index: number) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
@@ -608,7 +608,7 @@ export default function Navbar() {
                         <Link
                           href={item.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className={`group relative flex flex-col items-center justify-center gap-2 p-4 rounded-xl border transition-all duration-200 ${
+                          className={`group relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border transition-all duration-200 ${
                             isActive
                               ? "bg-primary/10 border-primary/30 text-primary shadow-lg shadow-primary/10"
                               : "bg-card/50 border-border/50 text-foreground/70 hover:bg-accent/50 hover:border-primary/20 hover:text-primary hover:shadow-md"
@@ -624,18 +624,18 @@ export default function Navbar() {
                           )}
                           
                           {/* Icon */}
-                          <div className={`relative z-10 p-2 rounded-lg transition-all ${
+                          <div className={`relative z-10 p-1.5 rounded-md transition-all ${
                             isActive 
                               ? "bg-primary/20" 
                               : "bg-muted/50 group-hover:bg-primary/10"
                           }`}>
-                            <Icon className={`h-5 w-5 transition-colors ${
+                            <Icon className={`h-4 w-4 transition-colors ${
                               isActive ? "text-primary" : "text-foreground/60 group-hover:text-primary"
                             }`} />
                           </div>
                           
                           {/* Label */}
-                          <span className={`relative z-10 text-xs font-semibold text-center transition-colors ${
+                          <span className={`relative z-10 text-xs font-medium text-center transition-colors ${
                             isActive ? "text-primary" : "text-foreground/70 group-hover:text-primary"
                           }`}>
                             {item.name}
@@ -651,12 +651,12 @@ export default function Navbar() {
 
                 {/* Divider */}
                 {authenticated && (
-                  <div className="relative my-6">
+                  <div className="relative my-4">
                     <div className="absolute inset-0 flex items-center">
                       <div className="w-full border-t border-border/50"></div>
                     </div>
                     <div className="relative flex justify-center">
-                      <span className="px-3 text-xs font-medium text-muted-foreground bg-background">
+                      <span className="px-2 text-xs font-medium text-muted-foreground bg-background">
                         Account
                       </span>
                     </div>
@@ -665,7 +665,7 @@ export default function Navbar() {
 
                 {/* Account Actions */}
                 {authenticated ? (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5">
                     <motion.div
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
@@ -675,9 +675,9 @@ export default function Navbar() {
                       <Link
                         href={`/users/${userId}`}
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-card/50 border border-border/50 text-foreground/80 hover:text-primary hover:bg-accent/50 hover:border-primary/20 transition-all group"
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/50 border border-border/50 text-foreground/80 hover:text-primary hover:bg-accent/50 hover:border-primary/20 transition-all group"
                       >
-                        <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                        <div className="p-1.5 rounded-md bg-muted/50 group-hover:bg-primary/10 transition-colors">
                           <User className="h-4 w-4 text-foreground/60 group-hover:text-primary transition-colors" />
                         </div>
                         <span className="text-sm font-medium">Profil Saya</span>
@@ -692,9 +692,9 @@ export default function Navbar() {
                       <Link
                         href="/profile/settings"
                         onClick={() => setMobileMenuOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-card/50 border border-border/50 text-foreground/80 hover:text-primary hover:bg-accent/50 hover:border-primary/20 transition-all group"
+                        className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/50 border border-border/50 text-foreground/80 hover:text-primary hover:bg-accent/50 hover:border-primary/20 transition-all group"
                       >
-                        <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                        <div className="p-1.5 rounded-md bg-muted/50 group-hover:bg-primary/10 transition-colors">
                           <Settings className="h-4 w-4 text-foreground/60 group-hover:text-primary transition-colors" />
                         </div>
                         <span className="text-sm font-medium">Pengaturan</span>
@@ -710,9 +710,9 @@ export default function Navbar() {
                         <Link
                           href="/admin"
                           onClick={() => setMobileMenuOpen(false)}
-                          className="flex items-center gap-3 px-4 py-3.5 rounded-xl bg-card/50 border border-border/50 text-foreground/80 hover:text-primary hover:bg-accent/50 hover:border-primary/20 transition-all group"
+                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-card/50 border border-border/50 text-foreground/80 hover:text-primary hover:bg-accent/50 hover:border-primary/20 transition-all group"
                         >
-                          <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                          <div className="p-1.5 rounded-md bg-muted/50 group-hover:bg-primary/10 transition-colors">
                             <Shield className="h-4 w-4 text-foreground/60 group-hover:text-primary transition-colors" />
                           </div>
                           <span className="text-sm font-medium">Admin Panel</span>
@@ -731,9 +731,9 @@ export default function Navbar() {
                           setMobileMenuOpen(false);
                           router.push("/");
                         }}
-                        className="flex items-center gap-3 w-full px-4 py-3.5 rounded-xl bg-card/50 border border-border/50 text-foreground/80 hover:text-destructive hover:bg-destructive/10 hover:border-destructive/20 transition-all group"
+                        className="flex items-center gap-2.5 w-full px-3 py-2.5 rounded-lg bg-card/50 border border-border/50 text-foreground/80 hover:text-destructive hover:bg-destructive/10 hover:border-destructive/20 transition-all group"
                       >
-                        <div className="p-2 rounded-lg bg-muted/50 group-hover:bg-destructive/10 transition-colors">
+                        <div className="p-1.5 rounded-md bg-muted/50 group-hover:bg-destructive/10 transition-colors">
                           <LogOut className="h-4 w-4 text-foreground/60 group-hover:text-destructive transition-colors" />
                         </div>
                         <span className="text-sm font-medium">Logout</span>
@@ -750,7 +750,7 @@ export default function Navbar() {
                     <Link
                       href="/login"
                       onClick={() => setMobileMenuOpen(false)}
-                      className="flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl bg-primary text-primary-foreground font-semibold hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/20"
+                      className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-primary text-primary-foreground font-semibold hover:opacity-90 active:scale-95 transition-all shadow-lg shadow-primary/20"
                     >
                       <span>Sign In</span>
                     </Link>
