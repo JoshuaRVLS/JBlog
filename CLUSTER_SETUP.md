@@ -21,10 +21,24 @@ pnpm install
 #### Ubuntu/Debian:
 ```bash
 sudo apt update
-sudo apt install redis-server
+sudo apt install redis-server -y
+
+# Cek nama service yang benar
+systemctl list-units --type=service | grep redis
+
+# Biasanya salah satu dari ini:
+sudo systemctl start redis-server
+sudo systemctl enable redis-server
+
+# Atau jika pakai redis (tanpa -server):
 sudo systemctl start redis
 sudo systemctl enable redis
+
+# Verifikasi
+redis-cli ping  # Harus return: PONG
 ```
+
+**Troubleshooting**: Jika error "Refusing to operate on alias name", lihat `REDIS_SETUP_VPS.md` untuk solusi lengkap.
 
 #### macOS:
 ```bash

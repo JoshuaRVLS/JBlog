@@ -3,7 +3,8 @@ module.exports = {
     {
       name: "jblog-backend",
       script: "./index.ts",
-      interpreter: "tsx",
+      interpreter: "npx",
+      interpreter_args: "tsx",
       instances: "max", // Use all available CPU cores
       exec_mode: "cluster",
       env: {
