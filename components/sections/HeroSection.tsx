@@ -256,30 +256,31 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
           </motion.div>
 
           {/* Education */}
-          <motion.p
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.8, duration: 0.6 }}
             className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-muted-foreground mb-2 sm:mb-3 md:mb-4 flex items-center justify-center gap-2"
           >
-            <motion.div
+            <motion.span
               animate={{ y: [0, -5, 0] }}
               transition={{ duration: 2, repeat: Infinity, delay: 1.5 }}
+              className="inline-flex"
             >
               <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
-            </motion.div>
+            </motion.span>
             <span className="text-center px-4">Institut Teknologi Sepuluh Nopember</span>
-          </motion.p>
+          </motion.div>
 
           {/* Description */}
-          <motion.p
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 1, duration: 0.6 }}
             className="text-base sm:text-lg md:text-xl text-muted-foreground mb-4 sm:mb-6 md:mb-8 max-w-2xl mx-auto px-4 leading-relaxed"
           >
             Full Stack Developer yang passionate tentang teknologi dan programming
-          </motion.p>
+          </motion.div>
 
           {/* Social Links with staggered animation */}
           <motion.div
