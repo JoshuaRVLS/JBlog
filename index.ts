@@ -131,13 +131,30 @@ app.get("/api/health", (req, res) => {
 // Create HTTP server
 const httpServer = createServer(app);
 
-// Setup Socket.IO
+// Setup Socket.IO with optimized settings for ultra-low latency
 const io = new Server(httpServer, {
   cors: {
     origin: process.env.NODE_ENV === "production" && process.env.FRONTEND_URL
       ? [process.env.FRONTEND_URL]
       : ["http://localhost:3000", "http://127.0.0.1:3000"],
     credentials: true,
+  },
+  // Optimize for real-time messaging (like WhatsApp)
+  transports: ["websocket"], // Force websocket only (lowest latency)
+  upgradeTimeout: 10000, // 10s timeout for upgrade
+  pingTimeout: 60000, // 60s ping timeout
+  pingInterval: 25000, // 25s ping interval
+  maxHttpBufferSize: 1e8, // 100MB for media
+  allowEIO3: false, // Disable old engine.io versions
+  // Enable compression for faster transfers
+  perMessageDeflate: {
+    zlibDeflateOptions: {
+      level: 3, // Balance between speed and compression
+    },
+    zlibInflateOptions: {
+      chunkSize: 10 * 1024,
+    },
+    threshold: 1024, // Only compress messages > 1KB
   },
 });
 
@@ -411,7 +428,31 @@ io.on("connection", (socket) => {
         }
       }
 
-      // Save message to database
+      // OPTIMIZATION: Emit message IMMEDIATELY before database write (real-time like WhatsApp)
+      const tempMessageId = `temp-${Date.now()}-${Math.random()}`;
+      const optimisticMessage = {
+        id: tempMessageId,
+        content: encryptedContent ? "" : (content?.trim() || ""),
+        encryptedContent: encryptedContent ?? null,
+        encryptionKeyId: encryptionKeyId || null,
+        type: type,
+        mediaUrl: mediaUrl || null,
+        mediaThumbnail: mediaThumbnail || null,
+        groupChatId: groupId,
+        userId: socket.data.userId,
+        createdAt: new Date().toISOString(),
+        user: {
+          id: socket.data.userId,
+          name: socket.data.user.name,
+          profilePicture: socket.data.user.profilePicture,
+        },
+        reads: [],
+      };
+
+      // Emit IMMEDIATELY to all group members (before database write)
+      io.to(`group:${groupId}`).emit("new-message", optimisticMessage);
+
+      // Save message to database in parallel (non-blocking)
       const message = await db.message.create({
         data: {
           content: encryptedContent ? "" : (content?.trim() || ""),
@@ -439,27 +480,38 @@ io.on("connection", (socket) => {
         },
       });
 
-      // Create notifications for mentioned users
-      for (const mentionedUserId of mentionedUserIds) {
-        await createNotification({
-          type: "mention",
-          userId: mentionedUserId,
-          actorId: socket.data.userId,
-          messageId: message.id,
-          groupChatId: groupId,
-        });
-        
-        // Emit real-time notification
-        io.to(`user:${mentionedUserId}`).emit("new-notification", {
-          type: "mention",
-          message: `${socket.data.user.name} mentioned you in ${groupChat.name}`,
-        });
-      }
+      // Update optimistic message with real ID (async, non-blocking)
+      io.to(`group:${groupId}`).emit("message-updated", {
+        tempId: tempMessageId,
+        realId: message.id,
+        message,
+      });
 
-      // Update group chat updatedAt
-      await db.groupChat.update({
+      // Create notifications for mentioned users (async, non-blocking)
+      Promise.all(
+        mentionedUserIds.map(async (mentionedUserId) => {
+          try {
+            const notification = await createNotification({
+              type: "mention",
+              userId: mentionedUserId,
+              actorId: socket.data.userId,
+              messageId: message.id,
+              groupChatId: groupId,
+            });
+            
+            // Emit real-time notification
+            io.to(`user:${mentionedUserId}`).emit("new-notification", notification);
+          } catch (err) {
+            console.error("Error creating mention notification:", err);
+          }
+        })
+      ).catch((err) => console.error("Error in notification creation:", err));
+
+      // Update group chat updatedAt (async, non-blocking)
+      db.groupChat.update({
         where: { id: groupId },
         data: { updatedAt: new Date() },
+      }).catch((err) => console.error("Error updating group chat:", err));
       });
 
       // Broadcast message to all users in the group
