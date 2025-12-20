@@ -31,9 +31,11 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { createServer } from "http";
 import { Server } from "socket.io";
+import { createAdapter } from "@socket.io/redis-adapter";
 import { verify } from "./lib/jwt";
 import { createNotification } from "./controllers/notifications.controller";
 import { setIO } from "./lib/socket";
+import { getRedisClient, getRedisSubscriber } from "./lib/redis";
 
 const app = express();
 
@@ -104,10 +106,37 @@ const httpServer = createServer(app);
 // Setup Socket.IO
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: process.env.NODE_ENV === "production" && process.env.FRONTEND_URL
+      ? [process.env.FRONTEND_URL]
+      : ["http://localhost:3000", "http://127.0.0.1:3000"],
     credentials: true,
   },
 });
+
+// Setup Redis adapter for cluster mode (after io is created)
+if (process.env.ENABLE_CLUSTER === "true") {
+  (async () => {
+    try {
+      const pubClient = getRedisClient();
+      const subClient = getRedisSubscriber();
+      
+      // ioredis auto-connects, but we can wait for ready
+      await Promise.all([
+        pubClient.ping().catch(() => {}),
+        subClient.ping().catch(() => {}),
+      ]);
+      
+      io.adapter(createAdapter(pubClient, subClient));
+      console.log("✅ Socket.IO Redis Adapter enabled for cluster mode");
+    } catch (error) {
+      console.error("❌ Failed to setup Redis adapter, falling back to in-memory:", error);
+      console.warn("⚠️  Socket.IO will work but won't share state across workers");
+      console.warn("⚠️  Make sure Redis is running and ENABLE_CLUSTER=true in .env");
+    }
+  })();
+} else {
+  console.log("ℹ️  Socket.IO running in single-instance mode (no Redis adapter)");
+}
 
 // Make Socket.IO instance accessible from other modules
 setIO(io);
@@ -415,8 +444,38 @@ io.on("connection", (socket) => {
   });
 });
 
-httpServer.listen(8000, async () => {
-  console.log("🚀 Server berjalan di http://localhost:8000");
-  console.log("📝 API tersedia di http://localhost:8000/api");
-  console.log("🔌 Socket.IO ready");
+const PORT = process.env.PORT || 8000;
+
+// PM2 cluster mode support
+if (process.env.INSTANCE_ID) {
+  process.send = process.send || (() => {});
+}
+
+httpServer.listen(PORT, async () => {
+  const instanceId = process.env.INSTANCE_ID || "single";
+  console.log(`🚀 Server berjalan di http://localhost:${PORT} (Instance: ${instanceId})`);
+  console.log(`📝 API tersedia di http://localhost:${PORT}/api`);
+  console.log(`🔌 Socket.IO ready ${process.env.ENABLE_CLUSTER === "true" ? "(Cluster Mode)" : "(Single Instance)"}`);
+  
+  // Signal PM2 that the app is ready
+  if (process.send) {
+    process.send("ready");
+  }
+});
+
+// Graceful shutdown
+process.on("SIGINT", async () => {
+  console.log("\n🛑 Shutting down gracefully...");
+  httpServer.close(() => {
+    console.log("✅ HTTP server closed");
+    process.exit(0);
+  });
+});
+
+process.on("SIGTERM", async () => {
+  console.log("\n🛑 Shutting down gracefully...");
+  httpServer.close(() => {
+    console.log("✅ HTTP server closed");
+    process.exit(0);
+  });
 });
