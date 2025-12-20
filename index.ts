@@ -512,10 +512,6 @@ io.on("connection", (socket) => {
         where: { id: groupId },
         data: { updatedAt: new Date() },
       }).catch((err) => console.error("Error updating group chat:", err));
-      });
-
-      // Broadcast message to all users in the group
-      io.to(`group:${groupId}`).emit("new-message", message);
 
       console.log(`✅ Message sent in group ${groupId} by ${socket.data.user.name} (type: ${type})`);
     } catch (error: any) {
