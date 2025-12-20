@@ -8,7 +8,7 @@ import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance, { getSocketUrl } from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
 import { io, Socket } from "socket.io-client";
-import { MessageCircle, Plus, Send, Users, ArrowLeft, Loader2, Image as ImageIcon, Video, Mic, VideoIcon, X, Play, Pause, Lock, Globe, Settings, Crown, UserMinus, UserPlus, Search, Compass, Key } from "lucide-react";
+import { MessageCircle, Plus, Send, Users, ArrowLeft, Loader2, Image as ImageIcon, Video, Mic, VideoIcon, X, Play, Pause, Lock, Globe, Settings, Crown, UserMinus, UserPlus, Search, Compass, Key, Eye } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
 import ImageViewer from "@/components/ImageViewer";
@@ -45,6 +45,17 @@ interface GroupChat {
   isMember?: boolean; // For explore groups
 }
 
+interface MessageRead {
+  id: string;
+  userId: string;
+  readAt: string;
+  user: {
+    id: string;
+    name: string;
+    profilePicture: string | null;
+  };
+}
+
 interface Message {
   id: string;
   content: string;
@@ -55,6 +66,7 @@ interface Message {
   encryptedMediaUrl?: string | null;
   mediaThumbnail?: string | null;
   createdAt: string;
+  reads?: MessageRead[];
   user: {
     id: string;
     name: string;
@@ -77,6 +89,8 @@ export default function GroupChatPage() {
   const [currentUserProfile, setCurrentUserProfile] = useState<{ name: string; profilePicture: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const messagesCacheRef = useRef<Map<string, Message[]>>(new Map());
+  const prefetchTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   
   const [mentionQuery, setMentionQuery] = useState("");
   const [showMentionSuggestions, setShowMentionSuggestions] = useState(false);
@@ -190,8 +204,37 @@ export default function GroupChatPage() {
   };
 
 
+  // Mark messages as read when viewing
+  const markMessagesAsRead = useCallback(async () => {
+    if (!selectedGroup || !userId || !messages.length) return;
+    
+    // Mark all visible messages as read
+    const unreadMessages = messages.filter((msg) => {
+      if (msg.user?.id === userId) return false; // Don't mark own messages
+      return !msg.reads?.some((read) => read.userId === userId);
+    });
+
+    if (unreadMessages.length > 0) {
+      // Mark each unread message as read
+      await Promise.all(
+        unreadMessages.map((msg) =>
+          AxiosInstance.put(`/groupchat/messages/${msg.id}/read`).catch(() => {})
+        )
+      );
+    }
+  }, [selectedGroup, userId, messages]);
+
   useEffect(() => {
     if (selectedGroup) {
+      // Check cache first
+      const cached = messagesCacheRef.current.get(selectedGroup.id);
+      if (cached) {
+        setMessages(cached);
+        setLoadingMessages(false);
+      } else {
+        setLoadingMessages(true);
+      }
+      
       fetchMessages();
       
       if (!selectedGroup.members || !Array.isArray(selectedGroup.members)) {
@@ -202,8 +245,15 @@ export default function GroupChatPage() {
         connectSocket();
         checkAdminStatus();
         fetchMembers();
+        
+        // Mark messages as read after a short delay
+        const readTimeout = setTimeout(() => {
+          markMessagesAsRead();
+        }, 1000);
+        
+        return () => clearTimeout(readTimeout);
         return () => {
-          if (socket) {
+          if (socket && selectedGroup) {
             socket.emit("leave-group", selectedGroup.id);
             socket.disconnect();
           }
@@ -220,6 +270,8 @@ export default function GroupChatPage() {
           setHoveredMention(null);
         };
       }
+    } else {
+      setMessages([]);
     }
   }, [selectedGroup, authenticated]);
   
@@ -659,7 +711,14 @@ export default function GroupChatPage() {
         if (messageExists) {
           return filtered;
         }
-        return [...filtered, decryptedMessage];
+        const updated = [...filtered, decryptedMessage];
+        
+        // Update cache
+        if (selectedGroup) {
+          messagesCacheRef.current.set(selectedGroup.id, updated);
+        }
+        
+        return updated;
       });
     });
 
@@ -719,6 +778,40 @@ export default function GroupChatPage() {
         });
       }
     });
+
+    socketInstance.on("messageRead", (data: { messageId: string; userId: string; readAt: string }) => {
+      setMessages((prev) => {
+        const updated = prev.map((msg) => {
+          if (msg.id === data.messageId) {
+            const existingRead = msg.reads?.find((r) => r.userId === data.userId);
+            if (!existingRead) {
+              return {
+                ...msg,
+                reads: [
+                  ...(msg.reads || []),
+                  {
+                    id: `temp-${data.userId}`,
+                    userId: data.userId,
+                    readAt: data.readAt,
+                    user: {
+                      id: data.userId,
+                      name: "", // Will be updated from cache
+                      profilePicture: null,
+                    },
+                  },
+                ],
+              };
+            }
+          }
+          return msg;
+        });
+        // Update cache
+        if (selectedGroup) {
+          messagesCacheRef.current.set(selectedGroup.id, updated);
+        }
+        return updated;
+      });
+    });
   };
 
   const fetchGroupChats = async () => {
@@ -735,23 +828,67 @@ export default function GroupChatPage() {
     }
   };
 
-  const fetchMessages = async () => {
+  const fetchMessages = async (silent = false) => {
     if (!selectedGroup) return;
 
     try {
-      setLoadingMessages(true);
+      if (!silent) setLoadingMessages(true);
       const response = await AxiosInstance.get(`/groupchat/${selectedGroup.id}/messages`, {
         params: { limit: 100 },
       });
       const fetchedMessages = response.data.messages || [];
-      setMessages(fetchedMessages);
+      
+      // Cache messages
+      messagesCacheRef.current.set(selectedGroup.id, fetchedMessages);
+      
+      // Only update state if this is the selected group
+      if (selectedGroup) {
+        setMessages(fetchedMessages);
+      }
     } catch (error: any) {
       console.error("Error fetching messages:", error);
-      if (error.response?.status !== 403) {
+      if (!silent && error.response?.status !== 403) {
         toast.error(error.response?.data?.msg || "Gagal mengambil messages");
       }
     } finally {
-      setLoadingMessages(false);
+      if (!silent) setLoadingMessages(false);
+    }
+  };
+  
+  // Prefetch messages on hover
+  const handleGroupHover = (groupId: string) => {
+    // Clear existing timeout for this group
+    const existingTimeout = prefetchTimeoutRef.current.get(groupId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    
+    // Prefetch after 300ms hover
+    const timeout = setTimeout(async () => {
+      // Only prefetch if not already cached and not currently selected
+      if (!messagesCacheRef.current.has(groupId) && selectedGroup?.id !== groupId) {
+        try {
+          const response = await AxiosInstance.get(`/groupchat/${groupId}/messages`, {
+            params: { limit: 100 },
+          });
+          const fetchedMessages = response.data.messages || [];
+          messagesCacheRef.current.set(groupId, fetchedMessages);
+        } catch (error) {
+          // Silent fail for prefetch
+          console.error("Error prefetching messages:", error);
+        }
+      }
+      prefetchTimeoutRef.current.delete(groupId);
+    }, 300);
+    
+    prefetchTimeoutRef.current.set(groupId, timeout);
+  };
+  
+  const handleGroupLeave = (groupId: string) => {
+    const timeout = prefetchTimeoutRef.current.get(groupId);
+    if (timeout) {
+      clearTimeout(timeout);
+      prefetchTimeoutRef.current.delete(groupId);
     }
   };
 
@@ -1083,6 +1220,8 @@ export default function GroupChatPage() {
                   <button
                     key={group.id}
                     onClick={() => setSelectedGroup(group)}
+                    onMouseEnter={() => handleGroupHover(group.id)}
+                    onMouseLeave={() => handleGroupLeave(group.id)}
                     className={`relative flex items-center justify-center w-10 h-10 rounded-2xl overflow-hidden transition-all ${
                       selectedGroup?.id === group.id
                         ? "bg-primary/90 shadow-lg shadow-primary/30 scale-105"
@@ -1161,6 +1300,8 @@ export default function GroupChatPage() {
                         <button
                           key={group.id}
                           onClick={() => setSelectedGroup(group)}
+                          onMouseEnter={() => handleGroupHover(group.id)}
+                          onMouseLeave={() => handleGroupLeave(group.id)}
                           className="w-full text-left p-3 rounded-lg transition-colors hover:bg-accent/50 text-foreground"
                         >
                           <div className="flex items-center gap-3">
@@ -1274,10 +1415,17 @@ export default function GroupChatPage() {
                       scrollBehavior: 'smooth'
                     }}
                   >
-                    {loadingMessages ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                        <Loader2 className="h-8 w-8 text-primary animate-spin mb-4" />
-                        <p className="text-muted-foreground text-sm">Memuat pesan...</p>
+                    {loadingMessages && messages.length === 0 ? (
+                      <div className="space-y-4 p-4">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className={`flex gap-3 items-start ${i % 2 === 0 ? "flex-row-reverse" : ""}`}>
+                            <div className="w-8 h-8 rounded-full bg-muted animate-pulse flex-shrink-0"></div>
+                            <div className={`max-w-[70%] rounded-lg p-3 bg-muted animate-pulse ${i % 2 === 0 ? "rounded-tr-none" : "rounded-tl-none"}`}>
+                              <div className="h-4 bg-background/50 rounded w-3/4 mb-2"></div>
+                              <div className="h-3 bg-background/30 rounded w-1/4"></div>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ) : messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-center py-12">
@@ -1423,6 +1571,20 @@ export default function GroupChatPage() {
                                     return <span key={idx}>{part}</span>;
                                   })}
                                 </p>
+                              )}
+                              {/* Seen by indicator - only show for own messages */}
+                              {isOwnMessage && message.reads && message.reads.length > 0 && (
+                                <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <Eye className="h-3 w-3" />
+                                  <span>
+                                    Dilihat oleh {message.reads.length} {message.reads.length === 1 ? "orang" : "orang"}
+                                  </span>
+                                  {message.reads.length <= 3 && (
+                                    <span className="text-muted-foreground/70">
+                                      ({message.reads.map((r) => r.user.name || "Unknown").join(", ")})
+                                    </span>
+                                  )}
+                                </div>
                               )}
                             </div>
                           </div>

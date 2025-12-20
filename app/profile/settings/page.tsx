@@ -61,6 +61,9 @@ export default function ProfileSettings() {
   const [emailPassword, setEmailPassword] = useState("");
   const [showEmailPassword, setShowEmailPassword] = useState(false);
   const [changingEmail, setChangingEmail] = useState(false);
+  const [emailVerificationCode, setEmailVerificationCode] = useState("");
+  const [emailChangeStep, setEmailChangeStep] = useState<"request" | "verify">("request");
+  const [pendingNewEmail, setPendingNewEmail] = useState("");
   const [country, setCountry] = useState("");
   const [website, setWebsite] = useState("");
   const [location, setLocation] = useState("");
@@ -275,38 +278,67 @@ export default function ProfileSettings() {
   const handleEmailChange = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!newEmail || !emailPassword) {
-      toast.error("Email baru dan password diperlukan");
-      return;
-    }
+    if (emailChangeStep === "request") {
+      // Step 1: Request email change
+      if (!newEmail || !emailPassword) {
+        toast.error("Email baru dan password diperlukan");
+        return;
+      }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(newEmail)) {
-      toast.error("Format email tidak valid");
-      return;
-    }
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmail)) {
+        toast.error("Format email tidak valid");
+        return;
+      }
 
-    if (newEmail === user?.email) {
-      toast.error("Email baru sama dengan email saat ini");
-      return;
-    }
+      if (newEmail === user?.email) {
+        toast.error("Email baru sama dengan email saat ini");
+        return;
+      }
 
-    try {
-      setChangingEmail(true);
-      await AxiosInstance.put("/profile/email", {
-        newEmail,
-        password: emailPassword,
-      });
+      try {
+        setChangingEmail(true);
+        await AxiosInstance.post("/profile/email/request-change", {
+          newEmail,
+          password: emailPassword,
+        });
 
-      toast.success("Email berhasil diubah");
-      setNewEmail("");
-      setEmailPassword("");
-      fetchProfile();
-    } catch (error: any) {
-      console.error("Error changing email:", error);
-      toast.error(error.response?.data?.msg || "Gagal mengubah email");
-    } finally {
-      setChangingEmail(false);
+        toast.success("Kode verifikasi telah dikirim ke email baru Anda");
+        setPendingNewEmail(newEmail);
+        setEmailPassword("");
+        setEmailChangeStep("verify");
+      } catch (error: any) {
+        console.error("Error requesting email change:", error);
+        toast.error(error.response?.data?.msg || "Gagal mengirim kode verifikasi");
+      } finally {
+        setChangingEmail(false);
+      }
+    } else {
+      // Step 2: Verify email change
+      if (!emailVerificationCode) {
+        toast.error("Kode verifikasi diperlukan");
+        return;
+      }
+
+      try {
+        setChangingEmail(true);
+        await AxiosInstance.post("/profile/email/verify-change", {
+          code: emailVerificationCode,
+        });
+
+        toast.success("Email berhasil diubah");
+        setNewEmail("");
+        setEmailPassword("");
+        setEmailVerificationCode("");
+        setPendingNewEmail("");
+        setEmailChangeStep("request");
+        fetchProfile();
+      } catch (error: any) {
+        console.error("Error verifying email change:", error);
+        toast.error(error.response?.data?.msg || "Gagal mengubah email");
+      } finally {
+        setChangingEmail(false);
+      }
     }
   };
 
@@ -813,65 +845,123 @@ export default function ProfileSettings() {
                         <Mail className="h-5 w-5 text-primary" />
                         Ubah Email
                       </h2>
-                      <form onSubmit={handleEmailChange} className="space-y-4">
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-foreground">Email Saat Ini</label>
-                          <input
-                            type="email"
-                            value={user?.email || ""}
-                            disabled
-                            className="w-full px-4 py-3 rounded-lg border border-border bg-muted text-muted-foreground cursor-not-allowed"
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-foreground">Email Baru</label>
-                          <input
-                            type="email"
-                            value={newEmail}
-                            onChange={(e) => setNewEmail(e.target.value)}
-                            placeholder="email@example.com"
-                            className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                            required
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <label className="text-sm font-medium text-foreground">Konfirmasi Password</label>
-                          <div className="relative">
+                      {emailChangeStep === "request" ? (
+                        <form onSubmit={handleEmailChange} className="space-y-4">
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">Email Saat Ini</label>
                             <input
-                              type={showEmailPassword ? "text" : "password"}
-                              value={emailPassword}
-                              onChange={(e) => setEmailPassword(e.target.value)}
-                              placeholder="Masukkan password untuk konfirmasi"
-                              className="w-full px-4 py-3 pr-12 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                              type="email"
+                              value={user?.email || ""}
+                              disabled
+                              className="w-full px-4 py-3 rounded-lg border border-border bg-muted text-muted-foreground cursor-not-allowed"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">Email Baru</label>
+                            <input
+                              type="email"
+                              value={newEmail}
+                              onChange={(e) => setNewEmail(e.target.value)}
+                              placeholder="email@example.com"
+                              className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
                               required
                             />
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">Konfirmasi Password</label>
+                            <div className="relative">
+                              <input
+                                type={showEmailPassword ? "text" : "password"}
+                                value={emailPassword}
+                                onChange={(e) => setEmailPassword(e.target.value)}
+                                placeholder="Masukkan password untuk konfirmasi"
+                                className="w-full px-4 py-3 pr-12 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                                required
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowEmailPassword(!showEmailPassword)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              >
+                                {showEmailPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                              </button>
+                            </div>
+                          </div>
+                          <button
+                            type="submit"
+                            disabled={changingEmail}
+                            className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                          >
+                            {changingEmail ? (
+                              <>
+                                <Loader2 className="h-5 w-5 animate-spin" />
+                                <span>Mengirim kode...</span>
+                              </>
+                            ) : (
+                              <>
+                                <Mail className="h-5 w-5" />
+                                <span>Kirim Kode Verifikasi</span>
+                              </>
+                            )}
+                          </button>
+                        </form>
+                      ) : (
+                        <form onSubmit={handleEmailChange} className="space-y-4">
+                          <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 mb-4">
+                            <p className="text-sm text-foreground">
+                              <strong>Kode verifikasi telah dikirim ke:</strong> {pendingNewEmail}
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Silakan cek email Anda dan masukkan kode verifikasi di bawah ini.
+                            </p>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-sm font-medium text-foreground">Kode Verifikasi</label>
+                            <input
+                              type="text"
+                              value={emailVerificationCode}
+                              onChange={(e) => setEmailVerificationCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                              placeholder="000000"
+                              maxLength={6}
+                              className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent text-center text-2xl font-mono tracking-widest"
+                              required
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              Masukkan 6 digit kode verifikasi yang dikirim ke email baru Anda
+                            </p>
+                          </div>
+                          <div className="flex gap-3">
                             <button
                               type="button"
-                              onClick={() => setShowEmailPassword(!showEmailPassword)}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                              onClick={() => {
+                                setEmailChangeStep("request");
+                                setEmailVerificationCode("");
+                                setPendingNewEmail("");
+                              }}
+                              className="px-6 py-3 border border-border rounded-lg font-medium hover:bg-muted transition-colors"
                             >
-                              {showEmailPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                              Kembali
+                            </button>
+                            <button
+                              type="submit"
+                              disabled={changingEmail || emailVerificationCode.length !== 6}
+                              className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            >
+                              {changingEmail ? (
+                                <>
+                                  <Loader2 className="h-5 w-5 animate-spin" />
+                                  <span>Mengubah email...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Mail className="h-5 w-5" />
+                                  <span>Verifikasi & Ubah Email</span>
+                                </>
+                              )}
                             </button>
                           </div>
-                        </div>
-                        <button
-                          type="submit"
-                          disabled={changingEmail}
-                          className="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-                        >
-                          {changingEmail ? (
-                            <>
-                              <Loader2 className="h-5 w-5 animate-spin" />
-                              <span>Mengubah email...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Mail className="h-5 w-5" />
-                              <span>Ubah Email</span>
-                            </>
-                          )}
-                        </button>
-                      </form>
+                        </form>
+                      )}
                     </div>
 
                     {/* Change Country */}

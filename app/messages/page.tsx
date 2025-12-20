@@ -7,7 +7,7 @@ import Image from "next/image";
 import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
-import { Send, User, Search, ArrowLeft, MessageSquare, Image as ImageIcon, Video, Mic, X, Loader2, Play, Pause, Lock, Key, Plus } from "lucide-react";
+import { Send, User, Search, ArrowLeft, MessageSquare, Image as ImageIcon, Video, Mic, X, Loader2, Play, Pause, Lock, Key, Plus, Check, CheckCheck } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSocket } from "@/providers/SocketProvider";
 import ImageViewer from "@/components/ImageViewer";
@@ -41,6 +41,8 @@ interface Message {
   mediaUrl: string | null;
   encryptedMediaUrl?: string | null;
   read: boolean;
+  deliveredAt?: string | null;
+  readAt?: string | null;
   createdAt: string;
   sender: {
     id: string;
@@ -74,6 +76,9 @@ function MessagesPageContent() {
   const [currentUserProfile, setCurrentUserProfile] = useState<{ name: string; profilePicture: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastConversationsFetchRef = useRef<number>(0);
+  const messagesCacheRef = useRef<Map<string, Message[]>>(new Map());
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const prefetchTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   
   // Media upload states
   const [selectedMedia, setSelectedMedia] = useState<{
@@ -127,15 +132,34 @@ function MessagesPageContent() {
     const userIdParam = searchParams.get("userId");
     if (userIdParam) {
       setSelectedUserId(userIdParam);
+      // Prefetch messages if userId is in query params
+      const cached = messagesCacheRef.current.get(userIdParam);
+      if (cached) {
+        setMessages(cached);
+      }
     }
     
-    fetchConversations();
+    // Fetch conversations and prefetch messages in parallel if userIdParam exists
+    Promise.all([
+      fetchConversations(),
+      userIdParam ? fetchMessages(userIdParam, true) : Promise.resolve()
+    ]);
   }, [authenticated, searchParams]);
 
   useEffect(() => {
     if (selectedUserId) {
+      // Check cache first
+      const cached = messagesCacheRef.current.get(selectedUserId);
+      if (cached) {
+        setMessages(cached);
+        setLoadingMessages(false);
+      } else {
+        setLoadingMessages(true);
+      }
       fetchMessages(selectedUserId);
       loadReceiverPublicKey(selectedUserId);
+    } else {
+      setMessages([]);
     }
   }, [selectedUserId]);
 
@@ -220,13 +244,16 @@ function MessagesPageContent() {
     }
   };
 
-  const fetchMessages = async (otherUserId: string) => {
+  const fetchMessages = async (otherUserId: string, silent = false) => {
     try {
+      if (!silent) setLoadingMessages(true);
       const response = await AxiosInstance.get(`/direct-messages/${otherUserId}`);
       const fetchedMessages = response.data.messages || [];
       
+      let processedMessages = fetchedMessages;
+      
       if (encryption && encryption.hasKeys) {
-        const decryptedMessages = await Promise.all(
+        processedMessages = await Promise.all(
           fetchedMessages.map(async (msg: Message) => {
             if (msg.encryptedContent && msg.senderId !== userId) {
               try {
@@ -248,15 +275,54 @@ function MessagesPageContent() {
             return msg;
           })
         );
-        setMessages(decryptedMessages);
-      } else {
-        setMessages(fetchedMessages);
       }
       
-      markAsRead(otherUserId);
+      // Cache messages
+      messagesCacheRef.current.set(otherUserId, processedMessages);
+      
+      // Only update state if this is the selected conversation
+      if (selectedUserId === otherUserId || silent) {
+        setMessages(processedMessages);
+      }
+      
+      if (!silent) {
+        markAsRead(otherUserId);
+      }
     } catch (error: any) {
       console.error("Error fetching messages:", error);
-      toast.error(error.response?.data?.error || "Gagal mengambil pesan");
+      if (!silent) {
+        toast.error(error.response?.data?.error || "Gagal mengambil pesan");
+      }
+    } finally {
+      if (!silent) setLoadingMessages(false);
+    }
+  };
+  
+  // Prefetch messages on hover
+  const handleConversationHover = (userId: string) => {
+    // Clear existing timeout for this user
+    const existingTimeout = prefetchTimeoutRef.current.get(userId);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    
+    // Prefetch after 300ms hover
+    const timeout = setTimeout(() => {
+      // Only prefetch if not already cached and not currently selected
+      if (!messagesCacheRef.current.has(userId) && selectedUserId !== userId) {
+        fetchMessages(userId, true);
+      }
+      prefetchTimeoutRef.current.delete(userId);
+    }, 300);
+    
+    prefetchTimeoutRef.current.set(userId, timeout);
+  };
+  
+  const handleConversationLeave = (userId: string) => {
+    const timeout = prefetchTimeoutRef.current.get(userId);
+    if (timeout) {
+      clearTimeout(timeout);
+      prefetchTimeoutRef.current.delete(userId);
     }
   };
 
@@ -309,7 +375,12 @@ function MessagesPageContent() {
         setMessages((prev) => {
           const exists = prev.some((msg) => msg.id === decryptedMessage.id);
           if (!exists) {
-            return [...prev, decryptedMessage];
+            const updated = [...prev, decryptedMessage];
+            // Update cache
+            if (selectedUserId) {
+              messagesCacheRef.current.set(selectedUserId, updated);
+            }
+            return updated;
           }
           return prev;
         });
@@ -323,10 +394,48 @@ function MessagesPageContent() {
       refreshConversationsThrottled();
     };
 
+    const handleMessageDelivered = (data: { messageId: string }) => {
+      setMessages((prev) => {
+        const updated = prev.map((msg) => {
+          if (msg.id === data.messageId && msg.senderId === userId) {
+            return { ...msg, deliveredAt: new Date().toISOString() };
+          }
+          return msg;
+        });
+        // Update cache
+        if (selectedUserId) {
+          messagesCacheRef.current.set(selectedUserId, updated);
+        }
+        return updated;
+      });
+    };
+
+    const handleMessagesRead = (data: { receiverId: string; readAt: string }) => {
+      if (data.receiverId === selectedUserId) {
+        setMessages((prev) => {
+          const updated = prev.map((msg) => {
+            if (msg.senderId === userId && msg.receiverId === data.receiverId && !msg.readAt) {
+              return { ...msg, read: true, readAt: data.readAt };
+            }
+            return msg;
+          });
+          // Update cache
+          if (selectedUserId) {
+            messagesCacheRef.current.set(selectedUserId, updated);
+          }
+          return updated;
+        });
+      }
+    };
+
     socket.on("newDirectMessage", handleNewDirectMessage);
+    socket.on("messageDelivered", handleMessageDelivered);
+    socket.on("messagesRead", handleMessagesRead);
 
     return () => {
       socket.off("newDirectMessage", handleNewDirectMessage);
+      socket.off("messageDelivered", handleMessageDelivered);
+      socket.off("messagesRead", handleMessagesRead);
     };
   }, [socket, userId, selectedUserId, encryption, refreshConversationsThrottled]);
 
@@ -700,6 +809,8 @@ function MessagesPageContent() {
                       <button
                         key={conversation.user.id}
                         onClick={() => setSelectedUserId(conversation.user.id)}
+                        onMouseEnter={() => handleConversationHover(conversation.user.id)}
+                        onMouseLeave={() => handleConversationLeave(conversation.user.id)}
                         className={`w-full p-3 rounded-lg mb-2 transition-colors ${
                           selectedUserId === conversation.user.id
                             ? "bg-primary text-primary-foreground"
@@ -825,7 +936,19 @@ function MessagesPageContent() {
 
                   {/* Messages */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4" data-lenis-prevent>
-                    {messages.map((message) => {
+                    {loadingMessages && messages.length === 0 ? (
+                      <div className="space-y-4">
+                        {[1, 2, 3, 4, 5].map((i) => (
+                          <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
+                            <div className="max-w-[70%] rounded-lg p-3 bg-muted animate-pulse">
+                              <div className="h-4 bg-background/50 rounded w-3/4 mb-2"></div>
+                              <div className="h-3 bg-background/30 rounded w-1/4"></div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      messages.map((message) => {
                       const isOwn = message.senderId === userId;
                       
                       return (
@@ -913,16 +1036,30 @@ function MessagesPageContent() {
                              message.content !== "Voice message" && (
                               <p className="text-sm">{message.content}</p>
                             )}
-                            <p className="text-xs opacity-70 mt-1">
-                              {new Date(message.createdAt).toLocaleTimeString([], {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })}
-                            </p>
+                            <div className="flex items-center justify-end gap-1 mt-1">
+                              <p className="text-xs opacity-70">
+                                {new Date(message.createdAt).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                              {/* Read receipts - only show for own messages */}
+                              {isOwn && (
+                                <div className="flex items-center">
+                                  {message.readAt ? (
+                                    <CheckCheck className="h-3.5 w-3.5 text-blue-400" />
+                                  ) : message.deliveredAt ? (
+                                    <CheckCheck className="h-3.5 w-3.5 opacity-70" />
+                                  ) : (
+                                    <Check className="h-3.5 w-3.5 opacity-50" />
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
                       );
-                    })}
+                    }))}
                     <div ref={messagesEndRef} />
                   </div>
 

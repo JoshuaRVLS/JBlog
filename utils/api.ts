@@ -95,6 +95,15 @@ AxiosInstance.interceptors.response.use(
     const status = error.response?.status;
     const data = error.response?.data as any;
 
+    // Handle maintenance mode
+    if (status === 503 && data?.maintenance) {
+      // Only redirect if not already on maintenance page
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/maintenance")) {
+        window.location.href = "/maintenance";
+      }
+      return Promise.reject(error);
+    }
+
     if (status === 401) {
       return Promise.reject(error);
     }

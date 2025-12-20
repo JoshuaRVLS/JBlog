@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
-import { Users, Shield, FileText, Bug, Megaphone, GitBranch } from "lucide-react";
+import { Users, Shield, FileText, Bug, Megaphone, GitBranch, Wrench } from "lucide-react";
 import toast from "react-hot-toast";
 import AdminLoading from "@/components/AdminLoading";
 
@@ -128,6 +128,13 @@ export default function AdminDashboard() {
       icon: GitBranch,
       href: "/admin/updatelogs",
       color: "bg-indigo-500/10 text-indigo-500",
+    },
+    {
+      title: "Maintenance Mode",
+      description: "Aktifkan atau nonaktifkan maintenance mode",
+      icon: Wrench,
+      href: "/admin/maintenance",
+      color: "bg-yellow-500/10 text-yellow-500",
     },
   ];
 
