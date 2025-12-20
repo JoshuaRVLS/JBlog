@@ -226,7 +226,7 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Get all conversations for current user
+// Get all conversations for current user (OPTIMIZED - no N+1 queries)
 export const getConversations = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
@@ -237,83 +237,89 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
         .json({ error: "Harus login dulu" });
     }
 
-    // Get all unique users that current user has conversations with
-    const sentMessages = await db.directMessage.findMany({
-      where: { senderId: userId },
-      select: { receiverId: true },
-      distinct: ["receiverId"],
+    // Get all messages in one query, then process in memory (much faster than N+1 queries)
+    const allMessages = await db.directMessage.findMany({
+      where: {
+        OR: [
+          { senderId: userId },
+          { receiverId: userId },
+        ],
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
     });
 
-    const receivedMessages = await db.directMessage.findMany({
-      where: { receiverId: userId },
-      select: { senderId: true },
-      distinct: ["senderId"],
-    });
+    // Group by conversation partner and get last message
+    const conversationMap = new Map<string, {
+      lastMessage: typeof allMessages[0];
+      otherUser: { id: string; name: string; profilePicture: string | null };
+    }>();
 
-    const allUserIds = [
-      ...new Set([
-        ...sentMessages.map((m) => m.receiverId),
-        ...receivedMessages.map((m) => m.senderId),
-      ]),
-    ];
+    for (const message of allMessages) {
+      const otherUserId = message.senderId === userId ? message.receiverId : message.senderId;
+      const otherUser = message.senderId === userId ? message.receiver : message.sender;
 
-    // Get last message for each conversation
-    const conversations = await Promise.all(
-      allUserIds.map(async (otherUserId) => {
-        const lastMessage = await db.directMessage.findFirst({
-          where: {
-            OR: [
-              {
-                senderId: userId,
-                receiverId: otherUserId,
-              },
-              {
-                senderId: otherUserId,
-                receiverId: userId,
-              },
-            ],
+      if (!conversationMap.has(otherUserId)) {
+        conversationMap.set(otherUserId, {
+          lastMessage: message,
+          otherUser: {
+            id: otherUser.id,
+            name: otherUser.name,
+            profilePicture: otherUser.profilePicture,
           },
-          include: {
-            sender: {
-              select: {
-                id: true,
-                name: true,
-                profilePicture: true,
-              },
-            },
-            receiver: {
-              select: {
-                id: true,
-                name: true,
-                profilePicture: true,
-              },
-            },
-          },
-          orderBy: { createdAt: "desc" },
         });
+      }
+    }
 
-        const unreadCount = await db.directMessage.count({
+    const otherUserIds = Array.from(conversationMap.keys());
+
+    // Batch get unread counts for all conversations at once
+    const unreadCounts = otherUserIds.length > 0
+      ? await db.directMessage.groupBy({
+          by: ["senderId"],
           where: {
-            senderId: otherUserId,
+            senderId: { in: otherUserIds },
             receiverId: userId,
             read: false,
           },
-        });
+          _count: {
+            id: true,
+          },
+        })
+      : [];
 
-        const otherUser =
-          lastMessage?.senderId === userId
-            ? lastMessage.receiver
-            : lastMessage?.sender;
-
-        return {
-          user: otherUser,
-          lastMessage,
-          unreadCount,
-        };
-      })
+    // Create map for O(1) lookup
+    const unreadCountMap = new Map(
+      unreadCounts.map((u) => [u.senderId, u._count.id])
     );
 
-    // Sort by last message time
+    // Build conversations array
+    const conversations = Array.from(conversationMap.entries()).map(([otherUserId, data]) => {
+      const unreadCount = unreadCountMap.get(otherUserId) || 0;
+
+      return {
+        user: data.otherUser,
+        lastMessage: data.lastMessage,
+        unreadCount,
+      };
+    });
+
+    // Sort by last message time (already sorted from query, but ensure it's correct)
     conversations.sort((a, b) => {
       if (!a.lastMessage || !b.lastMessage) return 0;
       return (
