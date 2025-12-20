@@ -18,8 +18,8 @@ export default function ReportBugButton() {
   });
   const pathname = usePathname();
 
-  // On the messages page, hide floating button on mobile to avoid covering chat input
-  const isMessagesPage = pathname?.startsWith("/messages");
+  // Hide floating button on mobile for messages/groupchat pages to avoid covering chat input
+  const isMessagesPage = pathname?.startsWith("/messages") || pathname?.startsWith("/groupchat");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -58,7 +58,7 @@ export default function ReportBugButton() {
       {/* Floating Button */}
       <div 
         className={`fixed bottom-24 right-8 z-50 flex flex-col items-end gap-3 lg:bottom-8 ${
-          isMessagesPage ? "hidden md:flex" : ""
+          isMessagesPage ? "hidden md:flex" : "hidden md:flex"
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
