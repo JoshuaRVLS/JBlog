@@ -129,7 +129,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
               damping: 15,
               delay: 0.2,
             }}
-            className="mb-6 sm:mb-8 -mt-8 sm:-mt-4 md:mt-0"
+            className="mb-6 sm:mb-8"
           >
             <GlowEffect className="inline-block">
               <div className="relative">
