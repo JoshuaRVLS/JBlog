@@ -53,8 +53,16 @@ export function SocketProvider({ children }: PropsWithChildren) {
 
         const newSocket = io(socketUrl, {
           auth: { token },
-          transports: ["websocket", "polling"],
+          transports: ["websocket"], // Force websocket only for lowest latency (like WhatsApp)
           reconnection: true,
+          reconnectionDelay: 100, // Quick reconnection
+          reconnectionDelayMax: 1000,
+          reconnectionAttempts: Infinity,
+          timeout: 10000, // 10s connection timeout
+          forceNew: false, // Reuse existing connection
+          // Optimize for real-time
+          upgrade: false, // Don't try to upgrade (websocket only)
+          rememberUpgrade: false,
         });
 
         newSocket.on("connect", () => {
