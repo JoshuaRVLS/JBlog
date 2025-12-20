@@ -4,7 +4,7 @@ module.exports = {
       name: "jblog-backend",
       script: "npx",
       args: "tsx index.ts",
-      cwd: "./backend",
+      interpreter: "none",
       instances: 1,
       exec_mode: "fork",
       autorestart: true,
