@@ -40,7 +40,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
           if (containerRef) containerRef.current = node;
         }}
         id="hero"
-        className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 sm:pt-0 pb-20"
+        className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 sm:pt-0 pb-32 sm:pb-40"
       >
         {/* Enhanced Animated Gradient Background */}
         <div className="absolute inset-0 z-0">
@@ -117,7 +117,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
         <motion.div
           ref={heroContentRef}
           style={{ y, opacity, scale }}
-          className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center pt-16 sm:pt-0"
+          className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center pt-8 sm:pt-12 md:pt-16"
         >
           {/* Profile Picture with enhanced animation */}
           <motion.div
@@ -129,7 +129,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
               damping: 15,
               delay: 0.2,
             }}
-            className="mb-6 sm:mb-8"
+            className="mb-6 sm:mb-8 -mt-8 sm:-mt-4 md:mt-0"
           >
             <GlowEffect className="inline-block">
               <div className="relative">
@@ -362,7 +362,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
 
           {/* Enhanced Scroll Indicator */}
           <motion.div
-            className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10"
+            className="absolute -bottom-12 sm:-bottom-16 left-1/2 -translate-x-1/2 z-10"
             animate={{ y: [0, 10, 0] }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
           >
