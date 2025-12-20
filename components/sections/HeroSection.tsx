@@ -42,59 +42,13 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
         id="hero"
         className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20 sm:pt-0 pb-32 sm:pb-40"
       >
-        {/* Enhanced Animated Gradient Background */}
+        {/* Simplified Static Background */}
         <div className="absolute inset-0 z-0">
           <AnimatedGradient className="absolute inset-0 opacity-40" />
           
-          {/* Animated Background Blobs - Simplified for performance */}
-          <motion.div
-            className="absolute top-20 left-20 w-96 h-96 bg-primary/20 rounded-full blur-3xl"
-            animate={{
-              scale: [1, 1.15, 1],
-            }}
-            transition={{
-              duration: 6,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-            style={{ willChange: "transform" }}
-          />
-          <motion.div
-            className="absolute bottom-20 right-20 w-[500px] h-[500px] bg-accent/20 rounded-full blur-3xl"
-            animate={{
-              scale: [1, 1.2, 1],
-            }}
-            transition={{
-              duration: 8,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1,
-            }}
-            style={{ willChange: "transform" }}
-          />
-
-          {/* Floating particles effect - Reduced for performance */}
-          {[...Array(8)].map((_, i) => (
-            <motion.div
-              key={i}
-              className="absolute w-1 h-1 bg-primary/20 rounded-full"
-              style={{
-                left: `${(i * 12.5) % 100}%`,
-                top: `${(i * 15) % 100}%`,
-                willChange: "transform, opacity",
-              }}
-              animate={{
-                y: [0, -20, 0],
-                opacity: [0.2, 0.5, 0.2],
-              }}
-              transition={{
-                duration: 4 + i * 0.5,
-                repeat: Infinity,
-                delay: i * 0.3,
-                ease: "easeInOut",
-              }}
-            />
-          ))}
+          {/* Static background blobs - No animations for better performance */}
+          <div className="absolute top-20 left-20 w-96 h-96 bg-primary/10 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-20 w-[500px] h-[500px] bg-accent/10 rounded-full blur-3xl" />
         </div>
 
         <motion.div
@@ -102,71 +56,54 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
           style={{ y, opacity, scale }}
           className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center pt-32 sm:pt-40 md:pt-48"
         >
-          {/* Profile Picture with enhanced animation */}
+          {/* Profile Picture - Simplified animation */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             transition={{
-              duration: 0.5,
-              ease: [0.25, 0.1, 0.25, 1],
+              duration: 0.4,
+              ease: "easeOut",
             }}
             className="mb-6 sm:mb-8"
-            style={{ willChange: "opacity, transform" }}
           >
-            <GlowEffect className="inline-block">
-              <div className="relative">
-                {/* Simplified animated ring - Single ring for performance */}
-                <motion.div
-                  className="absolute inset-0 rounded-full border-2 border-primary/30"
-                  animate={{
-                    scale: [1, 1.15, 1],
-                    opacity: [0.4, 0, 0.4],
-                  }}
-                  transition={{
-                    duration: 3,
-                    repeat: Infinity,
-                    ease: "easeInOut",
-                  }}
-                  style={{ willChange: "transform, opacity" }}
+            <div className="relative inline-block">
+              {/* Static ring - No animation for better performance */}
+              <div className="absolute inset-0 rounded-full border-2 border-primary/20" />
+              
+              {/* Profile image */}
+              <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 mx-auto rounded-full overflow-hidden shadow-2xl ring-4 ring-primary/20">
+                <Image
+                  src="https://media.licdn.com/dms/image/v2/D5603AQGWAG8ZLiDaDg/profile-displayphoto-shrink_800_800/B56ZdsusstHoAc-/0/1749875871019?e=1767225600&v=beta&t=iX-N7nbInqbwlzwtguZabQsv4kXPKVWevdAAEP6BsFo"
+                  alt="Joshua Ravael"
+                  width={192}
+                  height={192}
+                  className="w-full h-full object-cover"
+                  priority
                 />
-                
-                {/* Profile image */}
-                <div className="relative w-32 h-32 sm:w-40 sm:h-40 md:w-48 md:h-48 mx-auto rounded-full overflow-hidden shadow-2xl ring-4 ring-primary/20 backdrop-blur-sm">
-                  <Image
-                    src="https://media.licdn.com/dms/image/v2/D5603AQGWAG8ZLiDaDg/profile-displayphoto-shrink_800_800/B56ZdsusstHoAc-/0/1749875871019?e=1767225600&v=beta&t=iX-N7nbInqbwlzwtguZabQsv4kXPKVWevdAAEP6BsFo"
-                    alt="Joshua Ravael"
-                    width={192}
-                    height={192}
-                    className="w-full h-full object-cover"
-                    priority
-                  />
-                  {/* Overlay gradient */}
-                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
-                </div>
+                {/* Overlay gradient */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
               </div>
-            </GlowEffect>
+            </div>
           </motion.div>
 
-          {/* Name with enhanced gradient animation */}
+          {/* Name */}
           <motion.h1
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.15, duration: 0.6, ease: [0.25, 0.1, 0.25, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4, ease: "easeOut" }}
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-3 sm:mb-4 md:mb-6 relative"
-            style={{ willChange: "opacity, transform" }}
           >
             <span className="block bg-gradient-to-r from-primary via-accent to-primary bg-clip-text text-transparent">
               Joshua Ravael
             </span>
           </motion.h1>
           
-          {/* Total Views with counter animation */}
+          {/* Total Views */}
           <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2, duration: 0.4, ease: "easeOut" }}
             className="mb-3 sm:mb-4 md:mb-6 flex items-center justify-center gap-2 text-muted-foreground"
-            style={{ willChange: "opacity, transform" }}
           >
             <Eye className="h-4 w-4 md:h-5 md:w-5" />
             <span className="text-sm sm:text-base md:text-lg font-medium">
@@ -179,11 +116,10 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
 
           {/* Education */}
           <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.45, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3, duration: 0.4, ease: "easeOut" }}
             className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-muted-foreground mb-2 sm:mb-3 md:mb-4 flex items-center justify-center gap-2"
-            style={{ willChange: "opacity, transform" }}
           >
             <GraduationCap className="h-4 w-4 sm:h-5 sm:w-5 md:h-6 md:w-6" />
             <span className="text-center px-4">Institut Teknologi Sepuluh Nopember</span>
@@ -191,58 +127,46 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
 
           {/* Description */}
           <motion.div
-            initial={{ opacity: 0, y: 15 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.4, duration: 0.4, ease: "easeOut" }}
             className="text-base sm:text-lg md:text-xl text-muted-foreground mb-4 sm:mb-6 md:mb-8 max-w-2xl mx-auto px-4 leading-relaxed"
-            style={{ willChange: "opacity, transform" }}
           >
             Full Stack Developer yang passionate tentang teknologi dan programming
           </motion.div>
 
-          {/* Social Links with staggered animation */}
+          {/* Social Links */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 0.75, duration: 0.4, ease: [0.25, 0.1, 0.25, 1] }}
+            transition={{ delay: 0.5, duration: 0.4, ease: "easeOut" }}
             className="flex items-center justify-center gap-3 sm:gap-4 mb-6 sm:mb-8 md:mb-12"
-            style={{ willChange: "opacity" }}
           >
             {[
               { icon: Github, href: "https://github.com/JoshuaRVLS", label: "GitHub", color: "hover:bg-foreground hover:text-background" },
               { icon: Instagram, href: "https://instagram.com/bknjos", label: "Instagram", color: "hover:bg-pink-500 hover:text-white" },
               { icon: Linkedin, href: "https://linkedin.com/in/joshua-ravael-a329b42a2", label: "LinkedIn", color: "hover:bg-blue-600 hover:text-white" },
               { icon: Mail, href: "mailto:joshua@example.com", label: "Email", color: "hover:bg-primary hover:text-primary-foreground" },
-            ].map((social, index) => (
-              <motion.a
+            ].map((social) => (
+              <a
                 key={social.label}
                 href={social.href}
                 target={social.href.startsWith("mailto:") ? undefined : "_blank"}
                 rel={social.href.startsWith("mailto:") ? undefined : "noopener noreferrer"}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{
-                  duration: 0.3,
-                  ease: [0.25, 0.1, 0.25, 1],
-                  delay: 0.8 + index * 0.03,
-                }}
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.95 }}
-                className={`p-2.5 sm:p-3 bg-card border border-border/50 rounded-full transition-all shadow-sm hover:shadow-md ${social.color}`}
+                className={`p-2.5 sm:p-3 bg-card border border-border/50 rounded-full transition-all shadow-sm hover:shadow-md hover:scale-110 ${social.color}`}
                 aria-label={social.label}
               >
                 <social.icon className="h-5 w-5 sm:h-6 sm:w-6" />
-              </motion.a>
+              </a>
             ))}
           </motion.div>
 
-          {/* CTA Buttons with enhanced animations */}
+          {/* CTA Buttons */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.95, duration: 0.5, ease: [0.25, 0.1, 0.25, 1] }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6, duration: 0.4, ease: "easeOut" }}
             className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 md:mb-16 px-4"
-            style={{ willChange: "opacity, transform" }}
           >
             <motion.div
               whileHover={{ scale: 1.05 }}
