@@ -6,8 +6,8 @@ module.exports = {
       name: "jblog-backend",
       script: path.join(__dirname, "start.cjs"),
       interpreter: "node",
-      instances: "max", // Use all available CPU cores
-      exec_mode: "cluster",
+      instances: 1, // Single instance
+      exec_mode: "fork",
       cwd: __dirname,
       env: {
         NODE_ENV: "development",
