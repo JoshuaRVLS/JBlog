@@ -121,13 +121,12 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
         >
           {/* Profile Picture with enhanced animation */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
             transition={{
-              type: "spring",
-              stiffness: 200,
-              damping: 15,
-              delay: 0.2,
+              duration: 0.6,
+              ease: [0.22, 1, 0.36, 1],
+              delay: 0.1,
             }}
             className="mb-6 sm:mb-8"
           >
@@ -195,7 +194,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
           <motion.h1
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.8, ease: "easeOut" }}
+            transition={{ delay: 0.2, duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
             className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold mb-3 sm:mb-4 md:mb-6 relative"
           >
             <motion.span
@@ -233,7 +232,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.6, duration: 0.6 }}
+            transition={{ delay: 0.35, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="mb-3 sm:mb-4 md:mb-6 flex items-center justify-center gap-2 text-muted-foreground"
           >
             <motion.div
@@ -259,7 +258,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.8, duration: 0.6 }}
+            transition={{ delay: 0.5, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="text-lg sm:text-xl md:text-2xl lg:text-3xl text-muted-foreground mb-2 sm:mb-3 md:mb-4 flex items-center justify-center gap-2"
           >
             <motion.span
@@ -276,7 +275,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1, duration: 0.6 }}
+            transition={{ delay: 0.65, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="text-base sm:text-lg md:text-xl text-muted-foreground mb-4 sm:mb-6 md:mb-8 max-w-2xl mx-auto px-4 leading-relaxed"
           >
             Full Stack Developer yang passionate tentang teknologi dan programming
@@ -286,7 +285,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1.2, duration: 0.6 }}
+            transition={{ delay: 0.8, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
             className="flex items-center justify-center gap-3 sm:gap-4 mb-6 sm:mb-8 md:mb-12"
           >
             {[
@@ -300,13 +299,12 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
                 href={social.href}
                 target={social.href.startsWith("mailto:") ? undefined : "_blank"}
                 rel={social.href.startsWith("mailto:") ? undefined : "noopener noreferrer"}
-                initial={{ opacity: 0, scale: 0, rotate: -180 }}
-                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
                 transition={{
-                  type: "spring",
-                  stiffness: 200,
-                  damping: 15,
-                  delay: 1.2 + index * 0.1,
+                  duration: 0.4,
+                  ease: [0.22, 1, 0.36, 1],
+                  delay: 0.85 + index * 0.05,
                 }}
                 whileHover={{ scale: 1.15, rotate: 5 }}
                 whileTap={{ scale: 0.95 }}
@@ -322,7 +320,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 1.6, duration: 0.6 }}
+            transition={{ delay: 1.05, duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
             className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 md:mb-16 px-4"
           >
             <motion.div
