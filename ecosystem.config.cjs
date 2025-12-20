@@ -4,8 +4,8 @@ module.exports = {
   apps: [
     {
       name: "jblog-backend",
-      script: path.join(__dirname, "start.sh"),
-      interpreter: "bash",
+      script: path.join(__dirname, "node_modules", ".bin", "tsx"),
+      args: path.join(__dirname, "index.ts"),
       instances: "max", // Use all available CPU cores
       exec_mode: "cluster",
       cwd: __dirname,
