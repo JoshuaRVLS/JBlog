@@ -165,39 +165,19 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
             transition={{ delay: 0.6, duration: 0.4, ease: "easeOut" }}
             className="flex flex-col sm:flex-row items-center justify-center gap-3 sm:gap-4 mb-12 md:mb-16 px-4"
           >
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <Link 
+              href="/blog" 
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-primary text-primary-foreground rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 text-sm sm:text-base hover:opacity-90 transition-opacity"
             >
-              <MagneticButton
-                strength={0.3}
-                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-primary text-primary-foreground rounded-lg font-semibold flex items-center justify-center gap-2 shadow-lg shadow-primary/20 text-sm sm:text-base relative overflow-hidden group"
-              >
-                <motion.div
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000"
-                />
-                <Link href="/blog" className="flex items-center gap-2 relative z-10">
-                  <span>Lihat Blog</span>
-                  <motion.div
-                    animate={{ x: [0, 5, 0] }}
-                    transition={{ duration: 1.5, repeat: Infinity }}
-                  >
-                    <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
-                  </motion.div>
-                </Link>
-              </MagneticButton>
-            </motion.div>
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              <span>Lihat Blog</span>
+              <ArrowRight className="h-4 w-4 sm:h-5 sm:w-5" />
+            </Link>
+            <a 
+              href="#projects"
+              className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-card border-2 border-border/50 text-foreground rounded-lg font-semibold shadow-sm hover:shadow-md hover:border-primary/50 text-sm sm:text-base transition-all hover:opacity-90"
             >
-              <MagneticButton
-                strength={0.3}
-                className="w-full sm:w-auto px-6 sm:px-8 py-3 sm:py-4 bg-card border-2 border-border/50 text-foreground rounded-lg font-semibold shadow-sm hover:shadow-md hover:border-primary/50 text-sm sm:text-base transition-all"
-              >
-                <a href="#projects">Lihat Projek</a>
-              </MagneticButton>
-            </motion.div>
+              Lihat Projek
+            </a>
           </motion.div>
 
           {/* Enhanced Scroll Indicator */}
