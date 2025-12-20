@@ -4,8 +4,7 @@ module.exports = {
   apps: [
     {
       name: "jblog-frontend",
-      script: "next",
-      args: "start",
+      script: path.join(__dirname, "start.cjs"),
       interpreter: "node",
       instances: 1,
       exec_mode: "fork",
