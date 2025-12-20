@@ -1,12 +1,14 @@
+const path = require("path");
+
 module.exports = {
   apps: [
     {
       name: "jblog-backend",
-      script: "./index.ts",
-      interpreter: "npx",
-      interpreter_args: "tsx",
+      script: path.join(__dirname, "start.sh"),
+      interpreter: "bash",
       instances: "max", // Use all available CPU cores
       exec_mode: "cluster",
+      cwd: __dirname,
       env: {
         NODE_ENV: "development",
         PORT: 8000,

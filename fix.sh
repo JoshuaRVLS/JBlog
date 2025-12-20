@@ -16,14 +16,17 @@ else
   exit 1
 fi
 
-# 2. Restart PM2
+# 2. Make sure start.sh is executable
+chmod +x start.sh 2>/dev/null || true
+
+# 3. Restart PM2
 echo "2. Restarting PM2..."
 pm2 delete jblog-backend 2>/dev/null
 sleep 2
 pm2 start ecosystem.config.cjs --env production
 sleep 5
 
-# 3. Check status
+# 4. Check status
 echo "3. Status:"
 pm2 status | grep jblog-backend
 
