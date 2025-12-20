@@ -223,6 +223,8 @@ export default function ProfileSettings() {
       });
 
       toast.success("Profile berhasil diupdate");
+      // Dispatch event to invalidate navbar cache
+      window.dispatchEvent(new Event("profile-updated"));
       fetchProfile();
     } catch (error: any) {
       console.error("Error updating profile:", error);

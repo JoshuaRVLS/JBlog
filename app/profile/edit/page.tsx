@@ -116,6 +116,8 @@ export default function ProfileEdit() {
       });
 
       toast.success("Profile berhasil diupdate");
+      // Dispatch event to invalidate navbar cache
+      window.dispatchEvent(new Event("profile-updated"));
       router.push("/dashboard");
     } catch (error: any) {
       console.error("Error updating profile:", error);

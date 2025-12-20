@@ -175,21 +175,86 @@ export default function Navbar() {
   const [user, setUser] = useState<any>(null);
   const hasAnimatedRef = useRef<boolean>(false);
   const [activeLabels, setActiveLabels] = useState<Set<string>>(new Set());
+  const lastFetchedUserIdRef = useRef<string | null>(null); // Track last fetched userId to prevent refetch
 
   useEffect(() => {
     setMounted(true);
     hasAnimatedRef.current = true;
   }, []);
 
+  // Load user data from cache first, then fetch if needed (only when userId changes)
   useEffect(() => {
-    if (userId && (authenticated || isSuspended) && !loading) {
-      AxiosInstance.get(`/users/${userId}`)
-        .then((res) => setUser(res.data))
-        .catch(() => {});
-    } else if (!authenticated && !isSuspended) {
-      setUser(null);
+    if (!userId || (!authenticated && !isSuspended) || loading) {
+      if (!authenticated && !isSuspended) {
+        setUser(null);
+        lastFetchedUserIdRef.current = null;
+      }
+      return;
     }
+
+    // Only fetch if userId changed (not on every page navigation)
+    if (lastFetchedUserIdRef.current === userId) {
+      // User already fetched for this userId, check cache
+      const cachedUser = localStorage.getItem(`user_${userId}`);
+      if (cachedUser) {
+        try {
+          const parsedUser = JSON.parse(cachedUser);
+          if (!user || user.id !== parsedUser.id) {
+            setUser(parsedUser);
+          }
+        } catch (e) {
+          // Invalid cache, fetch fresh
+        }
+      }
+      return; // Don't refetch if same userId
+    }
+
+    // Load from cache immediately (show cached data while fetching)
+    const cachedUser = localStorage.getItem(`user_${userId}`);
+    if (cachedUser) {
+      try {
+        const parsedUser = JSON.parse(cachedUser);
+        setUser(parsedUser); // Show cached data immediately
+      } catch (e) {
+        // Invalid cache
+        localStorage.removeItem(`user_${userId}`);
+      }
+    }
+
+    // Fetch fresh data in background (update cache)
+    lastFetchedUserIdRef.current = userId;
+    AxiosInstance.get(`/users/${userId}`)
+      .then((res) => {
+        setUser(res.data);
+        // Cache user data in localStorage
+        localStorage.setItem(`user_${userId}`, JSON.stringify(res.data));
+      })
+      .catch(() => {
+        // On error, allow retry on next userId change
+        lastFetchedUserIdRef.current = null;
+      });
   }, [userId, authenticated, isSuspended, loading]);
+
+  // Listen for profile updates to invalidate cache
+  useEffect(() => {
+    const handleProfileUpdate = () => {
+      if (userId) {
+        localStorage.removeItem(`user_${userId}`);
+        lastFetchedUserIdRef.current = null; // Force refetch
+        // Fetch fresh data
+        AxiosInstance.get(`/users/${userId}`)
+          .then((res) => {
+            setUser(res.data);
+            localStorage.setItem(`user_${userId}`, JSON.stringify(res.data));
+            lastFetchedUserIdRef.current = userId;
+          })
+          .catch(() => {});
+      }
+    };
+
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdate);
+  }, [userId]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

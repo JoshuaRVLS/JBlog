@@ -105,6 +105,8 @@ export default function ProfileFinalisation() {
       });
 
       toast.success("Profile finalisasi berhasil");
+      // Dispatch event to invalidate navbar cache
+      window.dispatchEvent(new Event("profile-updated"));
       router.push("/dashboard");
     } catch (error: any) {
       console.error("Error saving profile:", error);
@@ -127,6 +129,8 @@ export default function ProfileFinalisation() {
       });
 
       toast.success("Profile finalisasi berhasil");
+      // Dispatch event to invalidate navbar cache
+      window.dispatchEvent(new Event("profile-updated"));
       router.push("/dashboard");
     } catch (error: any) {
       console.error("Error saving profile:", error);
