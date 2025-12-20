@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Terminal, Moon, Sun, Menu, X, LogOut, User, Settings, Home, BookOpen, LayoutDashboard, MessageCircle, Shield, Rss, BookmarkCheck, MessageSquare } from "lucide-react";
+import ThemeSelector from "../ThemeSelector";
 import Image from "next/image";
 import { AuthContext } from "@/providers/AuthProvider";
 import AxiosInstance from "@/utils/api";
@@ -168,7 +169,6 @@ export default function Navbar() {
   const { authenticated, logout, userId, loading, isSuspended } = useContext(AuthContext);
   const router = useRouter();
   const pathname = usePathname();
-  const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
@@ -273,9 +273,6 @@ export default function Navbar() {
     };
   }, [profileMenuOpen]);
 
-  const toggleTheme = (): void => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
 
   const navItems: NavItem[] = [
     { name: "Home", href: "/", icon: Home },
@@ -555,35 +552,8 @@ export default function Navbar() {
                 </Link>
               </motion.div>
             )}
-            {/* Theme Toggle Button */}
-            <motion.div
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="relative"
-            >
-              <button
-                onClick={toggleTheme}
-                className="relative h-10 w-10 rounded-lg bg-card hover:bg-accent border border-border flex items-center justify-center overflow-hidden transition-colors"
-                aria-label="Toggle theme"
-              >
-                <motion.div
-                  key={theme}
-                  initial={{ rotate: -180, scale: 0 }}
-                  animate={{ rotate: 0, scale: 1 }}
-                  transition={{
-                    duration: 0.6,
-                    ease: [0.34, 1.56, 0.64, 1],
-                  }}
-                  className="absolute"
-                >
-                  {theme === "dark" ? (
-                    <Moon className="h-5 w-5 text-primary" />
-                  ) : (
-                    <Sun className="h-5 w-5 text-primary" />
-                  )}
-                </motion.div>
-              </button>
-            </motion.div>
+            {/* Theme Selector */}
+            <ThemeSelector />
 
             {/* Mobile Menu Button */}
             <motion.div
