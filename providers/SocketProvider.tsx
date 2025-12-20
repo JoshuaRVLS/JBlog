@@ -58,11 +58,19 @@ export function SocketProvider({ children }: PropsWithChildren) {
         });
 
         newSocket.on("connect", () => {
-          console.log("✅ Global Socket connected");
+          console.log("✅ Global Socket connected", newSocket.id);
         });
 
-        newSocket.on("disconnect", () => {
-          console.log("❌ Global Socket disconnected");
+        newSocket.on("disconnect", (reason) => {
+          console.log("❌ Global Socket disconnected", reason);
+        });
+
+        newSocket.on("connect_error", (error) => {
+          console.error("❌ Socket connection error:", error);
+        });
+
+        newSocket.on("error", (error) => {
+          console.error("❌ Socket error:", error);
         });
 
         setSocket(newSocket);
