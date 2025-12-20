@@ -5,10 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { motion, useScroll, useTransform } from "framer-motion";
-import MagneticButton from "@/components/MagneticButton";
-import TextReveal from "@/components/TextReveal";
-import GlowEffect from "@/components/GlowEffect";
-import { Eye, GraduationCap, Github, Instagram, Linkedin, Mail, ArrowRight, Sparkles } from "lucide-react";
+import { Eye, GraduationCap, Github, Instagram, Linkedin, Mail, ArrowRight } from "lucide-react";
 
 const AnimatedGradient = dynamic(() => import("@/components/AnimatedGradient"), {
   ssr: false,
