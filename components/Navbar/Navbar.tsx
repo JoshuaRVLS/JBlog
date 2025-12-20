@@ -586,7 +586,7 @@ export default function Navbar() {
               transition={{ duration: 0.3 }}
               className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl overflow-hidden"
             >
-              <div className="px-4 py-4">
+              <div className="px-4 py-4 max-h-[calc(100vh-64px)] overflow-y-auto">
                 {/* Main Navigation - Grid Layout */}
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   {navItems.map((item: NavItem, index: number) => {
