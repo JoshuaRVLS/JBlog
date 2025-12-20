@@ -26,13 +26,17 @@ else
   fi
 fi
 
-# 2. Make sure start.js is executable
-chmod +x start.js 2>/dev/null || true
+# 2. Make sure start.cjs is executable
+chmod +x start.cjs 2>/dev/null || true
 
-# 3. Restart PM2
+# 3. Delete old start.js if exists
+rm -f start.js 2>/dev/null || true
+
+# 4. Restart PM2
 echo "2. Restarting PM2..."
 pm2 delete jblog-backend 2>/dev/null
-sleep 2
+pm2 kill 2>/dev/null || true
+sleep 3
 pm2 start ecosystem.config.cjs --env production
 sleep 5
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Wrapper to start with tsx
+// Wrapper to start with tsx (CommonJS for PM2 compatibility)
 const { spawn } = require("child_process");
 const path = require("path");
 
@@ -23,4 +23,3 @@ process.on("SIGTERM", () => {
 process.on("SIGINT", () => {
   child.kill("SIGINT");
 });
-
