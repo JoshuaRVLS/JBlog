@@ -121,8 +121,8 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
         >
           {/* Profile Picture with enhanced animation */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.5, rotate: -180 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
             transition={{
               type: "spring",
               stiffness: 200,
