@@ -1,6 +1,7 @@
 import { Heading as HeadingIcon, Code2, ImageIcon, Link2 } from "lucide-react";
 import type {
   Block,
+  BlockType,
   ParagraphBlock,
   HeadingBlock,
   QuoteBlock,
@@ -25,7 +26,7 @@ interface BlockRendererProps {
     query: string;
   };
   filteredSlashCommands: Array<{
-    type: string;
+    type: BlockType;
     label: string;
     description: string;
   }>;
@@ -36,7 +37,7 @@ interface BlockRendererProps {
     end: number;
   }) => void;
   onSlashMenuChange: (menu: { blockId: string | null; query: string }) => void;
-  onApplySlashCommand: (blockId: string, type: string) => void;
+  onApplySlashCommand: (blockId: string, type: BlockType) => void;
   onApplyInlineFormat: (format: "bold" | "italic" | "code" | "link") => void;
   onImageUploadClick: (blockId: string) => void;
 }
@@ -99,7 +100,7 @@ export default function BlockRenderer({
         onBlur={handleBlur}
         placeholder="Tulis paragraf di sini... (markdown sederhana tetap didukung: **bold**, *italic*, dll.)"
         rows={4}
-        className="min-h-[100px] flex-1 resize-y rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        className="min-h-[100px] w-full resize-y rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
       />
     );
   }
@@ -169,7 +170,7 @@ export default function BlockRenderer({
         onBlur={handleBlur}
         placeholder="Tulis quote atau highlight di sini..."
         rows={3}
-        className="min-h-[80px] flex-1 resize-y rounded-lg border border-border bg-background/60 px-3 py-2 text-sm italic text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        className="min-h-[80px] w-full resize-y rounded-lg border border-border bg-background/60 px-3 py-2 text-sm italic text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
       />
     );
   }
@@ -189,7 +190,7 @@ export default function BlockRenderer({
         onBlur={handleBlur}
         placeholder={"Satu item per baris.\nContoh:\n- Item 1\n- Item 2"}
         rows={4}
-        className="min-h-[100px] flex-1 resize-y rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+        className="min-h-[100px] w-full resize-y rounded-lg border border-border bg-background/60 px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
       />
     );
   }
@@ -229,7 +230,7 @@ export default function BlockRenderer({
           onBlur={handleBlur}
           placeholder="Tempel atau tulis kode di sini..."
           rows={6}
-          className="min-h-[140px] flex-1 resize-y rounded-lg border border-border bg-background/80 px-3 py-2 font-mono text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="min-h-[140px] w-full resize-y rounded-lg border border-border bg-background/80 px-3 py-2 font-mono text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
     );

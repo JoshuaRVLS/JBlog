@@ -1,10 +1,12 @@
+import type { BlockType } from "./types";
+
 interface SlashMenuProps {
   commands: Array<{
-    type: string;
+    type: BlockType;
     label: string;
     description: string;
   }>;
-  onSelect: (type: string) => void;
+  onSelect: (type: BlockType) => void;
 }
 
 export default function SlashMenu({ commands, onSelect }: SlashMenuProps) {
