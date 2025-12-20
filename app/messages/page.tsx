@@ -79,6 +79,7 @@ function MessagesPageContent() {
   const messagesCacheRef = useRef<Map<string, Message[]>>(new Map());
   const [loadingMessages, setLoadingMessages] = useState(false);
   const prefetchTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const publicKeyCacheRef = useRef<Map<string, string>>(new Map()); // Cache public keys for performance
   
   // Media upload states
   const [selectedMedia, setSelectedMedia] = useState<{
@@ -337,45 +338,24 @@ function MessagesPageContent() {
 
   // Listen for direct messages via global socket (single connection)
   useEffect(() => {
-    if (!socket || !userId) return;
+    if (!socket || !userId) {
+      console.log("⚠️ Socket or userId not available", { socket: !!socket, userId: !!userId });
+      return;
+    }
 
     const handleNewDirectMessage = async (message: Message) => {
+      console.log("📨 Received newDirectMessage event", message);
       // If there's an active conversation, only update when message belongs to it
       if (
         selectedUserId &&
         ( (message.senderId === selectedUserId && message.receiverId === userId) ||
           (message.senderId === userId && message.receiverId === selectedUserId) )
       ) {
-        let decryptedMessage = message;
-        if (
-          encryption &&
-          message.encryptedContent &&
-          message.senderId !== userId &&
-          encryption.hasKeys
-        ) {
-          try {
-            const senderPublicKey = await encryption.getUserPublicKey(
-              message.senderId
-            );
-            if (senderPublicKey) {
-              const encrypted = JSON.parse(message.encryptedContent);
-              const decrypted = await encryption.decryptFromUser(
-                encrypted,
-                senderPublicKey
-              );
-              if (decrypted) {
-                decryptedMessage = { ...message, content: decrypted };
-              }
-            }
-          } catch (error) {
-            console.error("Error decrypting incoming message:", error);
-          }
-        }
-
+        // OPTIMIZATION: Show message immediately (non-blocking), decrypt in background
         setMessages((prev) => {
-          const exists = prev.some((msg) => msg.id === decryptedMessage.id);
+          const exists = prev.some((msg) => msg.id === message.id);
           if (!exists) {
-            const updated = [...prev, decryptedMessage];
+            const updated = [...prev, message];
             // Update cache
             if (selectedUserId) {
               messagesCacheRef.current.set(selectedUserId, updated);
@@ -384,6 +364,55 @@ function MessagesPageContent() {
           }
           return prev;
         });
+
+        // Decrypt in background (non-blocking UI) - this prevents delay in showing messages
+        if (
+          encryption &&
+          message.encryptedContent &&
+          message.senderId !== userId &&
+          encryption.hasKeys
+        ) {
+          // Use cached public key if available (avoids repeated API calls)
+          let senderPublicKey = publicKeyCacheRef.current.get(message.senderId);
+          
+          if (!senderPublicKey && encryption.getUserPublicKey) {
+            try {
+              senderPublicKey = await encryption.getUserPublicKey(message.senderId) || null;
+              if (senderPublicKey) {
+                publicKeyCacheRef.current.set(message.senderId, senderPublicKey);
+              }
+            } catch (error) {
+              console.error("Error fetching public key:", error);
+            }
+          }
+
+          if (senderPublicKey) {
+            try {
+              const encrypted = JSON.parse(message.encryptedContent);
+              const decrypted = await encryption.decryptFromUser(
+                encrypted,
+                senderPublicKey
+              );
+              if (decrypted) {
+                // Update message with decrypted content (non-blocking)
+                setMessages((prev) => {
+                  const updated = prev.map((msg) =>
+                    msg.id === message.id
+                      ? { ...msg, content: decrypted }
+                      : msg
+                  );
+                  // Update cache
+                  if (selectedUserId) {
+                    messagesCacheRef.current.set(selectedUserId, updated);
+                  }
+                  return updated;
+                });
+              }
+            } catch (error) {
+              console.error("Error decrypting incoming message:", error);
+            }
+          }
+        }
 
         if (message.senderId === selectedUserId) {
           markAsRead(selectedUserId);
@@ -428,14 +457,26 @@ function MessagesPageContent() {
       }
     };
 
+    // Log when socket connects/disconnects
+    const handleConnect = () => {
+      console.log("✅ Socket connected in messages page", socket.id);
+    };
+    const handleDisconnect = () => {
+      console.log("❌ Socket disconnected in messages page");
+    };
+
     socket.on("newDirectMessage", handleNewDirectMessage);
     socket.on("messageDelivered", handleMessageDelivered);
     socket.on("messagesRead", handleMessagesRead);
+    socket.on("connect", handleConnect);
+    socket.on("disconnect", handleDisconnect);
 
     return () => {
       socket.off("newDirectMessage", handleNewDirectMessage);
       socket.off("messageDelivered", handleMessageDelivered);
       socket.off("messagesRead", handleMessagesRead);
+      socket.off("connect", handleConnect);
+      socket.off("disconnect", handleDisconnect);
     };
   }, [socket, userId, selectedUserId, encryption, refreshConversationsThrottled]);
 
@@ -677,12 +718,17 @@ function MessagesPageContent() {
     // Get selected conversation for receiver data
     const selectedConv = conversations.find((c) => c.user.id === selectedUserId);
     
-    // Encrypt message if encryption is enabled
+    // Encrypt message if encryption is enabled (cache public key for performance)
     let encryptedContent: string | null = null;
     let encryptionKeyId: string | null = null;
     
     if (encryption && enableEncryption && receiverPublicKey && encryption.hasKeys) {
       try {
+        // Cache the public key if not already cached
+        if (!publicKeyCacheRef.current.has(selectedUserId)) {
+          publicKeyCacheRef.current.set(selectedUserId, receiverPublicKey);
+        }
+        
         const encrypted = await encryption.encryptForUser(messageContent, receiverPublicKey);
         if (encrypted) {
           encryptedContent = JSON.stringify(encrypted);
