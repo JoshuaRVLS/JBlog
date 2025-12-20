@@ -51,7 +51,7 @@ const HeroSection = forwardRef<HTMLElement, HeroSectionProps>(
         <motion.div
           ref={heroContentRef}
           style={{ y, opacity, scale }}
-          className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center pt-32 sm:pt-40 md:pt-48"
+          className="relative z-10 container mx-auto px-4 sm:px-6 lg:px-8 text-center pt-20 sm:pt-40 md:pt-48"
         >
           {/* Profile Picture - Simplified animation */}
           <motion.div
