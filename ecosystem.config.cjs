@@ -33,8 +33,8 @@ module.exports = {
       time: true,
       // Graceful shutdown
       kill_timeout: 5000,
-      wait_ready: true,
-      listen_timeout: 30000, // Increased to 30s to allow for database/Redis connection
+      wait_ready: false, // Disabled to avoid hanging - will enable after DB is fixed
+      listen_timeout: 10000,
       // Advanced settings
       min_uptime: "10s",
       max_restarts: 10,
