@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import Navbar from "@/components/Navbar/Navbar";
-import AxiosInstance from "@/utils/api";
+import AxiosInstance, { getSocketUrl } from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
 import { io, Socket } from "socket.io-client";
 import { MessageCircle, Plus, Send, Users, ArrowLeft, Loader2, Image as ImageIcon, Video, Mic, VideoIcon, X, Play, Pause, Lock, Globe, Settings, Crown, UserMinus, UserPlus, Search, Compass, Key } from "lucide-react";
@@ -604,13 +604,8 @@ export default function GroupChatPage() {
         return;
       }
 
-      // Determine backend/socket URL from env (for Vercel) or fallback to localhost (dev)
-      const backendUrl =
-        process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
-        "http://localhost:8000";
-      const socketUrl = backendUrl.startsWith("http")
-        ? backendUrl
-        : `http://${backendUrl}`;
+      // Get socket URL (handles production and development)
+      const socketUrl = getSocketUrl();
 
       // Disconnect existing socket if any
       if (socket) {

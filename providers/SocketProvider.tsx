@@ -9,7 +9,7 @@ import React, {
   PropsWithChildren,
 } from "react";
 import { io, Socket } from "socket.io-client";
-import AxiosInstance from "@/utils/api";
+import AxiosInstance, { getSocketUrl } from "@/utils/api";
 import { AuthContext } from "./AuthProvider";
 
 interface SocketContextValue {
@@ -49,12 +49,7 @@ export function SocketProvider({ children }: PropsWithChildren) {
           return;
         }
 
-        const backendUrl =
-          process.env.NEXT_PUBLIC_API_URL?.replace("/api", "") ||
-          "http://localhost:8000";
-        const socketUrl = backendUrl.startsWith("http")
-          ? backendUrl
-          : `http://${backendUrl}`;
+        const socketUrl = getSocketUrl();
 
         const newSocket = io(socketUrl, {
           auth: { token },

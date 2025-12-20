@@ -553,26 +553,35 @@ export default function AdminBroadcast() {
             {broadcasts.map((broadcast) => (
               <div
                 key={broadcast.id}
-                className={`bg-card border rounded-xl p-6 ${
-                  broadcast.isActive ? "border-primary" : "border-border"
+                className={`bg-card border-2 rounded-xl p-6 transition-all ${
+                  broadcast.isActive 
+                    ? "border-emerald-500/60 dark:border-emerald-400/50 shadow-xl shadow-emerald-500/20 dark:shadow-emerald-400/10 ring-2 ring-emerald-500/30 dark:ring-emerald-400/20 bg-gradient-to-br from-emerald-50/50 to-transparent dark:from-transparent" 
+                    : "border-border hover:border-border/80"
                 }`}
               >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <h3 className="text-xl font-bold">{broadcast.title}</h3>
                       {broadcast.isActive && (
-                        <span className="px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-semibold">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-emerald-500/30 to-emerald-600/30 dark:from-emerald-500/20 dark:to-emerald-600/20 text-emerald-700 dark:text-emerald-400 border-2 border-emerald-500/50 dark:border-emerald-400/30 rounded-full text-xs font-bold shadow-md backdrop-blur-sm">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 dark:bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-600 dark:bg-emerald-500"></span>
+                          </span>
                           Aktif
                         </span>
                       )}
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                        broadcast.type === "info" ? "bg-blue-500/10 text-blue-500" :
-                        broadcast.type === "warning" ? "bg-yellow-500/10 text-yellow-500" :
-                        broadcast.type === "success" ? "bg-green-500/10 text-green-500" :
-                        "bg-red-500/10 text-red-500"
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border-2 shadow-md backdrop-blur-sm ${
+                        broadcast.type === "info" 
+                          ? "bg-gradient-to-r from-blue-500/30 to-blue-600/30 dark:from-blue-500/20 dark:to-blue-600/20 text-blue-700 dark:text-blue-400 border-blue-500/50 dark:border-blue-400/30" :
+                        broadcast.type === "warning" 
+                          ? "bg-gradient-to-r from-amber-500/30 to-amber-600/30 dark:from-amber-500/20 dark:to-amber-600/20 text-amber-700 dark:text-amber-400 border-amber-500/50 dark:border-amber-400/30" :
+                        broadcast.type === "success" 
+                          ? "bg-gradient-to-r from-emerald-500/30 to-emerald-600/30 dark:from-emerald-500/20 dark:to-emerald-600/20 text-emerald-700 dark:text-emerald-400 border-emerald-500/50 dark:border-emerald-400/30" :
+                          "bg-gradient-to-r from-red-500/30 to-red-600/30 dark:from-red-500/20 dark:to-red-600/20 text-red-700 dark:text-red-400 border-red-500/50 dark:border-red-400/30"
                       }`}>
-                        {broadcast.type}
+                        <span className="capitalize">{broadcast.type}</span>
                       </span>
                     </div>
                     <p className="text-muted-foreground mb-4">{broadcast.message}</p>

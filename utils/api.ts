@@ -7,6 +7,57 @@ const AxiosInstance = axios.create({
   timeout: 30000,
 });
 
+/**
+ * Get the Socket.IO server URL
+ * Priority:
+ * 1. NEXT_PUBLIC_SOCKET_URL (if explicitly set)
+ * 2. NEXT_PUBLIC_API_URL (extract base URL by removing /api)
+ * 3. window.location.origin (in browser, for same-domain deployments)
+ * 4. localhost:8000 (development fallback)
+ */
+export function getSocketUrl(): string {
+  // Check for explicit socket URL first
+  if (process.env.NEXT_PUBLIC_SOCKET_URL) {
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL.trim();
+    // Remove ws:// or wss:// prefix if present, convert to http/https
+    if (socketUrl.startsWith("wss://")) {
+      return socketUrl.replace(/^wss:\/\//, "https://");
+    }
+    if (socketUrl.startsWith("ws://")) {
+      return socketUrl.replace(/^ws:\/\//, "http://");
+    }
+    // If already http/https, use as is
+    if (socketUrl.startsWith("http://") || socketUrl.startsWith("https://")) {
+      return socketUrl;
+    }
+    // If no protocol, assume https in production, http in development
+    const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https://" : "http://";
+    return `${protocol}${socketUrl}`;
+  }
+
+  // If NEXT_PUBLIC_API_URL is set, extract base URL from it
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL.trim();
+    // Remove /api suffix if present
+    let baseUrl = apiUrl.replace(/\/api\/?$/, "");
+    // Ensure it has protocol
+    if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
+      // Determine protocol based on current page or default to https
+      const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https://" : "https://";
+      baseUrl = `${protocol}${baseUrl}`;
+    }
+    return baseUrl;
+  }
+
+  // In browser, use current origin (for same-domain deployments)
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
+
+  // Fallback to localhost for development
+  return "http://localhost:8000";
+}
+
 AxiosInstance.interceptors.request.use(
   (config) => {
     return config;

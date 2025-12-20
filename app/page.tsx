@@ -1308,21 +1308,12 @@ export default function Home() {
       <main className="pb-20 lg:pb-0">
         {broadcast && !(countdownFinished && broadcast.actionAfterCountdown === "hide") && (
           <div
-            className={`fixed top-16 left-0 right-0 z-40 border-b backdrop-blur-sm transition-transform duration-200 ease-out relative overflow-hidden ${
+            className={`fixed top-16 left-0 right-0 z-40 border-b backdrop-blur-md transition-transform duration-200 ease-out relative overflow-hidden shadow-lg ${
               showBroadcast ? "translate-y-0" : "-translate-y-full"
             }`}
             style={{
               backgroundColor: broadcast.backgroundColor
-                ? `${broadcast.backgroundColor}15`
-                : broadcast.type === "info"
-                ? "rgba(59, 130, 246, 0.1)"
-                : broadcast.type === "warning"
-                ? "rgba(234, 179, 8, 0.1)"
-                : broadcast.type === "success"
-                ? "rgba(34, 197, 94, 0.1)"
-                : "rgba(239, 68, 68, 0.1)",
-              borderColor: broadcast.borderColor
-                ? `${broadcast.borderColor}30`
+                ? `${broadcast.backgroundColor}25`
                 : broadcast.type === "info"
                 ? "rgba(59, 130, 246, 0.2)"
                 : broadcast.type === "warning"
@@ -1330,13 +1321,22 @@ export default function Home() {
                 : broadcast.type === "success"
                 ? "rgba(34, 197, 94, 0.2)"
                 : "rgba(239, 68, 68, 0.2)",
-              color: broadcast.textColor || (broadcast.type === "info"
-                ? "#3b82f6"
+              borderColor: broadcast.borderColor
+                ? `${broadcast.borderColor}50`
+                : broadcast.type === "info"
+                ? "rgba(59, 130, 246, 0.4)"
                 : broadcast.type === "warning"
-                ? "#eab308"
+                ? "rgba(234, 179, 8, 0.4)"
                 : broadcast.type === "success"
-                ? "#22c55e"
-                : "#ef4444"),
+                ? "rgba(34, 197, 94, 0.4)"
+                : "rgba(239, 68, 68, 0.4)",
+              color: broadcast.textColor || (broadcast.type === "info"
+                ? "#1e40af"
+                : broadcast.type === "warning"
+                ? "#b45309"
+                : broadcast.type === "success"
+                ? "#15803d"
+                : "#b91c1c"),
             }}
           >
             <BroadcastParticles 
@@ -1370,13 +1370,13 @@ export default function Home() {
                 </div>
                 {broadcast.hasCountdown && countdown && !countdownFinished && (
                   <div className="flex items-center justify-end sm:justify-center gap-1 sm:gap-2 flex-shrink-0">
-                    <div className="flex items-center gap-1 px-2 py-1 bg-white/20 rounded-full sm:rounded backdrop-blur-sm text-[11px] sm:text-xs font-semibold">
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-white/30 dark:bg-black/30 backdrop-blur-md rounded-full border border-white/40 dark:border-white/20 shadow-lg text-[11px] sm:text-xs font-bold">
                       {countdown.days > 0 && (
-                        <span>
+                        <span className="px-1.5 py-0.5 bg-white/40 dark:bg-white/20 rounded">
                           {countdown.days}d
                         </span>
                       )}
-                      <span>
+                      <span className="tabular-nums">
                         {String(countdown.hours).padStart(2, "0")}:
                         {String(countdown.minutes).padStart(2, "0")}:
                         {String(countdown.seconds).padStart(2, "0")}
