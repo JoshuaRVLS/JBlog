@@ -58,7 +58,7 @@ export default function ReportBugButton() {
       {/* Floating Button */}
       <div 
         className={`fixed bottom-24 right-8 z-50 flex flex-col items-end gap-3 lg:bottom-8 ${
-          isMessagesPage ? "hidden md:flex" : "hidden md:flex"
+          isMessagesPage ? "hidden md:flex" : ""
         }`}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
