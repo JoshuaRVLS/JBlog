@@ -100,6 +100,30 @@ app.use("/api/updatelog/", UpdateLogRoutes);
 app.use("/api/encryption/", EncryptionRoutes);
 app.use("/api/jplus/", JPlusRoutes);
 
+// Cluster info endpoint (for verification)
+app.get("/api/cluster-info", (req, res) => {
+  const os = require("os");
+  res.json({
+    clusterMode: process.env.ENABLE_CLUSTER === "true",
+    instanceId: process.env.INSTANCE_ID || "single",
+    pid: process.pid,
+    cpuCount: os.cpus().length,
+    nodeVersion: process.version,
+    redisEnabled: process.env.ENABLE_CLUSTER === "true",
+    timestamp: new Date().toISOString(),
+  });
+});
+
+// Health check endpoint
+app.get("/api/health", (req, res) => {
+  res.json({
+    status: "ok",
+    instanceId: process.env.INSTANCE_ID || "single",
+    pid: process.pid,
+    timestamp: new Date().toISOString(),
+  });
+});
+
 // Create HTTP server
 const httpServer = createServer(app);
 
