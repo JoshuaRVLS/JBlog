@@ -6,7 +6,8 @@ import { createNotification } from "./notifications.controller";
 
 export const createComment = async (req: AuthRequest, res: Response) => {
   try {
-    const { postId } = req.params;
+    const { postId: rawPostId } = req.params;
+    const postId = String(rawPostId);
     const { content, parentId } = req.body;
     const userId = req.userId;
 
@@ -206,7 +207,8 @@ export const getComments = async (req: AuthRequest, res: Response) => {
 
 export const toggleCommentLike = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = String(rawId);
     const userId = req.userId;
 
     if (!userId) {
@@ -259,7 +261,7 @@ export const toggleCommentLike = async (req: AuthRequest, res: Response) => {
       // Optional: create notification for comment like (avoid self-like notification)
       if (comment.userId !== userId) {
         await createNotification({
-          type: "comment_like",
+          type: "like",
           userId: comment.userId,
           actorId: userId,
           postId: comment.postId,

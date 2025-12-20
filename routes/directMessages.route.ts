@@ -4,6 +4,7 @@ import {
   getConversation,
   getConversations,
   markMessagesAsRead,
+  markMessageAsDelivered,
   getUnreadCount,
 } from "../controllers/directMessages.controller";
 import { authenticate, requireAuth } from "../middleware/auth.middleware";
@@ -15,6 +16,7 @@ router.get("/", requireAuth, getConversations);
 router.get("/unread-count", authenticate, getUnreadCount);
 router.get("/:userId", requireAuth, getConversation);
 router.put("/:userId/read", requireAuth, markMessagesAsRead);
+router.put("/delivered/:messageId", requireAuth, markMessageAsDelivered);
 
 export default router;
 

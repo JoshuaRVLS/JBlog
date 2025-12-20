@@ -416,7 +416,7 @@ export const getPost = async (req: AuthRequest, res: Response) => {
           where: {
             userId_postId: {
               userId,
-              postId: id,
+              postId: String(id),
             },
           },
         }),
@@ -424,7 +424,7 @@ export const getPost = async (req: AuthRequest, res: Response) => {
           where: {
             userId_postId: {
               userId,
-              postId: id,
+              postId: String(id),
             },
           },
         }),

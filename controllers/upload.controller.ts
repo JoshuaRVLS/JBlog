@@ -5,11 +5,23 @@ import type { AuthRequest } from "../middleware/auth.middleware";
 import { supabase, BUCKETS } from "../lib/supabase";
 import db from "../lib/db";
 
+type MulterFile = {
+  fieldname: string;
+  originalname: string;
+  encoding: string;
+  mimetype: string;
+  size: number;
+  destination?: string;
+  filename?: string;
+  path?: string;
+  buffer?: Buffer;
+};
+
 // Setup multer untuk memory storage (karena kita upload ke Supabase)
 const storage = multer.memoryStorage();
 
 // Filter untuk hanya menerima gambar
-const imageFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const imageFilter = (req: any, file: MulterFile, cb: (error: Error | null, acceptFile?: boolean) => void) => {
   const allowedTypes = /jpeg|jpg|png|gif|webp/;
   const extname = /\.(jpeg|jpg|png|gif|webp)$/i.test(file.originalname);
   const mimetype = file.mimetype.startsWith("image/");
@@ -22,7 +34,7 @@ const imageFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterC
 };
 
 // Filter untuk media (image, video, audio)
-const mediaFilter = (req: any, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
+const mediaFilter = (req: any, file: MulterFile, cb: (error: Error | null, acceptFile?: boolean) => void) => {
   const isImage = file.mimetype.startsWith("image/");
   const isVideo = file.mimetype.startsWith("video/");
   const isAudio = file.mimetype.startsWith("audio/");
@@ -64,9 +76,14 @@ export const uploadImage = async (req: AuthRequest, res: Response) => {
     const filePath = `posts/${fileName}`;
 
     // Upload ke Supabase Storage
+    const fileBuffer = file.buffer;
+    if (!fileBuffer) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "File buffer tidak tersedia" });
+    }
+
     const { data, error } = await supabase.storage
       .from(BUCKETS.IMAGES)
-      .upload(filePath, file.buffer, {
+      .upload(filePath, fileBuffer, {
         contentType: file.mimetype,
         upsert: false,
       });
@@ -154,9 +171,14 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
     const filePath = fileName;
 
     // Upload ke Supabase Storage (replace existing jika ada)
+    const fileBuffer = file.buffer;
+    if (!fileBuffer) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "File buffer tidak tersedia" });
+    }
+
     const { data, error } = await supabase.storage
       .from(BUCKETS.AVATARS)
-      .upload(filePath, file.buffer, {
+      .upload(filePath, fileBuffer, {
         contentType: file.mimetype,
         upsert: true, // Replace existing file
       });
@@ -224,9 +246,14 @@ export const uploadChatMedia = async (req: AuthRequest, res: Response) => {
     const filePath = `${folderName}/${fileName}`;
 
     // Upload ke Supabase Storage
+    const fileBuffer = file.buffer;
+    if (!fileBuffer) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "File buffer tidak tersedia" });
+    }
+
     const { data, error } = await supabase.storage
       .from(bucketName)
-      .upload(filePath, file.buffer, {
+      .upload(filePath, fileBuffer, {
         contentType: file.mimetype,
         upsert: false,
       });

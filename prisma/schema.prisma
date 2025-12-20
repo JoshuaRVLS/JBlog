@@ -33,6 +33,7 @@ model User {
   posts                  Post[]
   verificationCode       VerificationCode?
   passwordResetTokens    PasswordResetToken[]
+  emailChangeVerifications EmailChangeVerification[]
   claps                  Clap[]
   comments               Comment[]
   reports                Report[]
@@ -47,9 +48,11 @@ model User {
   reposts                Repost[]
   sentDirectMessages     DirectMessage[]      @relation("DirectMessageSender")
   receivedDirectMessages DirectMessage[]      @relation("DirectMessageReceiver")
+  messageReads           MessageRead[]        // Messages read by user in group chats
   encryptionKeys         EncryptionKey[]      // User's encryption keys
   postVersions           PostVersion[]
   commentLikes           CommentLike[]
+  updatedSettings        Settings[]           // Settings updated by this user
 
   // Followers relationship
   followers Follow[] @relation("UserFollowers")
@@ -250,6 +253,21 @@ model PasswordResetToken {
   @@index([expiresAt])
 }
 
+model EmailChangeVerification {
+  id        String   @id @default(cuid())
+  code      String
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  newEmail  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@unique([userId, newEmail])
+  @@index([userId])
+  @@index([code])
+  @@index([expiresAt])
+}
+
 model Report {
   id          String   @id @default(cuid())
   title       String
@@ -317,6 +335,7 @@ model Message {
   encryptedMediaUrl String? // Encrypted media URL untuk E2EE
   mediaThumbnail String? // Thumbnail untuk video
   mentions       MessageMention[]
+  reads          MessageRead[]    // Users who have seen this message
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   notifications  Notification[]
@@ -327,6 +346,20 @@ model Message {
   // For fetching messages per group ordered by time
   @@index([groupChatId, createdAt])
   @@index([encryptionKeyId])
+}
+
+model MessageRead {
+  id        String   @id @default(cuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt    DateTime @default(now())
+
+  @@unique([messageId, userId])
+  @@index([messageId])
+  @@index([userId])
+  @@index([readAt])
 }
 
 model Notification {
@@ -423,6 +456,8 @@ model DirectMessage {
   mediaUrl   String? // URL untuk photo, video, audio
   encryptedMediaUrl String? // Encrypted media URL untuk E2EE
   read       Boolean  @default(false)
+  deliveredAt DateTime? // When message was delivered to receiver
+  readAt     DateTime? // When message was read by receiver
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -499,4 +534,17 @@ model EncryptionKey {
   @@index([userId])
   @@index([groupChatId])
   @@index([isActive])
+}
+
+model Settings {
+  id              String   @id @default(cuid())
+  key             String   @unique
+  value           String
+  description     String?
+  updatedBy       String?  // User ID who last updated this setting
+  updatedByUser   User?    @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([key])
 }

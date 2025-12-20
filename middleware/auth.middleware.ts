@@ -3,8 +3,40 @@ import { verify } from "../lib/jwt";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
 
-export interface AuthRequest extends Request {
+export interface AuthRequest extends Omit<Request, 'file' | 'files'> {
   userId?: string;
+  file?: {
+    fieldname: string;
+    originalname: string;
+    encoding: string;
+    mimetype: string;
+    size: number;
+    destination?: string;
+    filename?: string;
+    path?: string;
+    buffer?: Buffer;
+  };
+  files?: { [fieldname: string]: Array<{
+    fieldname: string;
+    originalname: string;
+    encoding: string;
+    mimetype: string;
+    size: number;
+    destination?: string;
+    filename?: string;
+    path?: string;
+    buffer?: Buffer;
+  }> } | Array<{
+    fieldname: string;
+    originalname: string;
+    encoding: string;
+    mimetype: string;
+    size: number;
+    destination?: string;
+    filename?: string;
+    path?: string;
+    buffer?: Buffer;
+  }>;
 }
 
 export const authenticate = async (

@@ -3,6 +3,7 @@ import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
 import { BUCKETS, supabase } from "../lib/supabase";
+import { getIO } from "../lib/socket";
 
 // Get all group chats (public or user is member)
 export const getAllGroupChats = async (req: AuthRequest, res: Response) => {
@@ -327,7 +328,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
         where: {
           groupChatId_userId: {
             groupChatId: id,
-            userId,
+            userId: userId!,
           },
         },
       });
@@ -352,6 +353,17 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
             profilePicture: true,
           },
         },
+        reads: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                profilePicture: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { createdAt: "desc" },
       take: Math.min(Number(limit), 100),
@@ -373,7 +385,8 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
 // Get members list
 export const getMembers = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = String(rawId);
     const userId = req.userId;
 
     // Check if user has access
@@ -394,7 +407,7 @@ export const getMembers = async (req: AuthRequest, res: Response) => {
         where: {
           groupChatId_userId: {
             groupChatId: id,
-            userId,
+            userId: userId!,
           },
         },
       });
@@ -436,7 +449,8 @@ export const getMembers = async (req: AuthRequest, res: Response) => {
 // Update group chat (admin only)
 export const updateGroupChat = async (req: AuthRequest, res: Response) => {
   try {
-    const { id } = req.params;
+    const { id: rawId } = req.params;
+    const id = String(rawId);
     const userId = req.userId;
 
     if (!userId) {
@@ -448,7 +462,7 @@ export const updateGroupChat = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId,
+          userId: userId!,
         },
       },
     });
@@ -552,7 +566,7 @@ export const uploadGroupLogo = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId,
+          userId: userId!,
         },
       },
     });
@@ -572,7 +586,10 @@ export const uploadGroupLogo = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.FORBIDDEN).json({ msg: "Hanya admin yang bisa upload logo" });
     }
 
-    const file = (req as any).file as Express.Multer.File | undefined;
+    const file = req.file;
+    if (!file) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Tidak ada file yang diupload" });
+    }
     const fileExt = file.originalname.split(".").pop();
     const fileName = `${id}/logo-${Date.now()}-${Math.round(Math.random() * 1e9)}.${fileExt}`;
     const filePath = fileName;
@@ -583,9 +600,14 @@ export const uploadGroupLogo = async (req: AuthRequest, res: Response) => {
       await supabase.storage.from(BUCKETS.IMAGES).remove([oldLogoPath]);
     }
 
+    const fileBuffer = file.buffer;
+    if (!fileBuffer) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "File buffer tidak tersedia" });
+    }
+
     const { data, error } = await supabase.storage
       .from(BUCKETS.IMAGES)
-      .upload(filePath, file.buffer, {
+      .upload(filePath, fileBuffer, {
         contentType: file.mimetype,
         upsert: false,
       });
@@ -660,7 +682,7 @@ export const uploadGroupBanner = async (req: AuthRequest, res: Response) => {
         .json({ msg: "Harus login dulu" });
     }
 
-    const file = (req as any).file as Express.Multer.File | undefined;
+    const file = req.file;
 
     if (!file) {
       return res
@@ -673,7 +695,7 @@ export const uploadGroupBanner = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId,
+          userId: userId!,
         },
       },
     });
@@ -709,9 +731,14 @@ export const uploadGroupBanner = async (req: AuthRequest, res: Response) => {
       await supabase.storage.from(BUCKETS.IMAGES).remove([oldBannerPath]);
     }
 
+    const fileBuffer = file.buffer;
+    if (!fileBuffer) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "File buffer tidak tersedia" });
+    }
+
     const { data, error } = await supabase.storage
       .from(BUCKETS.IMAGES)
-      .upload(filePath, file.buffer, {
+      .upload(filePath, fileBuffer, {
         contentType: file.mimetype,
         upsert: false,
       });
@@ -778,7 +805,9 @@ export const uploadGroupBanner = async (req: AuthRequest, res: Response) => {
 // Promote member to admin (admin/creator only)
 export const promoteMember = async (req: AuthRequest, res: Response) => {
   try {
-    const { id, memberId } = req.params;
+    const { id: rawId, memberId: rawMemberId } = req.params;
+    const id = String(rawId);
+    const memberId = String(rawMemberId);
     const userId = req.userId;
 
     if (!userId) {
@@ -790,7 +819,7 @@ export const promoteMember = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId,
+          userId: userId!,
         },
       },
     });
@@ -815,7 +844,7 @@ export const promoteMember = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId: memberId,
+          userId: memberId!,
         },
       },
     });
@@ -832,7 +861,7 @@ export const promoteMember = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId: memberId,
+          userId: memberId!,
         },
       },
       data: { role: "admin" },
@@ -852,7 +881,9 @@ export const promoteMember = async (req: AuthRequest, res: Response) => {
 // Demote admin to member (creator only)
 export const demoteMember = async (req: AuthRequest, res: Response) => {
   try {
-    const { id, memberId } = req.params;
+    const { id: rawId, memberId: rawMemberId } = req.params;
+    const id = String(rawId);
+    const memberId = String(rawMemberId);
     const userId = req.userId;
 
     if (!userId) {
@@ -882,7 +913,7 @@ export const demoteMember = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId: memberId,
+          userId: memberId!,
         },
       },
     });
@@ -899,7 +930,7 @@ export const demoteMember = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId: memberId,
+          userId: memberId!,
         },
       },
       data: { role: "member" },
@@ -919,7 +950,9 @@ export const demoteMember = async (req: AuthRequest, res: Response) => {
 // Remove member from group (admin/creator only)
 export const removeMember = async (req: AuthRequest, res: Response) => {
   try {
-    const { id, memberId } = req.params;
+    const { id: rawId, memberId: rawMemberId } = req.params;
+    const id = String(rawId);
+    const memberId = String(rawMemberId);
     const userId = req.userId;
 
     if (!userId) {
@@ -931,7 +964,7 @@ export const removeMember = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId,
+          userId: userId!,
         },
       },
     });
@@ -961,7 +994,7 @@ export const removeMember = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId: memberId,
+          userId: memberId!,
         },
       },
     });
@@ -974,7 +1007,7 @@ export const removeMember = async (req: AuthRequest, res: Response) => {
       where: {
         groupChatId_userId: {
           groupChatId: id,
-          userId: memberId,
+          userId: memberId!,
         },
       },
     });
@@ -1068,6 +1101,101 @@ export const exploreGroupChats = async (req: AuthRequest, res: Response) => {
     console.error("❌ Error explore group chats:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal explore group chats",
+      details: error.message,
+    });
+  }
+};
+
+// Mark message as read in group chat
+export const markMessageAsRead = async (req: AuthRequest, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId;
+
+    if (!messageId) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ error: "messageId is required" });
+    }
+
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ error: "Harus login dulu" });
+    }
+
+    // Check if message exists and user has access
+    const message = await db.message.findUnique({
+      where: { id: messageId },
+      include: {
+        groupChat: {
+          include: {
+            members: {
+              where: { userId },
+            },
+          },
+        },
+      },
+    });
+
+    if (!message) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ error: "Pesan tidak ditemukan" });
+    }
+
+    // Check if user is member of the group
+    const isMember = message.groupChat.isPublic || message.groupChat.members.length > 0;
+    if (!isMember) {
+      return res
+        .status(StatusCodes.FORBIDDEN)
+        .json({ error: "Kamu bukan member group ini" });
+    }
+
+    // Check if already read
+    const existingRead = await db.messageRead.findUnique({
+      where: {
+        messageId_userId: {
+          messageId,
+          userId,
+        },
+      },
+    });
+
+    if (!existingRead) {
+      // Mark as read
+      await db.messageRead.create({
+        data: {
+          messageId,
+          userId,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              profilePicture: true,
+            },
+          },
+        },
+      });
+
+      // Emit to group that message was read
+      const io = getIO();
+      if (io) {
+        io.to(`group:${message.groupChatId}`).emit("messageRead", {
+          messageId,
+          userId,
+          readAt: new Date(),
+        });
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("❌ Error mark message as read:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal menandai pesan sebagai sudah dibaca",
       details: error.message,
     });
   }

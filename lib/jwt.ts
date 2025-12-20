@@ -36,15 +36,24 @@ export const encrypt = async (
 
   const jti = tokenId || generateTokenId();
   
+  const signOptions: jwt.SignOptions = {
+    algorithm: "HS256",
+    issuer: "jblog",
+    audience: "jblog-users",
+  };
+  
+  // Handle expiresIn - can be string or number
+  // Handle expiresIn - can be string or number
+  if (typeof expiresIn === "number") {
+    (signOptions as any).expiresIn = expiresIn;
+  } else {
+    (signOptions as any).expiresIn = expiresIn;
+  }
+  
   return jwt.sign(
     { ...payload, jti },
     secret,
-    {
-      algorithm: "HS256",
-      expiresIn,
-      issuer: "jblog",
-      audience: "jblog-users",
-    }
+    signOptions
   );
 };
 

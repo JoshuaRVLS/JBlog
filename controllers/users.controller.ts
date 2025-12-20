@@ -331,33 +331,41 @@ export const getUserActivity = async (req: AuthRequest, res: Response) => {
       const date = new Date(startDate);
       date.setDate(date.getDate() + i);
       const dateStr = date.toISOString().split("T")[0];
-      activityMap.set(dateStr, { date: dateStr, posts: 0, comments: 0, claps: 0 });
+      if (dateStr) {
+        activityMap.set(dateStr, { date: dateStr, posts: 0, comments: 0, claps: 0 });
+      }
     }
 
     // Count posts per day
     posts.forEach((post) => {
       const dateStr = post.createdAt.toISOString().split("T")[0];
-      const existing = activityMap.get(dateStr);
-      if (existing) {
-        existing.posts++;
+      if (dateStr) {
+        const existing = activityMap.get(dateStr);
+        if (existing) {
+          existing.posts++;
+        }
       }
     });
 
     // Count comments per day
     comments.forEach((comment) => {
       const dateStr = comment.createdAt.toISOString().split("T")[0];
-      const existing = activityMap.get(dateStr);
-      if (existing) {
-        existing.comments++;
+      if (dateStr) {
+        const existing = activityMap.get(dateStr);
+        if (existing) {
+          existing.comments++;
+        }
       }
     });
 
     // Count claps per day
     claps.forEach((clap) => {
       const dateStr = clap.createdAt.toISOString().split("T")[0];
-      const existing = activityMap.get(dateStr);
-      if (existing) {
-        existing.claps++;
+      if (dateStr) {
+        const existing = activityMap.get(dateStr);
+        if (existing) {
+          existing.claps++;
+        }
       }
     });
 
@@ -395,7 +403,8 @@ export const getUserActivity = async (req: AuthRequest, res: Response) => {
 
 export const getFollowStatus = async (req: AuthRequest, res: Response) => {
   try {
-    const { id: targetUserId } = req.params;
+    const { id: rawTargetUserId } = req.params;
+    const targetUserId = String(rawTargetUserId);
     const userId = req.userId;
 
     if (!userId) {
@@ -448,7 +457,8 @@ export const getFollowStatus = async (req: AuthRequest, res: Response) => {
 
 export const followUser = async (req: AuthRequest, res: Response) => {
   try {
-    const { id: targetUserId } = req.params;
+    const { id: rawTargetUserId } = req.params;
+    const targetUserId = String(rawTargetUserId);
     const userId = req.userId;
 
     if (!userId) {
@@ -513,7 +523,8 @@ export const followUser = async (req: AuthRequest, res: Response) => {
 
 export const unfollowUser = async (req: AuthRequest, res: Response) => {
   try {
-    const { id: targetUserId } = req.params;
+    const { id: rawTargetUserId } = req.params;
+    const targetUserId = String(rawTargetUserId);
     const userId = req.userId;
 
     if (!userId) {

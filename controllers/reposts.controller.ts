@@ -154,17 +154,18 @@ export const unrepostPost = async (req: AuthRequest, res: Response) => {
 };
 
 // Get reposts for a post
-export const getPostReposts = async (req: Request, res: Response) => {
+export const getPostReposts = async (req: AuthRequest, res: Response) => {
   try {
-    const { postId } = (req.params as any) || {};
+    const { postId: rawPostId } = req.params;
+    const postId = rawPostId ? String(rawPostId) : undefined;
     
     if (!postId) {
       return res
         .status(StatusCodes.BAD_REQUEST)
         .json({ error: "postId is required" });
     }
-    const page = parseInt(req.query?.page as string) || 1;
-    const limit = parseInt(req.query?.limit as string) || 10;
+    const page = parseInt((req.query?.page as string) || "1") || 1;
+    const limit = parseInt((req.query?.limit as string) || "10") || 10;
     const skip = (page - 1) * limit;
 
     const [reposts, total] = await Promise.all([

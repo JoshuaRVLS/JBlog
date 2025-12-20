@@ -36,6 +36,7 @@ import { verify } from "./lib/jwt";
 import { createNotification } from "./controllers/notifications.controller";
 import { setIO } from "./lib/socket";
 import { getRedisClient, getRedisSubscriber } from "./lib/redis";
+import { checkMaintenanceMode } from "./middleware/maintenance.middleware";
 
 const app = express();
 
@@ -76,6 +77,9 @@ app.use(
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+// Maintenance mode check (before all routes except admin/auth)
+app.use(checkMaintenanceMode);
 
 app.use("/api/users/", UsersRoutes);
 app.use("/api/auth/", AuthRoutes);
@@ -375,7 +379,9 @@ io.on("connection", (socket) => {
       if (type === "text" && content) {
         let match;
         while ((match = mentionRegex.exec(content)) !== null) {
-          mentions.push(match[1]);
+          if (match[1]) {
+            mentions.push(match[1]);
+          }
         }
       }
 
@@ -406,8 +412,8 @@ io.on("connection", (socket) => {
       // Save message to database
       const message = await db.message.create({
         data: {
-          content: encryptedContent ? null : (content?.trim() || ""),
-          encryptedContent: encryptedContent || null,
+          content: encryptedContent ? "" : (content?.trim() || ""),
+          encryptedContent: encryptedContent ?? null,
           encryptionKeyId: encryptionKeyId || null,
           type: type,
           mediaUrl: mediaUrl || null,

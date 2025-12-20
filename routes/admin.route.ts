@@ -11,6 +11,8 @@ import {
   updatePostAdmin,
   suspendUser,
   unsuspendUser,
+  getMaintenanceMode,
+  toggleMaintenanceMode,
 } from "../controllers/admin.controller";
 import { requireAuth } from "../middleware/auth.middleware";
 import { requireAdmin } from "../middleware/admin.middleware";
@@ -37,6 +39,10 @@ router.delete("/admins/:id", removeAdmin);
 router.get("/posts", getAllPostsAdmin);
 router.put("/posts/:id", updatePostAdmin);
 router.delete("/posts/:id", deletePostAdmin);
+
+// Maintenance Mode
+router.get("/maintenance", getMaintenanceMode);
+router.put("/maintenance", toggleMaintenanceMode);
 
 export default router;
 

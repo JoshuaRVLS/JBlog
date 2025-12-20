@@ -6,7 +6,8 @@ import { createNotification } from "./notifications.controller";
 
 export const toggleClap = async (req: AuthRequest, res: Response) => {
   try {
-    const { postId } = req.params;
+    const { postId: rawPostId } = req.params;
+    const postId = String(rawPostId);
     const userId = req.userId;
 
     if (!userId) {
@@ -75,7 +76,8 @@ export const toggleClap = async (req: AuthRequest, res: Response) => {
 
 export const getClapsCount = async (req: AuthRequest, res: Response) => {
   try {
-    const { postId } = req.params;
+    const { postId: rawPostId } = req.params;
+    const postId = String(rawPostId);
     const userId = req.userId;
 
     const [count, hasClapped] = await Promise.all([

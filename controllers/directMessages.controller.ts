@@ -103,6 +103,8 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
       if (notification) {
         io.to(`user:${receiverId}`).emit("new-notification", notification);
       }
+      // Emit delivered event when receiver is online
+      io.to(`user:${receiverId}`).emit("messageDelivered", { messageId: message.id });
     }
 
     console.log(`✅ User ${senderId} sent DM to ${receiverId}`);
@@ -327,6 +329,60 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Mark message as delivered
+export const markMessageAsDelivered = async (req: AuthRequest, res: Response) => {
+  try {
+    const { messageId } = req.params;
+    const userId = req.userId;
+
+    if (!messageId) {
+      return res
+        .status(StatusCodes.BAD_REQUEST)
+        .json({ error: "messageId is required" });
+    }
+
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ error: "Harus login dulu" });
+    }
+
+    const message = await db.directMessage.findUnique({
+      where: { id: messageId },
+    });
+
+    if (!message) {
+      return res
+        .status(StatusCodes.NOT_FOUND)
+        .json({ error: "Pesan tidak ditemukan" });
+    }
+
+    // Only mark as delivered if receiver is the current user
+    if (message.receiverId === userId && !message.deliveredAt) {
+      await db.directMessage.update({
+        where: { id: messageId },
+        data: {
+          deliveredAt: new Date(),
+        },
+      });
+
+      // Emit to sender that message was delivered
+      const io = getIO();
+      if (io) {
+        io.to(`user:${message.senderId}`).emit("messageDelivered", { messageId });
+      }
+    }
+
+    res.json({ success: true });
+  } catch (error: any) {
+    console.error("❌ Error mark message as delivered:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal update status delivered",
+      details: error.message,
+    });
+  }
+};
+
 // Mark messages as read
 export const markMessagesAsRead = async (req: AuthRequest, res: Response) => {
   try {
@@ -345,7 +401,8 @@ export const markMessagesAsRead = async (req: AuthRequest, res: Response) => {
         .json({ error: "Harus login dulu" });
     }
 
-    await db.directMessage.updateMany({
+    const now = new Date();
+    const updatedMessages = await db.directMessage.updateMany({
       where: {
         senderId,
         receiverId,
@@ -353,8 +410,22 @@ export const markMessagesAsRead = async (req: AuthRequest, res: Response) => {
       },
       data: {
         read: true,
+        readAt: now,
+        // Also set deliveredAt if not set
+        deliveredAt: {
+          set: now,
+        },
       },
     });
+
+    // Emit read receipts to sender
+    const io = getIO();
+    if (io) {
+      io.to(`user:${senderId}`).emit("messagesRead", {
+        receiverId,
+        readAt: now,
+      });
+    }
 
     res.json({ message: "Pesan ditandai sebagai sudah dibaca" });
   } catch (error: any) {

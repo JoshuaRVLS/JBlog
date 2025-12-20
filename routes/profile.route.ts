@@ -3,7 +3,8 @@ import {
   updateProfile,
   getCurrentProfile,
   changePassword,
-  changeEmail,
+  requestEmailChange,
+  verifyEmailChange,
   changeCountry,
   deleteOwnAccount,
 } from "../controllers/profile.controller";
@@ -14,7 +15,8 @@ const router = Router();
 router.get("/", requireAuth, getCurrentProfile);
 router.put("/", requireAuth, updateProfile);
 router.put("/password", requireAuth, changePassword);
-router.put("/email", requireAuth, changeEmail);
+router.post("/email/request-change", requireAuth, requestEmailChange);
+router.post("/email/verify-change", requireAuth, verifyEmailChange);
 router.put("/country", requireAuth, changeCountry);
 router.delete("/", requireAuth, deleteOwnAccount);
 

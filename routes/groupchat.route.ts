@@ -14,6 +14,7 @@ import {
   demoteMember,
   removeMember,
   exploreGroupChats,
+  markMessageAsRead,
 } from "../controllers/groupchat.controller";
 import { authenticate, requireAuth } from "../middleware/auth.middleware";
 
@@ -24,6 +25,7 @@ router.get("/explore", authenticate, exploreGroupChats); // Public endpoint (opt
 router.get("/:id", authenticate, getGroupChat);
 router.get("/:id/members", requireAuth, getMembers);
 router.get("/:id/messages", authenticate, getMessages);
+router.put("/messages/:messageId/read", requireAuth, markMessageAsRead);
 router.post("/", requireAuth, createGroupChat);
 router.put("/:id", requireAuth, updateGroupChat);
 router.post("/:id/join", requireAuth, joinGroupChat);

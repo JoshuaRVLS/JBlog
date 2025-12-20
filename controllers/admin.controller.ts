@@ -458,3 +458,83 @@ export const updatePostAdmin = async (req: AuthRequest, res: Response) => {
   }
 };
 
+// Get maintenance mode status
+export const getMaintenanceMode = async (req: AuthRequest, res: Response) => {
+  try {
+    let setting = await db.settings.findUnique({
+      where: { key: "maintenance_mode" },
+    });
+
+    if (!setting) {
+      // Create default setting if not exists
+      setting = await db.settings.create({
+        data: {
+          key: "maintenance_mode",
+          value: "false",
+          description: "Maintenance mode status",
+        },
+      });
+    }
+
+    res.json({
+      enabled: setting.value === "true",
+      message: setting.description || null,
+    });
+  } catch (error: any) {
+    console.error("❌ Error get maintenance mode:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal mengambil status maintenance mode",
+      details: error.message,
+    });
+  }
+};
+
+// Toggle maintenance mode
+export const toggleMaintenanceMode = async (req: AuthRequest, res: Response) => {
+  try {
+    const { enabled, message } = req.body;
+    const userId = req.userId;
+
+    if (typeof enabled !== "boolean") {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "enabled harus boolean",
+      });
+    }
+
+    let setting = await db.settings.findUnique({
+      where: { key: "maintenance_mode" },
+    });
+
+    if (!setting) {
+      setting = await db.settings.create({
+        data: {
+          key: "maintenance_mode",
+          value: enabled ? "true" : "false",
+          description: message || "Situs sedang dalam maintenance",
+          updatedBy: userId || null,
+        },
+      });
+    } else {
+      setting = await db.settings.update({
+        where: { key: "maintenance_mode" },
+        data: {
+          value: enabled ? "true" : "false",
+          description: message || setting.description || "Situs sedang dalam maintenance",
+          updatedBy: userId || null,
+        },
+      });
+    }
+
+    res.json({
+      enabled: setting.value === "true",
+      message: setting.description || null,
+    });
+  } catch (error: any) {
+    console.error("❌ Error toggle maintenance mode:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal update maintenance mode",
+      details: error.message,
+    });
+  }
+};
+

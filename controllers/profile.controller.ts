@@ -3,6 +3,8 @@ import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
 import bcrypt from "bcryptjs";
+import { generateVerificationToken } from "../lib/generator";
+import { getVerificationEmailTemplate } from "../lib/emailTemplate";
 
 // Update profile (hanya untuk user yang login)
 export const updateProfile = async (req: AuthRequest, res: Response) => {
@@ -292,8 +294,8 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Change email
-export const changeEmail = async (req: AuthRequest, res: Response) => {
+// Request email change - sends verification code to new email
+export const requestEmailChange = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId;
     if (!userId) {
@@ -313,7 +315,7 @@ export const changeEmail = async (req: AuthRequest, res: Response) => {
 
     const user = await db.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, password: true },
+      select: { id: true, email: true, password: true, name: true },
     });
 
     if (!user) {
@@ -329,9 +331,134 @@ export const changeEmail = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Email baru sama dengan email saat ini" });
     }
 
+    // Check if email already exists
+    const emailExists = await db.user.findUnique({
+      where: { email: newEmail },
+      select: { id: true },
+    });
+
+    if (emailExists) {
+      return res.status(StatusCodes.CONFLICT).json({ msg: "Email sudah terdaftar" });
+    }
+
+    // Generate verification code
+    const verificationCode = generateVerificationToken();
+
+    // Delete any existing email change verification for this user and email
+    await db.emailChangeVerification.deleteMany({
+      where: {
+        userId: userId,
+        newEmail: newEmail,
+      },
+    });
+
+    // Create new email change verification
+    await db.emailChangeVerification.create({
+      data: {
+        code: verificationCode,
+        userId: userId,
+        newEmail: newEmail,
+        expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+      },
+    });
+
+    // Send verification email to new email address
+    try {
+      await fetch("https://api.brevo.com/v3/smtp/email", {
+        method: "POST",
+        headers: {
+          "api-key": process.env.BREVO_API_KEY as string,
+          accept: "application/json",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sender: {
+            name: "JCorp",
+            email: "jravaellnew@gmail.com",
+          },
+          to: [
+            {
+              email: newEmail,
+              name: user.name,
+            },
+          ],
+          subject: "JBlog - Kode Verifikasi Perubahan Email",
+          htmlContent: getVerificationEmailTemplate(
+            user.name,
+            verificationCode,
+            `${process.env.FRONTEND_URL || "http://localhost:3000"}/profile/settings?tab=account&verifyEmail=true`
+          ),
+        }),
+      });
+
+      console.log(`✅ Kode verifikasi email change dikirim - User: ${user.email} -> ${newEmail}`);
+      res.json({ msg: "Kode verifikasi telah dikirim ke email baru Anda" });
+    } catch (error) {
+      console.error("❌ Error sending email:", error);
+      res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        msg: "Gagal mengirim email, tetapi kode telah dibuat. Silakan coba lagi nanti.",
+      });
+    }
+  } catch (error: any) {
+    console.error("❌ Error request email change:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal memproses permintaan perubahan email",
+      details: error.message,
+    });
+  }
+};
+
+// Verify email change - verifies code and changes email
+export const verifyEmailChange = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
+    }
+
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Kode verifikasi diperlukan" });
+    }
+
+    // Find email change verification
+    const emailChangeVerification = await db.emailChangeVerification.findFirst({
+      where: {
+        userId: userId,
+        code: code,
+        expiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!emailChangeVerification) {
+      return res.status(StatusCodes.NOT_FOUND).json({ msg: "Kode tidak valid atau sudah kedaluwarsa" });
+    }
+
+    // Check if new email already exists
+    const emailExists = await db.user.findUnique({
+      where: { email: emailChangeVerification.newEmail },
+      select: { id: true },
+    });
+
+    if (emailExists) {
+      // Delete the verification code
+      await db.emailChangeVerification.delete({
+        where: { id: emailChangeVerification.id },
+      });
+      return res.status(StatusCodes.CONFLICT).json({ msg: "Email sudah terdaftar" });
+    }
+
+    // Get current user email for logging
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+
+    // Update email
     const updatedUser = await db.user.update({
       where: { id: userId },
-      data: { email: newEmail },
+      data: { email: emailChangeVerification.newEmail },
       select: {
         id: true,
         name: true,
@@ -339,13 +466,23 @@ export const changeEmail = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Email diubah - User: ${user.email} -> ${newEmail}`);
+    // Delete the verification code
+    await db.emailChangeVerification.delete({
+      where: { id: emailChangeVerification.id },
+    });
+
+    // Delete any other pending email change verifications for this user
+    await db.emailChangeVerification.deleteMany({
+      where: { userId: userId },
+    });
+
+    console.log(`✅ Email diubah - User: ${user?.email} -> ${emailChangeVerification.newEmail}`);
     res.json({ msg: "Email berhasil diubah", user: updatedUser });
   } catch (error: any) {
     if (error.code === "P2002") {
       return res.status(StatusCodes.CONFLICT).json({ msg: "Email sudah terdaftar" });
     }
-    console.error("❌ Error change email:", error);
+    console.error("❌ Error verify email change:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengubah email",
       details: error.message,
