@@ -200,9 +200,11 @@ io.use(async (socket, next) => {
 // Socket.IO connection handler
 io.on("connection", (socket) => {
   console.log(`✅ User connected: ${socket.data.user.name} (${socket.data.userId})`);
+  console.log(`🔌 Socket ID: ${socket.id}, Joined room: user:${socket.data.userId}`);
   
   // Join user's personal notification room
   socket.join(`user:${socket.data.userId}`);
+  console.log(`✅ User ${socket.data.userId} joined room user:${socket.data.userId}`);
 
   // Join group chat room
   socket.on("join-group", async (groupId: string) => {

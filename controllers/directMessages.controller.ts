@@ -98,6 +98,7 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
     const io = getIO();
     if (io) {
       // Realtime DM di kedua sisi
+      console.log(`📤 Emitting newDirectMessage to user:${receiverId} and user:${senderId}`);
       io.to(`user:${receiverId}`).to(`user:${senderId}`).emit("newDirectMessage", message);
       // Realtime notification badge / list untuk receiver
       if (notification) {
@@ -105,6 +106,8 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
       }
       // Emit delivered event when receiver is online
       io.to(`user:${receiverId}`).emit("messageDelivered", { messageId: message.id });
+    } else {
+      console.warn("⚠️ Socket.IO instance not available");
     }
 
     console.log(`✅ User ${senderId} sent DM to ${receiverId}`);
