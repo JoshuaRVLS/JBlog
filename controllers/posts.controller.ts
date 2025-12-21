@@ -761,27 +761,27 @@ export const getAllPosts = async (req: AuthRequest, res: Response) => {
       const postIds = posts.map((p) => p.id);
       const [claps, bookmarks, reposts] = await Promise.all([
         db.clap.findMany({
-          where: {
+                where: {
             postId: { in: postIds },
-            userId,
-          },
+                    userId,
+                  },
           select: { postId: true },
-        }),
+              }),
         db.bookmark.findMany({
-          where: {
-            userId,
+                where: {
+                    userId,
             postId: { in: postIds },
-          },
+                  },
           select: { postId: true },
-        }),
+              }),
         db.repost.findMany({
-          where: {
-            userId,
+                where: {
+                    userId,
             postId: { in: postIds },
-          },
+                  },
           select: { postId: true },
-        }),
-      ]);
+              }),
+            ]);
 
       // Create sets for O(1) lookup
       const clappedPostIds = new Set(claps.map((c) => c.postId));
@@ -790,18 +790,18 @@ export const getAllPosts = async (req: AuthRequest, res: Response) => {
 
       // Map posts with status (O(n) instead of O(n*3))
       postsWithStatus = posts.map((post) => ({
-        ...post,
+              ...post,
         hasClapped: clappedPostIds.has(post.id),
         isBookmarked: bookmarkedPostIds.has(post.id),
         isReposted: repostedPostIds.has(post.id),
       }));
     } else {
       postsWithStatus = posts.map((post) => ({
-        ...post,
-        hasClapped: false,
-        isBookmarked: false,
-        isReposted: false,
-      }));
+          ...post,
+          hasClapped: false,
+          isBookmarked: false,
+          isReposted: false,
+        }));
     }
 
     res.json({

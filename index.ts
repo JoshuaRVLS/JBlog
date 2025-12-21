@@ -160,13 +160,13 @@ app.get("/api/cluster-info", (req, res) => {
     const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
     const memUsage = process.memoryUsage();
     
-    res.json({
-      clusterMode: process.env.ENABLE_CLUSTER === "true",
+  res.json({
+    clusterMode: process.env.ENABLE_CLUSTER === "true",
       instanceId: instanceId,
-      pid: process.pid,
-      cpuCount: os.cpus().length,
-      nodeVersion: process.version,
-      redisEnabled: process.env.ENABLE_CLUSTER === "true",
+    pid: process.pid,
+    cpuCount: os.cpus().length,
+    nodeVersion: process.version,
+    redisEnabled: process.env.ENABLE_CLUSTER === "true",
       memory: {
         rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
         heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
@@ -174,8 +174,8 @@ app.get("/api/cluster-info", (req, res) => {
         external: `${Math.round(memUsage.external / 1024 / 1024)}MB`,
       },
       uptime: `${Math.round(process.uptime())}s`,
-      timestamp: new Date().toISOString(),
-    });
+    timestamp: new Date().toISOString(),
+  });
     
     // Log untuk tracking
     console.log(`[Instance ${instanceId}] Cluster info requested - Memory: ${Math.round(memUsage.rss / 1024 / 1024)}MB`);
@@ -188,12 +188,12 @@ app.get("/api/cluster-info", (req, res) => {
 // Health check endpoint
 app.get("/api/health", (req, res) => {
   try {
-    res.json({
-      status: "ok",
+  res.json({
+    status: "ok",
       instanceId: process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single",
-      pid: process.pid,
-      timestamp: new Date().toISOString(),
-    });
+    pid: process.pid,
+    timestamp: new Date().toISOString(),
+  });
   } catch (error) {
     console.error("Error in health endpoint:", error);
     res.status(500).json({ error: "Failed to get health status" });
@@ -243,8 +243,8 @@ if (process.env.ENABLE_CLUSTER === "true") {
       // Coba ping Redis dengan timeout (lazyConnect akan auto-connect saat ping)
       await Promise.race([
         Promise.all([
-          pubClient.ping().catch(() => {}),
-          subClient.ping().catch(() => {}),
+        pubClient.ping().catch(() => {}),
+        subClient.ping().catch(() => {}),
         ]),
         new Promise((_, reject) => setTimeout(() => reject(new Error("Redis timeout")), 5000))
       ]);
@@ -614,22 +614,22 @@ console.log(`[Instance ${instanceId}] process.send available: ${typeof process.s
 
 // PM2 cluster mode support - signal ready after server starts
 try {
-  httpServer.listen(PORT, () => {
+httpServer.listen(PORT, () => {
     const isCluster = process.env.ENABLE_CLUSTER === "true";
     
     console.log(`[Instance ${instanceId}] Server berjalan di http://localhost:${PORT}`);
     console.log(`[Instance ${instanceId}] API tersedia di http://localhost:${PORT}/api`);
     console.log(`[Instance ${instanceId}] Socket.IO ready ${isCluster ? "(Cluster Mode)" : "(Single Instance)"}`);
-    
+  
     // Kirim signal ke PM2 kalau app sudah ready (untuk wait_ready)
     // IMPORTANT: Kirim signal segera setelah server listen, jangan tunggu apapun
-    if (typeof process.send === "function") {
-      try {
-        process.send("ready");
+  if (typeof process.send === "function") {
+    try {
+      process.send("ready");
         console.log(`[Instance ${instanceId}] PM2 ready signal sent`);
-      } catch (error) {
+    } catch (error) {
         console.error(`[Instance ${instanceId}] Could not send PM2 ready signal:`, error);
-      }
+    }
     } else {
       console.warn(`[Instance ${instanceId}] process.send tidak tersedia - mungkin bukan cluster mode`);
     }
@@ -673,7 +673,7 @@ const gracefulShutdown = async (signal: string) => {
       console.log("Database connections closed");
       
       console.log("Graceful shutdown completed");
-      process.exit(0);
+    process.exit(0);
     } catch (error) {
       console.error("Error during graceful shutdown:", error);
       process.exit(1);
