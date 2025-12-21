@@ -54,6 +54,8 @@ const handleOAuthCallback = async (
   try {
     const { id, email, name, picture } = profile;
 
+    console.log(`${provider} OAuth profile:`, { id, email, name, picture: picture ? "present" : "missing" });
+
     if (!email) {
       return res
         .status(StatusCodes.BAD_REQUEST)
@@ -81,12 +83,15 @@ const handleOAuthCallback = async (
           data: {
             [oauthField]: id,
             oauthProvider: provider,
-            // Update profile picture if not set
-            ...(picture && !user.profilePicture && { profilePicture: picture }),
+            // Always update profile picture from OAuth if provided (for first time setup)
+            ...(picture && { profilePicture: picture }),
           },
         });
+        // Refresh user data after update
+        user = await db.user.findUnique({ where: { id: user.id } });
       } else {
-        // Create new user
+        // Create new user - always save profile picture if available
+        console.log(`Creating new ${provider} user with profile picture:`, picture ? "yes" : "no");
         user = await db.user.create({
           data: {
             name,
@@ -94,20 +99,24 @@ const handleOAuthCallback = async (
             [oauthField]: id,
             oauthProvider: provider,
             password: "", // Empty password for OAuth users
-            profilePicture: picture || null,
+            profilePicture: picture || null, // Always save if available
             isVerified: true, // OAuth emails are pre-verified
           },
         });
+        console.log(`New ${provider} user created:`, { id: user.id, email: user.email, profilePicture: user.profilePicture ? "set" : "null" });
       }
     } else {
-      // Update user info if changed
+      // User found by OAuth ID - update user info including profile picture
       await db.user.update({
         where: { id: user.id },
         data: {
           name,
+          // Always update profile picture from OAuth provider (user might have changed it on GitHub)
           ...(picture && { profilePicture: picture }),
         },
       });
+      // Refresh user data after update
+      user = await db.user.findUnique({ where: { id: user.id } });
     }
 
     // Check if user is suspended
