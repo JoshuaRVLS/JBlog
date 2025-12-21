@@ -74,11 +74,19 @@ AxiosInstance.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
+    // Don't show toast for intentionally aborted requests
+    if (error.code === "ECONNABORTED" && originalRequest?.signal?.aborted) {
+      return Promise.reject(error); // Silent reject for aborted requests
+    }
+
     if (!error.response) {
       if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
-        toast.error("Request timeout. Pastikan backend server sedang berjalan.", {
-          duration: 5000,
-        });
+        // Only show timeout error if not intentionally aborted
+        if (!originalRequest?.signal?.aborted) {
+          toast.error("Request timeout. Pastikan backend server sedang berjalan.", {
+            duration: 5000,
+          });
+        }
       } else if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
         toast.error("Tidak dapat terhubung ke server. Pastikan backend server sedang berjalan di http://localhost:8000", {
           duration: 5000,

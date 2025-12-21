@@ -50,6 +50,19 @@ export default function NotificationsDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      // Cancel any pending requests when component unmounts
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!authenticated || !userId) return;
@@ -76,38 +89,81 @@ export default function NotificationsDropdown() {
   }, [authenticated, userId, socket]);
 
   const fetchNotifications = async () => {
+    // Cancel previous request if still pending
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    // Create new AbortController for this request
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     try {
       setLoading(true);
-      const response = await AxiosInstance.get("/notifications?limit=20");
-      setNotifications(response.data.notifications || []);
-    } catch (error) {
-      const anyError = error as any;
-      const status = anyError?.response?.status;
+      const response = await AxiosInstance.get("/notifications?limit=20", {
+        signal: abortController.signal,
+      });
+      
+      // Only update state if component is still mounted
+      if (isMountedRef.current) {
+        setNotifications(response.data.notifications || []);
+      }
+    } catch (error: any) {
+      // Don't log error if request was intentionally aborted
+      if (error.code === "ECONNABORTED" || error.name === "AbortError" || abortController.signal.aborted) {
+        return; // Silent return for aborted requests
+      }
+
+      const status = error?.response?.status;
       // Kalau token sudah expired / belum valid, jangan spam error, cukup kosongkan data
       if (status === 401) {
-        setNotifications([]);
-        setUnreadCount(0);
+        if (isMountedRef.current) {
+          setNotifications([]);
+          setUnreadCount(0);
+        }
         return;
       }
-      console.error("Error fetching notifications:", error);
+      
+      // Only log actual errors (not aborted requests)
+      if (isMountedRef.current) {
+        console.error("Error fetching notifications:", error);
+      }
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
+      // Clear abort controller reference if it was for this request
+      if (abortControllerRef.current === abortController) {
+        abortControllerRef.current = null;
+      }
     }
   };
 
   const fetchUnreadCount = async () => {
     try {
       const response = await AxiosInstance.get("/notifications/unread-count");
-      setUnreadCount(response.data.count || 0);
-    } catch (error) {
-      const anyError = error as any;
-      const status = anyError?.response?.status;
+      if (isMountedRef.current) {
+        setUnreadCount(response.data.count || 0);
+      }
+    } catch (error: any) {
+      // Don't log error if request was intentionally aborted
+      if (error.code === "ECONNABORTED" || error.name === "AbortError") {
+        return; // Silent return for aborted requests
+      }
+
+      const status = error?.response?.status;
       if (status === 401) {
         // Kalau belum login / token invalid, anggap tidak ada unread
-        setUnreadCount(0);
+        if (isMountedRef.current) {
+          setUnreadCount(0);
+        }
         return;
       }
-      console.error("Error fetching unread count:", error);
+      
+      // Only log actual errors
+      if (isMountedRef.current) {
+        console.error("Error fetching unread count:", error);
+      }
     }
   };
 
