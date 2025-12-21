@@ -87,10 +87,11 @@ export default function RootLayout({
         >
           <Toaster
             toastOptions={{
+              className: "toast-notification",
               style: {
-                background: "hsl(var(--card))",
-                color: "hsl(var(--card-foreground))",
-                border: "2px solid hsl(var(--primary))",
+                background: "var(--card)",
+                color: "var(--card-foreground)",
+                border: "2px solid var(--primary)",
                 borderRadius: "0.75rem",
                 padding: "1.25rem 1.5rem",
                 fontSize: "1rem",
@@ -98,12 +99,14 @@ export default function RootLayout({
                 minWidth: "300px",
                 maxWidth: "500px",
                 boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+                opacity: "1",
               },
               success: {
+                className: "toast-notification",
                 style: {
-                  background: "hsl(var(--card))",
-                  color: "hsl(var(--card-foreground))",
-                  border: "2px solid hsl(var(--primary))",
+                  background: "var(--card)",
+                  color: "var(--card-foreground)",
+                  border: "2px solid var(--primary)",
                   borderRadius: "0.75rem",
                   padding: "1.25rem 1.5rem",
                   fontSize: "1rem",
@@ -111,17 +114,19 @@ export default function RootLayout({
                   minWidth: "300px",
                   maxWidth: "500px",
                   boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+                  opacity: "1",
                 },
                 iconTheme: {
-                  primary: "hsl(var(--primary))",
-                  secondary: "hsl(var(--card))",
+                  primary: "var(--primary)",
+                  secondary: "var(--card)",
                 },
               },
               error: {
+                className: "toast-notification",
                 style: {
-                  background: "hsl(var(--card))",
-                  color: "hsl(var(--card-foreground))",
-                  border: "2px solid hsl(var(--destructive))",
+                  background: "var(--card)",
+                  color: "var(--card-foreground)",
+                  border: "2px solid var(--destructive)",
                   borderRadius: "0.75rem",
                   padding: "1.25rem 1.5rem",
                   fontSize: "1rem",
@@ -131,15 +136,16 @@ export default function RootLayout({
                   boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
                 },
                 iconTheme: {
-                  primary: "hsl(var(--destructive))",
-                  secondary: "hsl(var(--card))",
+                  primary: "var(--destructive)",
+                  secondary: "var(--card)",
                 },
               },
               loading: {
+                className: "toast-notification",
                 style: {
-                  background: "hsl(var(--card))",
-                  color: "hsl(var(--card-foreground))",
-                  border: "2px solid hsl(var(--primary))",
+                  background: "var(--card)",
+                  color: "var(--card-foreground)",
+                  border: "2px solid var(--primary)",
                   borderRadius: "0.75rem",
                   padding: "1.25rem 1.5rem",
                   fontSize: "1rem",
@@ -147,10 +153,11 @@ export default function RootLayout({
                   minWidth: "300px",
                   maxWidth: "500px",
                   boxShadow: "0 10px 40px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(0, 0, 0, 0.05)",
+                  opacity: "1",
                 },
                 iconTheme: {
-                  primary: "hsl(var(--primary))",
-                  secondary: "hsl(var(--card))",
+                  primary: "var(--primary)",
+                  secondary: "var(--card)",
                 },
               },
             }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Heart, Smile, Laugh, AlertCircle, Frown, Angry } from "lucide-react";
 import AxiosInstance from "@/utils/api";
@@ -25,6 +25,8 @@ export default function ReactionsButton({ postId, className = "" }: ReactionsBut
   const [isOpen, setIsOpen] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const queryClient = useQueryClient();
+  const popupRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   // Fetch reactions for this post
   const { data: reactionsData, isLoading } = useQuery({
@@ -63,7 +65,11 @@ export default function ReactionsButton({ postId, className = "" }: ReactionsBut
       queryClient.invalidateQueries({ queryKey: ["post", postId] });
       queryClient.invalidateQueries({ queryKey: ["posts"] });
 
-      setIsOpen(false);
+      // Close popup after a short delay (better UX on mobile)
+      setTimeout(() => {
+        setIsOpen(false);
+        setIsHovered(false);
+      }, 300);
     } catch (error: any) {
       console.error("Error reacting:", error);
       toast.error(error.response?.data?.msg || "Gagal menambahkan reaction");
@@ -78,6 +84,31 @@ export default function ReactionsButton({ postId, className = "" }: ReactionsBut
     .map(([type]) => REACTION_TYPES.find((r) => r.type === type))
     .filter(Boolean);
 
+  // Close popup when clicking outside (for mobile)
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
+      if (
+        popupRef.current &&
+        buttonRef.current &&
+        !popupRef.current.contains(event.target as Node) &&
+        !buttonRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+        setIsHovered(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isOpen]);
+
   return (
     <div
       className={`relative inline-flex items-center ${className}`}
@@ -86,9 +117,17 @@ export default function ReactionsButton({ postId, className = "" }: ReactionsBut
     >
       {/* Main Reaction Button */}
       <motion.button
-        onClick={() => setIsOpen(!isOpen)}
+        ref={buttonRef}
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
+        onTouchStart={(e) => {
+          e.stopPropagation();
+          setIsOpen(!isOpen);
+        }}
         whileTap={{ scale: 0.95 }}
-        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all relative group ${
+        className={`flex items-center gap-2 px-4 py-2 rounded-xl font-medium transition-all relative group touch-manipulation ${
           currentReactionType
             ? "bg-primary/10 text-primary border border-primary/20 hover:bg-primary/20"
             : "bg-muted text-muted-foreground hover:bg-accent border border-border"
@@ -140,16 +179,22 @@ export default function ReactionsButton({ postId, className = "" }: ReactionsBut
       <AnimatePresence>
         {(isOpen || isHovered) && (
           <motion.div
+            ref={popupRef}
             initial={{ opacity: 0, scale: 0.8, y: 10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.8, y: 10 }}
             transition={{ duration: 0.2 }}
-            className="absolute bottom-full left-0 mb-2 bg-card border border-border rounded-2xl p-2 shadow-2xl z-50 flex items-center gap-2"
+            className="absolute bottom-full left-0 mb-2 bg-card border border-border rounded-2xl p-2 shadow-2xl z-[100] flex items-center gap-2 touch-manipulation"
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => {
               setIsHovered(false);
-              setTimeout(() => setIsOpen(false), 200);
+              // Only auto-close on desktop (not mobile)
+              if (window.innerWidth >= 768) {
+                setTimeout(() => setIsOpen(false), 200);
+              }
             }}
+            onClick={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
           >
             {REACTION_TYPES.map((reaction) => {
               const Icon = reaction.icon;
@@ -159,11 +204,18 @@ export default function ReactionsButton({ postId, className = "" }: ReactionsBut
               return (
                 <motion.button
                   key={reaction.type}
-                  onClick={() => handleReaction(reaction.type)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleReaction(reaction.type);
+                  }}
+                  onTouchStart={(e) => {
+                    e.stopPropagation();
+                    handleReaction(reaction.type);
+                  }}
                   whileHover={{ scale: 1.2, y: -4 }}
                   whileTap={{ scale: 0.9 }}
-                  className={`relative p-2 rounded-xl transition-all ${
-                    isActive ? "bg-primary/20" : "hover:bg-accent"
+                  className={`relative p-3 md:p-2 rounded-xl transition-all touch-manipulation ${
+                    isActive ? "bg-primary/20" : "hover:bg-accent active:bg-accent"
                   }`}
                   title={`${reaction.label} (${count})`}
                 >
