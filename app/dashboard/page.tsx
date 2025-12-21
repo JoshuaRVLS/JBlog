@@ -10,6 +10,7 @@ import { AuthContext } from "@/providers/AuthProvider";
 import { Plus, Search, Edit, Eye, Trash2, Clock, Heart, MessageCircle, BookOpen, TrendingUp, User } from "lucide-react";
 import toast from "react-hot-toast";
 import DashboardPostsLoading from "@/components/DashboardPostsLoading";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 // Lazy load ActivityChart
 const ActivityChart = dynamic(() => import("@/components/ActivityChart"), {
@@ -53,66 +54,79 @@ export default function Dashboard() {
       router.push("/");
     }
   }, [isSuspended, authenticated, router]);
-  const [user, setUser] = useState<{ isOwner?: boolean; isAdmin?: boolean } | null>(null);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (authLoading) return; // Wait for auth check to complete
-    if (!authenticated) {
-      router.push("/login");
-      return;
-    }
-    if (userId) {
-      fetchData();
-    }
-  }, [userId, authenticated, authLoading]);
+  // Fetch user data dengan React Query (cached)
+  const { data: user } = useQuery({
+    queryKey: ["user", userId],
+    queryFn: async () => {
+      const response = await AxiosInstance.get(`/users/${userId}`);
+      return response.data;
+    },
+    enabled: !!userId && authenticated && !authLoading,
+    staleTime: 5 * 60 * 1000, // 5 menit
+  });
 
-  const fetchData = async () => {
-    try {
-      setLoading(true);
-      const userRes = await AxiosInstance.get(`/users/${userId}`);
-      setUser(userRes.data);
-      
-      // Fetch posts berdasarkan role
-      if (userRes.data.isOwner) {
+  // Fetch posts dengan React Query (cached dan optimized)
+  const { data: postsData, isLoading: loadingPosts } = useQuery({
+    queryKey: ["dashboard-posts", userId, user?.isOwner],
+    queryFn: async () => {
+      if (user?.isOwner) {
         // Owner lihat semua posts (termasuk draft)
-        const allPostsRes = await AxiosInstance.get(`/posts`);
-        setPosts(allPostsRes.data.posts || []);
+        const response = await AxiosInstance.get(`/posts`, {
+          params: { limit: 50 }, // Reduce initial load
+        });
+        return response.data.posts || [];
       } else {
         // User biasa: dashboard hanya untuk post milik sendiri (published + draft)
-        const postsRes = await AxiosInstance.get(`/posts`, {
+        const response = await AxiosInstance.get(`/posts`, {
           params: {
             authorId: userId,
-            limit: 100,
+            limit: 50, // Reduce initial load
           },
         });
-        setPosts(postsRes.data.posts || []);
+        return response.data.posts || [];
       }
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    enabled: !!userId && authenticated && !authLoading && !!user,
+    staleTime: 2 * 60 * 1000, // 2 menit cache
+    refetchOnWindowFocus: false, // Jangan refetch saat window focus
+  });
 
+  const posts = postsData || [];
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!authenticated) {
+      router.push("/login");
+    }
+  }, [authenticated, authLoading, router]);
+
+
+  // Delete mutation dengan optimistic update
+  const deleteMutation = useMutation({
+    mutationFn: async (postId: string) => {
+      await AxiosInstance.delete(`/posts/${postId}`);
+    },
+    onSuccess: () => {
+      // Invalidate dan refetch posts
+      queryClient.invalidateQueries({ queryKey: ["dashboard-posts"] });
+      toast.success("Post berhasil dihapus");
+    },
+    onError: (error: any) => {
+      toast.error(error.response?.data?.error || "Gagal menghapus post");
+    },
+  });
 
   const handleDelete = useCallback(async (postId: string) => {
     if (!confirm("Yakin mau hapus post ini?")) return;
-
-    try {
-      await AxiosInstance.delete(`/posts/${postId}`);
-      toast.success("Post berhasil dihapus");
-      fetchData();
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || "Gagal menghapus post");
-    }
-  }, []);
+    deleteMutation.mutate(postId);
+  }, [deleteMutation]);
 
   const filteredPosts = useMemo(() => {
     return posts.filter(
-      (post) =>
+      (post: Post) =>
         post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
         post.excerpt?.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -120,12 +134,13 @@ export default function Dashboard() {
 
   // Memoize stats calculations
   const stats = useMemo(() => {
+    if (!posts || !userId) return { publishedCount: 0, draftCount: 0, totalClaps: 0, totalComments: 0 };
     // Filter posts yang dimiliki user
-    const userPosts = posts.filter((p) => p.author.id === userId);
-    const publishedCount = userPosts.filter((p) => p.published).length;
-    const draftCount = userPosts.filter((p) => !p.published).length;
-    const totalClaps = userPosts.reduce((sum, p) => sum + p._count.claps, 0);
-    const totalComments = userPosts.reduce((sum, p) => sum + p._count.comments, 0);
+    const userPosts = posts.filter((p: Post) => p.author.id === userId);
+    const publishedCount = userPosts.filter((p: Post) => p.published).length;
+    const draftCount = userPosts.filter((p: Post) => !p.published).length;
+    const totalClaps = userPosts.reduce((sum: number, p: Post) => sum + p._count.claps, 0);
+    const totalComments = userPosts.reduce((sum: number, p: Post) => sum + p._count.comments, 0);
     return { publishedCount, draftCount, totalClaps, totalComments };
   }, [posts, userId]);
 
@@ -133,6 +148,8 @@ export default function Dashboard() {
     return null;
   }
 
+  const loading = authLoading || loadingPosts || !user;
+  
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -194,7 +211,7 @@ export default function Dashboard() {
                   <Edit className="h-4 w-4 text-primary" />
                 </div>
               </div>
-              <div className="text-3xl font-bold text-primary">{posts.filter((p) => p.author.id === userId).length}</div>
+              <div className="text-3xl font-bold text-primary">{posts.filter((p: Post) => p.author.id === userId).length}</div>
               <div className="text-xs text-muted-foreground mt-1">
                 {stats.publishedCount} terpublikasi, {stats.draftCount} draft
               </div>
@@ -279,7 +296,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredPosts.map((post) => (
+              {filteredPosts.map((post: Post) => (
                 <div
                   key={post.id}
                   className="bg-card border border-border/50 rounded-xl p-6 hover:border-primary/50 transition-all shadow-sm hover:shadow-xl card-hover"

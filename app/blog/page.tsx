@@ -69,8 +69,6 @@ export default function BlogPage() {
       router.push("/");
     }
   }, [isSuspended, authenticated, router]);
-  const [posts, setPosts] = useState<Post[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<"recent" | "popular">("recent");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -120,18 +118,15 @@ export default function BlogPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  useEffect(() => {
-    fetchPosts();
-  }, [selectedTag, sortBy]);
-
-  const fetchPosts = async () => {
-    try {
-      setLoading(true);
+  // Fetch posts dengan React Query (cached dan optimized)
+  const { data: postsData, isLoading: loadingPosts } = useQuery<Post[]>({
+    queryKey: ["blog-posts", selectedTag, sortBy],
+    queryFn: async () => {
       if (sortBy === "popular") {
         const response = await AxiosInstance.get("/search/popular", {
           params: { limit: 20 },
         });
-        setPosts(response.data.posts || []);
+        return response.data.posts || [];
       } else {
         const params = new URLSearchParams({
           published: "true",
@@ -141,14 +136,15 @@ export default function BlogPage() {
         if (selectedTag) params.append("tag", selectedTag);
 
         const response = await AxiosInstance.get(`/posts?${params.toString()}`);
-        setPosts(response.data.posts || []);
+        return response.data.posts || [];
       }
-    } catch (error) {
-      console.error("Error fetching posts:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    staleTime: 2 * 60 * 1000, // 2 menit cache
+    refetchOnWindowFocus: false, // Jangan refetch saat window focus
+  });
+
+  const posts = postsData || [];
+  const loading = loadingPosts;
 
   const fetchFollowStatuses = async () => {
     if (!authenticated || !userId) return;

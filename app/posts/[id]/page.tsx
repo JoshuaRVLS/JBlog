@@ -97,12 +97,23 @@ async function getPost(id: string): Promise<Post | null> {
 // Generate metadata untuk SEO
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const { id } = await params;
+  
+  if (!id || id === "undefined") {
+    return {
+      title: "Post Not Found | JBlog",
+      description: "The post you are looking for does not exist.",
+    };
+  }
+
+  // Try to fetch post for metadata
   const post = await getPost(id);
 
+  // Jika post tidak ditemukan atau tidak published, return generic metadata
+  // Client component akan fetch dan update title sendiri
   if (!post || !post.published) {
     return {
-      title: "Post Not Found",
-      description: "The post you are looking for does not exist or is not published.",
+      title: "JBlog - Modern Blogging Platform",
+      description: "Platform blogging modern dengan fitur lengkap untuk berbagi ide, pengalaman, dan pengetahuan.",
     };
   }
 
@@ -112,7 +123,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const postExcerpt = post.excerpt || post.content.substring(0, 160).replace(/[#*`]/g, "");
 
   return {
-    title: post.title,
+    title: `${post.title} | JBlog`,
     description: postExcerpt,
     keywords: post.tags.map((t) => t.tag.name).join(", "),
     authors: [{ name: post.author.name }],

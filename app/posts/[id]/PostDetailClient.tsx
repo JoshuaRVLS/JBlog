@@ -85,6 +85,15 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
   const [submittingComment, setSubmittingComment] = useState(false);
   const [clapAnimating, setClapAnimating] = useState(false);
 
+  // Update document title when post is loaded
+  useEffect(() => {
+    if (post) {
+      document.title = `${post.title} | JBlog`;
+    } else if (!loading && !post) {
+      document.title = "Post Not Found | JBlog";
+    }
+  }, [post, loading]);
+
   useEffect(() => {
     if (!initialPost && postId) {
       fetchPost();

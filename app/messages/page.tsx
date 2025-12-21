@@ -14,6 +14,7 @@ import { useSocket } from "@/providers/SocketProvider";
 import ImageViewer from "@/components/ImageViewer";
 import ConfirmModal from "@/components/modals/ConfirmModal";
 import { useEncryption } from "@/hooks/useEncryption";
+import { useQuery, useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 
 interface Conversation {
   user: {
@@ -63,11 +64,8 @@ function MessagesPageContent() {
   const { authenticated, userId, loading: authLoading } = useContext(AuthContext);
   const { socket } = useSocket();
   const encryption = useEncryption(userId || undefined);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
-  const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [receiverPublicKey, setReceiverPublicKey] = useState<string | null>(null);
@@ -78,9 +76,11 @@ function MessagesPageContent() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const lastConversationsFetchRef = useRef<number>(0);
   const messagesCacheRef = useRef<Map<string, Message[]>>(new Map());
-  const [loadingMessages, setLoadingMessages] = useState(false);
+  const queryClient = useQueryClient();
   const prefetchTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
   const publicKeyCacheRef = useRef<Map<string, string>>(new Map()); // Cache public keys for performance
+  const markAsReadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastMarkAsReadRef = useRef<Map<string, number>>(new Map()); // Track last mark as read time per user
   
   // Media upload states
   const [selectedMedia, setSelectedMedia] = useState<{
@@ -141,27 +141,21 @@ function MessagesPageContent() {
       }
     }
     
-    // Fetch conversations and prefetch messages in parallel if userIdParam exists
-    Promise.all([
-      fetchConversations(),
-      userIdParam ? fetchMessages(userIdParam, true) : Promise.resolve()
-    ]);
+    // Conversations akan di-fetch otomatis oleh React Query
   }, [authenticated, searchParams]);
 
   useEffect(() => {
     if (selectedUserId) {
-      // Check cache first
-      const cached = messagesCacheRef.current.get(selectedUserId);
-      if (cached) {
-        setMessages(cached);
-        setLoadingMessages(false);
-      } else {
-        setLoadingMessages(true);
-      }
-      fetchMessages(selectedUserId);
       loadReceiverPublicKey(selectedUserId);
-    } else {
-      setMessages([]);
+      
+      // Mark as read setelah conversation dibuka (dengan delay untuk memastikan messages loaded)
+      const markReadTimeout = setTimeout(() => {
+        markAsRead(selectedUserId);
+      }, 1500); // Increase delay untuk avoid blocking
+      
+      return () => {
+        clearTimeout(markReadTimeout);
+      };
     }
   }, [selectedUserId]);
 
@@ -184,10 +178,6 @@ function MessagesPageContent() {
     }
   };
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -205,28 +195,15 @@ function MessagesPageContent() {
     };
   }, [audioUrl, isRecording]);
 
-  const fetchConversations = useCallback(async () => {
-    try {
-      setLoading(true);
-      const response = await AxiosInstance.get("/direct-messages");
-      setConversations(response.data.conversations || []);
-    } catch (error: any) {
-      console.error("Error fetching conversations:", error);
-      toast.error(error.response?.data?.error || "Gagal mengambil percakapan");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  // Throttled refresh for conversations list, so it doesn't refetch too often
+  // Throttled refresh for conversations list
   const refreshConversationsThrottled = useCallback(() => {
     const now = Date.now();
     if (now - lastConversationsFetchRef.current < 1000) {
       return;
     }
     lastConversationsFetchRef.current = now;
-    fetchConversations();
-  }, [fetchConversations]);
+    queryClient.invalidateQueries({ queryKey: ["conversations", userId] });
+  }, [queryClient, userId]);
 
   const loadReceiverPublicKey = async (userId: string) => {
     if (!encryption || !encryption.hasKeys) {
@@ -246,28 +223,97 @@ function MessagesPageContent() {
     }
   };
 
-  const fetchMessages = async (otherUserId: string, silent = false) => {
-    try {
-      if (!silent) setLoadingMessages(true);
-      const response = await AxiosInstance.get(`/direct-messages/${otherUserId}`);
-      const fetchedMessages = response.data.messages || [];
+  // Fetch conversations dengan React Query (cached)
+  const { data: conversationsData, isLoading: loadingConversations, refetch: refetchConversations } = useQuery<Conversation[]>({
+    queryKey: ["conversations", userId],
+    queryFn: async () => {
+      const response = await AxiosInstance.get("/direct-messages");
+      return response.data.conversations || [];
+    },
+    enabled: !!userId && authenticated && !authLoading,
+    staleTime: 30 * 1000, // 30 detik cache
+    refetchOnWindowFocus: false,
+    refetchInterval: 60 * 1000, // Auto refetch setiap 1 menit
+  });
+
+  const conversations = conversationsData || [];
+
+  // Fetch messages dengan infinite query untuk pagination
+  const {
+    data: messagesData,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading: loadingMessagesQuery,
+  } = useInfiniteQuery({
+    queryKey: ["messages", selectedUserId, userId],
+    queryFn: async ({ pageParam = 1 }) => {
+      const response = await AxiosInstance.get(`/direct-messages/${selectedUserId}`, {
+        params: {
+          page: pageParam,
+          limit: 30, // Reduce initial load
+        },
+      });
+      return {
+        messages: response.data.messages || [],
+        pagination: response.data.pagination,
+      };
+    },
+    enabled: !!selectedUserId && !!userId && authenticated,
+    getNextPageParam: (lastPage) => {
+      if (lastPage.pagination && lastPage.pagination.page < lastPage.pagination.totalPages) {
+        return lastPage.pagination.page + 1;
+      }
+      return undefined;
+    },
+    initialPageParam: 1,
+    staleTime: 1 * 60 * 1000, // 1 menit cache
+    refetchOnWindowFocus: false,
+  });
+
+  // Process messages dengan decryption (optimized - batch decrypt untuk avoid freeze)
+  const processedMessages = messagesData?.pages.flatMap((page) => page.messages) || [];
+  
+  // Decrypt messages jika perlu
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [decrypting, setDecrypting] = useState(false);
+  const loadingMessages = loadingMessagesQuery;
+  const decryptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  useEffect(() => {
+    // Clear previous timeout
+    if (decryptTimeoutRef.current) {
+      clearTimeout(decryptTimeoutRef.current);
+    }
+
+    if (!encryption || !encryption.hasKeys || !selectedUserId) {
+      setMessages(processedMessages);
+      return;
+    }
+
+    // Debounce decryption untuk avoid freeze
+    decryptTimeoutRef.current = setTimeout(async () => {
+      setDecrypting(true);
       
-      let processedMessages = fetchedMessages;
+      // Batch decrypt (max 10 messages at a time untuk avoid blocking)
+      const BATCH_SIZE = 10;
+      const decrypted: Message[] = [];
       
-      if (encryption && encryption.hasKeys) {
-        processedMessages = await Promise.all(
-          fetchedMessages.map(async (msg: Message) => {
+      for (let i = 0; i < processedMessages.length; i += BATCH_SIZE) {
+        const batch = processedMessages.slice(i, i + BATCH_SIZE);
+        const batchDecrypted = await Promise.all(
+          batch.map(async (msg: Message) => {
             if (msg.encryptedContent && msg.senderId !== userId) {
               try {
                 const senderPublicKey = await encryption.getUserPublicKey(msg.senderId);
                 if (senderPublicKey) {
                   const encrypted = JSON.parse(msg.encryptedContent);
-                  const decrypted = await encryption.decryptFromUser(
+                  const decryptedContent = await encryption.decryptFromUser(
                     encrypted,
                     senderPublicKey
                   );
-                  if (decrypted) {
-                    return { ...msg, content: decrypted, isDecrypted: true };
+                  if (decryptedContent) {
+                    return { ...msg, content: decryptedContent, isDecrypted: true };
                   }
                 }
               } catch (error) {
@@ -277,30 +323,48 @@ function MessagesPageContent() {
             return msg;
           })
         );
+        decrypted.push(...batchDecrypted);
+        
+        // Update UI incrementally untuk avoid freeze
+        setMessages([...decrypted, ...processedMessages.slice(i + BATCH_SIZE)]);
+        
+        // Yield to browser untuk avoid blocking
+        await new Promise(resolve => setTimeout(resolve, 0));
       }
       
-      // Cache messages
-      messagesCacheRef.current.set(otherUserId, processedMessages);
-      
-      // Only update state if this is the selected conversation
-      if (selectedUserId === otherUserId || silent) {
-        setMessages(processedMessages);
+      setMessages(decrypted);
+      messagesCacheRef.current.set(selectedUserId, decrypted);
+      setDecrypting(false);
+    }, 100); // Debounce 100ms
+
+    return () => {
+      if (decryptTimeoutRef.current) {
+        clearTimeout(decryptTimeoutRef.current);
       }
-      
-      if (!silent) {
-        markAsRead(otherUserId);
-      }
-    } catch (error: any) {
-      console.error("Error fetching messages:", error);
-      if (!silent) {
-        toast.error(error.response?.data?.error || "Gagal mengambil pesan");
-      }
-    } finally {
-      if (!silent) setLoadingMessages(false);
+    };
+  }, [processedMessages, encryption, selectedUserId, userId]);
+
+  // Scroll to bottom when messages change (debounced dan tanpa smooth untuk avoid freeze)
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => {
+    if (scrollTimeoutRef.current) {
+      clearTimeout(scrollTimeoutRef.current);
     }
-  };
+    
+    if (messages.length > 0 && !decrypting) {
+      scrollTimeoutRef.current = setTimeout(() => {
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" }); // Use auto instead of smooth
+      }, 150);
+    }
+
+    return () => {
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
+    };
+  }, [messages.length, decrypting]);
   
-  // Prefetch messages on hover
+  // Prefetch messages on hover (using React Query)
   const handleConversationHover = (userId: string) => {
     // Clear existing timeout for this user
     const existingTimeout = prefetchTimeoutRef.current.get(userId);
@@ -310,9 +374,20 @@ function MessagesPageContent() {
     
     // Prefetch after 300ms hover
     const timeout = setTimeout(() => {
-      // Only prefetch if not already cached and not currently selected
-      if (!messagesCacheRef.current.has(userId) && selectedUserId !== userId) {
-        fetchMessages(userId, true);
+      // Prefetch dengan React Query
+      if (selectedUserId !== userId) {
+        queryClient.prefetchQuery({
+          queryKey: ["messages", userId, userId],
+          queryFn: async () => {
+            const response = await AxiosInstance.get(`/direct-messages/${userId}`, {
+              params: { page: 1, limit: 30 },
+            });
+            return {
+              messages: response.data.messages || [],
+              pagination: response.data.pagination,
+            };
+          },
+        });
       }
       prefetchTimeoutRef.current.delete(userId);
     }, 300);
@@ -329,12 +404,31 @@ function MessagesPageContent() {
   };
 
   const markAsRead = async (otherUserId: string) => {
-    try {
-      await AxiosInstance.put(`/direct-messages/${otherUserId}/read`);
-      refreshConversationsThrottled();
-    } catch (error) {
-      console.error("Error marking as read:", error);
+    if (!otherUserId || !userId) return;
+    
+    // Debounce: jangan mark as read terlalu sering (min 1 detik)
+    const now = Date.now();
+    const lastMark = lastMarkAsReadRef.current.get(otherUserId) || 0;
+    if (now - lastMark < 1000) {
+      return;
     }
+    lastMarkAsReadRef.current.set(otherUserId, now);
+    
+    // Clear existing timeout
+    if (markAsReadTimeoutRef.current) {
+      clearTimeout(markAsReadTimeoutRef.current);
+    }
+    
+    // Debounce dengan timeout 500ms untuk batch multiple calls
+    markAsReadTimeoutRef.current = setTimeout(async () => {
+      try {
+        const response = await AxiosInstance.put(`/direct-messages/${otherUserId}/read`);
+        console.log(`[Read Receipt] Marked messages as read from ${otherUserId}`);
+        refreshConversationsThrottled();
+      } catch (error) {
+        console.error("Error marking as read:", error);
+      }
+    }, 500);
   };
 
   // Listen for direct messages via global socket (single connection)
@@ -431,8 +525,12 @@ function MessagesPageContent() {
           }
         }
 
-        if (message.senderId === selectedUserId) {
-          markAsRead(selectedUserId);
+        // Mark as read jika pesan baru dari user yang sedang kita chat
+        if (message.senderId === selectedUserId && message.receiverId === userId) {
+          // Delay sedikit untuk memastikan message sudah di-render
+          setTimeout(() => {
+            markAsRead(selectedUserId);
+          }, 500);
         }
       }
 
@@ -456,11 +554,25 @@ function MessagesPageContent() {
       });
     };
 
-    const handleMessagesRead = (data: { receiverId: string; readAt: string }) => {
-      if (data.receiverId === selectedUserId) {
+    const handleMessagesRead = (data: { receiverId: string; readAt: string; messageIds?: string[] }) => {
+      // Update messages jika receiver adalah user yang sedang kita chat
+      if (data.receiverId === selectedUserId && userId) {
         setMessages((prev) => {
           const updated = prev.map((msg) => {
-            if (msg.senderId === userId && msg.receiverId === data.receiverId && !msg.readAt) {
+            // Jika ada messageIds, update hanya pesan yang ada di list
+            if (data.messageIds && data.messageIds.length > 0) {
+              if (data.messageIds.includes(msg.id)) {
+                return { ...msg, read: true, readAt: data.readAt };
+              }
+              return msg;
+            }
+            
+            // Fallback: update semua pesan yang kita kirim ke receiver ini yang belum read
+            if (
+              msg.senderId === userId && 
+              msg.receiverId === data.receiverId && 
+              (!msg.readAt || new Date(msg.readAt) < new Date(data.readAt))
+            ) {
               return { ...msg, read: true, readAt: data.readAt };
             }
             return msg;
@@ -472,6 +584,9 @@ function MessagesPageContent() {
           return updated;
         });
       }
+      
+      // Juga update conversations untuk unread count
+      refreshConversationsThrottled();
     };
 
     // Log when socket connects/disconnects
@@ -662,7 +777,7 @@ function MessagesPageContent() {
       : (mediaType === "audio" ? "Voice message" : mediaType === "image" ? "Image" : "Video");
 
     const tempMessageId = `temp-${Date.now()}-${Math.random()}`;
-    const selectedConv = conversations.find((c) => c.user.id === selectedUserId);
+    const selectedConv = conversations.find((c: Conversation) => c.user.id === selectedUserId);
     
     // Create optimistic message
     const optimisticMessage: Message = {
@@ -751,7 +866,7 @@ function MessagesPageContent() {
     const tempMessageId = `temp-${Date.now()}-${Math.random()}`;
     
     // Get selected conversation for receiver data
-    const selectedConv = conversations.find((c) => c.user.id === selectedUserId);
+    const selectedConv = conversations.find((c: Conversation) => c.user.id === selectedUserId);
     
     // Encrypt message if encryption is enabled (cache public key for performance)
     let encryptedContent: string | null = null;
@@ -850,12 +965,12 @@ function MessagesPageContent() {
     }
   };
 
-  const filteredConversations = conversations.filter((conv) =>
+  const filteredConversations = conversations.filter((conv: Conversation) =>
     conv.user.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const selectedConversation = conversations.find(
-    (c) => c.user.id === selectedUserId
+    (c: Conversation) => c.user.id === selectedUserId
   );
 
   if (!authenticated) {
@@ -889,7 +1004,7 @@ function MessagesPageContent() {
               </div>
 
               <div className="flex-1 overflow-y-auto" data-lenis-prevent>
-                {loading ? (
+                {loadingConversations ? (
                   <ConversationSkeleton count={5} />
                 ) : filteredConversations.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
