@@ -5,6 +5,7 @@ import { generateVerificationToken } from "../lib/generator";
 import { encrypt, generateTokenId } from "../lib/jwt";
 import { getVerificationEmailTemplate } from "../lib/emailTemplate";
 import { EncryptionService } from "../lib/encryption";
+import { getEmailSender } from "../lib/emailSender";
 
 export const sendVerification = async (req: Request, res: Response) => {
   const { userId } = req.body;
@@ -50,10 +51,7 @@ export const sendVerification = async (req: Request, res: Response) => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        sender: {
-          name: "JCorp",
-          email: "jravaellnew@gmail.com",
-        },
+        sender: getEmailSender(),
         to: [
           {
             email: user.email,

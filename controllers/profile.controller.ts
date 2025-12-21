@@ -5,6 +5,7 @@ import { StatusCodes } from "http-status-codes";
 import bcrypt from "bcryptjs";
 import { generateVerificationToken } from "../lib/generator";
 import { getVerificationEmailTemplate } from "../lib/emailTemplate";
+import { getEmailSender } from "../lib/emailSender";
 
 // Update profile (hanya untuk user yang login)
 export const updateProfile = async (req: AuthRequest, res: Response) => {
@@ -372,10 +373,7 @@ export const requestEmailChange = async (req: AuthRequest, res: Response) => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          sender: {
-            name: "JCorp",
-            email: "jravaellnew@gmail.com",
-          },
+          sender: getEmailSender(),
           to: [
             {
               email: newEmail,

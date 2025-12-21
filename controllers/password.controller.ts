@@ -75,10 +75,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
           "content-type": "application/json",
         },
         body: JSON.stringify({
-          sender: {
-            name: "JBlog",
-            email: "jravaellnew@gmail.com",
-          },
+          sender: getEmailSender(),
           to: [
             {
               email: user.email,

@@ -8,6 +8,7 @@ import bcrypt from "bcryptjs";
 import { generateVerificationToken } from "../lib/generator";
 import { encrypt } from "../lib/jwt";
 import { getVerificationEmailTemplate } from "../lib/emailTemplate";
+import { getEmailSender } from "../lib/emailSender";
 
 export const createUser = async (req: Request, res: Response) => {
   try {
@@ -34,7 +35,7 @@ export const createUser = async (req: Request, res: Response) => {
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        sender: { name: "JCorp", email: "jravaellnew@gmail.com" },
+        sender: getEmailSender(),
         to: [{ email: user.email, name: user.name }],
         subject: "JBlog - Kode Verifikasi Email Anda",
         htmlContent: getVerificationEmailTemplate(
