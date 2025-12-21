@@ -123,6 +123,13 @@ export default async function PostPage({ params }: { params: { id: string } }) {
     notFound();
   }
 
-  // Pass initial data ke client component
-  return <PostDetailClient initialPost={post} postId={params.id} />;
+  // Pass initial data ke client component dengan default values untuk properties yang tidak ada dari public endpoint
+  const postWithDefaults = {
+    ...post,
+    hasClapped: false,
+    isBookmarked: false,
+    isReposted: false,
+  };
+
+  return <PostDetailClient initialPost={postWithDefaults} postId={params.id} />;
 }

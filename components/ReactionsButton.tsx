@@ -72,7 +72,7 @@ export default function ReactionsButton({ postId, className = "" }: ReactionsBut
 
   // Get top 2 reactions by count
   const topReactions = Object.entries(counts)
-    .filter(([_, count]) => count > 0)
+    .filter(([_, count]) => (count as number) > 0)
     .sort(([_, a], [__, b]) => (b as number) - (a as number))
     .slice(0, 2)
     .map(([type]) => REACTION_TYPES.find((r) => r.type === type))

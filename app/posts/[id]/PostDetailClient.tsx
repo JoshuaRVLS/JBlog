@@ -454,19 +454,19 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
                 <>
                   <BookmarkButton
                     postId={post.id}
-                    isBookmarked={post.isBookmarked || false}
+                    initialBookmarked={post.isBookmarked || false}
                     onToggle={(bookmarked) => {
                       setPost({ ...post, isBookmarked: bookmarked });
                     }}
                   />
                   <RepostButton
                     postId={post.id}
-                    isReposted={post.isReposted || false}
+                    initialReposted={post.isReposted || false}
                     onToggle={(reposted) => {
                       setPost({ ...post, isReposted: reposted });
                     }}
                   />
-                  <ShareButton postUrl={postUrl} postTitle={post.title} />
+                  <ShareButton postId={post.id} title={post.title} />
                   <ReactionsButton postId={post.id} />
                 </>
               )}
