@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
@@ -552,6 +552,58 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal menghapus post" });
+  }
+};
+
+// Get public post (untuk SEO/crawler, tidak increment views)
+export const getPublicPost = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+
+    const post = await db.post.findUnique({
+      where: { 
+        id,
+        published: true, // Hanya published posts
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+            bio: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+        _count: {
+          select: {
+            claps: true,
+            comments: true,
+            reposts: true,
+          },
+        },
+      },
+    });
+
+    if (!post) {
+      return res.status(StatusCodes.NOT_FOUND).json({ msg: "Post tidak ditemukan atau tidak published" });
+    }
+
+    res.json({
+      ...post,
+      hasClapped: false,
+      isBookmarked: false,
+      isReposted: false,
+    });
+  } catch (error) {
+    console.error("Error mengambil public post:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal mengambil post" });
   }
 };
 

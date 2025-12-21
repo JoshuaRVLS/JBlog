@@ -78,42 +78,11 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
         .json({ error: "Sender tidak ditemukan" });
     }
 
-    // CRITICAL OPTIMIZATION: Emit socket IMMEDIATELY before database write (like WhatsApp)
-    // This makes messages appear instantly with <1ms delay
+    // Get IO instance first
     const io = getIO();
-    const tempMessageId = `temp-${Date.now()}-${Math.random()}`;
     
-    // Create optimistic message payload for instant emit
-    const optimisticMessage = {
-      id: tempMessageId,
-      senderId,
-      receiverId,
-      content: messageContent,
-      encryptedContent: encryptedContent || null,
-      encryptedMediaUrl: encryptedMediaUrl || null,
-      encryptionKeyId: encryptionKeyId || null,
-      type,
-      mediaUrl: mediaUrl || null,
-      read: false,
-      createdAt: new Date().toISOString(),
-      sender: {
-        id: sender.id,
-        name: sender.name,
-        profilePicture: sender.profilePicture,
-      },
-      receiver: {
-        id: receiver.id,
-        name: receiver.name,
-        profilePicture: receiver.profilePicture,
-      },
-    };
-
-    // Emit IMMEDIATELY before any database operations
-    if (io) {
-      io.to(`user:${receiverId}`).to(`user:${senderId}`).emit("newDirectMessage", optimisticMessage);
-    }
-
-    // Now save to database in parallel (non-blocking)
+    // Save to database first, then emit with real message ID
+    // Frontend akan handle optimistic update sendiri untuk pesan yang dikirim sendiri
     const [message] = await Promise.all([
       db.directMessage.create({
         data: {
@@ -160,12 +129,31 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
       }),
     ]);
 
-    // Emit messageDelivered with real message ID (async, non-blocking)
+    // Emit real message to receiver (sender sudah punya optimistic message dari frontend)
     if (io) {
-      io.to(`user:${receiverId}`).emit("messageDelivered", { messageId: message.id });
+      // Emit ke receiver dengan real message
+      io.to(`user:${receiverId}`).emit("newDirectMessage", {
+        ...message,
+        sender: {
+          id: sender.id,
+          name: sender.name,
+          profilePicture: sender.profilePicture,
+        },
+        receiver: {
+          id: receiver.id,
+          name: receiver.name,
+          profilePicture: receiver.profilePicture,
+        },
+      });
+      
+      // Emit messageDelivered dengan real message ID untuk update optimistic message di sender
+      io.to(`user:${senderId}`).emit("messageDelivered", { 
+        messageId: message.id,
+        tempMessageId: null, // Frontend akan handle replacement berdasarkan response
+      });
     }
 
-    // Return response immediately (database write happens in parallel)
+    // Return response immediately
     res.status(StatusCodes.CREATED).json({
       message: "Pesan berhasil dikirim",
       directMessage: message,

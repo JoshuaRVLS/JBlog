@@ -40,6 +40,7 @@ import { createNotification } from "./controllers/notifications.controller";
 import { setIO, getIO } from "./lib/socket";
 import { getRedisClient, getRedisSubscriber, closeRedisConnections } from "./lib/redis";
 import { checkMaintenanceMode } from "./middleware/maintenance.middleware";
+import os from "os";
 
 const app = express();
 
@@ -145,31 +146,58 @@ const publishScheduledPosts = async () => {
 // Check for scheduled posts every minute
 setInterval(publishScheduledPosts, 60 * 1000);
 
-// Publish scheduled posts on server start
-publishScheduledPosts();
+// Publish scheduled posts on server start (non-blocking)
+// Jangan block startup, jalankan di background
+setImmediate(() => {
+  publishScheduledPosts().catch((err) => {
+    console.error("Error publishing scheduled posts on startup:", err);
+  });
+});
 
 // Cluster info endpoint (for verification)
 app.get("/api/cluster-info", (req, res) => {
-  const os = require("os");
-  res.json({
-    clusterMode: process.env.ENABLE_CLUSTER === "true",
-    instanceId: process.env.INSTANCE_ID || "single",
-    pid: process.pid,
-    cpuCount: os.cpus().length,
-    nodeVersion: process.version,
-    redisEnabled: process.env.ENABLE_CLUSTER === "true",
-    timestamp: new Date().toISOString(),
-  });
+  try {
+    const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
+    const memUsage = process.memoryUsage();
+    
+    res.json({
+      clusterMode: process.env.ENABLE_CLUSTER === "true",
+      instanceId: instanceId,
+      pid: process.pid,
+      cpuCount: os.cpus().length,
+      nodeVersion: process.version,
+      redisEnabled: process.env.ENABLE_CLUSTER === "true",
+      memory: {
+        rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
+        heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
+        heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
+        external: `${Math.round(memUsage.external / 1024 / 1024)}MB`,
+      },
+      uptime: `${Math.round(process.uptime())}s`,
+      timestamp: new Date().toISOString(),
+    });
+    
+    // Log untuk tracking
+    console.log(`[Instance ${instanceId}] Cluster info requested - Memory: ${Math.round(memUsage.rss / 1024 / 1024)}MB`);
+  } catch (error) {
+    console.error("Error in cluster-info endpoint:", error);
+    res.status(500).json({ error: "Failed to get cluster info" });
+  }
 });
 
 // Health check endpoint
 app.get("/api/health", (req, res) => {
-  res.json({
-    status: "ok",
-    instanceId: process.env.INSTANCE_ID || "single",
-    pid: process.pid,
-    timestamp: new Date().toISOString(),
-  });
+  try {
+    res.json({
+      status: "ok",
+      instanceId: process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single",
+      pid: process.pid,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("Error in health endpoint:", error);
+    res.status(500).json({ error: "Failed to get health status" });
+  }
 });
 
 // Create HTTP server
@@ -577,46 +605,48 @@ io.on("connection", (socket) => {
 });
 
 const PORT = process.env.PORT || 8000;
+const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
+
+// Log startup info
+console.log(`[Instance ${instanceId}] Starting server on port ${PORT}...`);
+console.log(`[Instance ${instanceId}] PM2 cluster mode: ${process.env.ENABLE_CLUSTER === "true" ? "enabled" : "disabled"}`);
+console.log(`[Instance ${instanceId}] process.send available: ${typeof process.send === "function"}`);
 
 // PM2 cluster mode support - signal ready after server starts
-httpServer.listen(PORT, (err?: Error) => {
-  if (err) {
-    console.error(`Failed to start server on port ${PORT}:`, err);
-    process.exit(1);
-    return;
-  }
-  
-  // PM2 set NODE_APP_INSTANCE untuk cluster mode (0, 1, 2, ...)
-  const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
-  const isCluster = process.env.ENABLE_CLUSTER === "true";
-  
-  console.log(`Server berjalan di http://localhost:${PORT} (Instance: ${instanceId})`);
-  console.log(`API tersedia di http://localhost:${PORT}/api`);
-  console.log(`Socket.IO ready ${isCluster ? "(Cluster Mode)" : "(Single Instance)"}`);
-  
-  // Kirim signal ke PM2 kalau app sudah ready (untuk wait_ready)
-  // IMPORTANT: Kirim signal segera setelah server listen, jangan tunggu apapun
-  if (typeof process.send === "function") {
-    try {
-      process.send("ready");
-      console.log(`PM2 ready signal sent (Instance: ${instanceId})`);
-    } catch (error) {
-      console.warn("Could not send PM2 ready signal:", error);
+try {
+  httpServer.listen(PORT, () => {
+    const isCluster = process.env.ENABLE_CLUSTER === "true";
+    
+    console.log(`[Instance ${instanceId}] Server berjalan di http://localhost:${PORT}`);
+    console.log(`[Instance ${instanceId}] API tersedia di http://localhost:${PORT}/api`);
+    console.log(`[Instance ${instanceId}] Socket.IO ready ${isCluster ? "(Cluster Mode)" : "(Single Instance)"}`);
+    
+    // Kirim signal ke PM2 kalau app sudah ready (untuk wait_ready)
+    // IMPORTANT: Kirim signal segera setelah server listen, jangan tunggu apapun
+    if (typeof process.send === "function") {
+      try {
+        process.send("ready");
+        console.log(`[Instance ${instanceId}] PM2 ready signal sent`);
+      } catch (error) {
+        console.error(`[Instance ${instanceId}] Could not send PM2 ready signal:`, error);
+      }
+    } else {
+      console.warn(`[Instance ${instanceId}] process.send tidak tersedia - mungkin bukan cluster mode`);
     }
-  } else {
-    console.warn("process.send tidak tersedia - mungkin bukan cluster mode");
-  }
-});
+  });
 
-// Handle error saat listen
-httpServer.on("error", (err: NodeJS.ErrnoException) => {
-  if (err.code === "EADDRINUSE") {
-    console.error(`Port ${PORT} sudah digunakan`);
-  } else {
-    console.error("Server error:", err);
-  }
+  // Handle error saat listen
+  httpServer.on("error", (err: NodeJS.ErrnoException) => {
+    console.error(`[Instance ${instanceId}] Server listen error:`, err);
+    if (err.code === "EADDRINUSE") {
+      console.error(`[Instance ${instanceId}] Port ${PORT} sudah digunakan`);
+    }
+    process.exit(1);
+  });
+} catch (error) {
+  console.error(`[Instance ${instanceId}] Failed to start server:`, error);
   process.exit(1);
-});
+}
 
 // Shutdown yang proper untuk cluster mode
 const gracefulShutdown = async (signal: string) => {
