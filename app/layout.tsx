@@ -28,11 +28,11 @@ export const metadata: Metadata = {
   authors: [{ name: "JBlog Team" }],
   creator: "JBlog",
   publisher: "JBlog",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://jblog.space"),
   openGraph: {
     type: "website",
     locale: "id_ID",
-    url: process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+    url: process.env.NEXT_PUBLIC_SITE_URL || "https://jblog.space",
     siteName: "JBlog",
     title: "JBlog - Modern Blogging Platform",
     description: "Platform blogging modern dengan fitur lengkap untuk berbagi ide, pengalaman, dan pengetahuan.",

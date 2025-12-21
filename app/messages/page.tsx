@@ -352,9 +352,24 @@ function MessagesPageContent() {
         ( (message.senderId === selectedUserId && message.receiverId === userId) ||
           (message.senderId === userId && message.receiverId === selectedUserId) )
       ) {
+        // Ignore socket event untuk pesan yang dikirim sendiri (sudah ada optimistic message)
+        // Backend akan emit ke receiver, tapi sender sudah punya optimistic message
+        if (message.senderId === userId) {
+          // Ini pesan yang kita kirim sendiri - ignore socket event, tunggu response dari API
+          return;
+        }
+        
         // OPTIMIZATION: Show message immediately (non-blocking), decrypt in background
         setMessages((prev) => {
-          const exists = prev.some((msg) => msg.id === message.id);
+          // Check jika message sudah ada (by ID atau by content + timestamp untuk deduplication)
+          const exists = prev.some((msg) => 
+            msg.id === message.id || 
+            (msg.id.startsWith("temp-") && 
+             msg.senderId === message.senderId && 
+             msg.receiverId === message.receiverId &&
+             msg.content === message.content &&
+             Math.abs(new Date(msg.createdAt).getTime() - new Date(message.createdAt).getTime()) < 5000)
+          );
           if (!exists) {
             const updated = [...prev, message];
             // Update cache
@@ -685,11 +700,29 @@ function MessagesPageContent() {
       });
 
       // Replace optimistic message
+      // Replace optimistic message with real message from server
       setMessages((prev) => {
+        // Remove temp message
         const filtered = prev.filter((msg) => msg.id !== tempMessageId);
-        const exists = filtered.some((msg) => msg.id === response.data.directMessage.id);
-        if (!exists) {
-          return [...filtered, response.data.directMessage];
+        
+        // Check if real message already exists
+        const realMessageExists = filtered.some((msg) => msg.id === response.data.directMessage.id);
+        
+        if (!realMessageExists) {
+          // Add real message, sort by createdAt
+          const updated = [...filtered, response.data.directMessage].sort((a, b) => 
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+          // Update cache
+          if (selectedUserId) {
+            messagesCacheRef.current.set(selectedUserId, updated);
+          }
+          return updated;
+        }
+        
+        // Update cache
+        if (selectedUserId) {
+          messagesCacheRef.current.set(selectedUserId, filtered);
         }
         return filtered;
       });
@@ -782,11 +815,29 @@ function MessagesPageContent() {
       });
 
       // Replace optimistic message with real message from server
+      // Pastikan tidak ada duplikasi dan pesan tidak hilang
       setMessages((prev) => {
+        // Remove temp message
         const filtered = prev.filter((msg) => msg.id !== tempMessageId);
-        const exists = filtered.some((msg) => msg.id === response.data.directMessage.id);
-        if (!exists) {
-          return [...filtered, response.data.directMessage];
+        
+        // Check if real message already exists (from socket or previous update)
+        const realMessageExists = filtered.some((msg) => msg.id === response.data.directMessage.id);
+        
+        if (!realMessageExists) {
+          // Add real message, sort by createdAt to maintain order
+          const updated = [...filtered, response.data.directMessage].sort((a, b) => 
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+          // Update cache
+          if (selectedUserId) {
+            messagesCacheRef.current.set(selectedUserId, updated);
+          }
+          return updated;
+        }
+        
+        // Update cache even if message already exists
+        if (selectedUserId) {
+          messagesCacheRef.current.set(selectedUserId, filtered);
         }
         return filtered;
       });

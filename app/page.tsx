@@ -341,7 +341,7 @@ export default function Home() {
     };
   }, [projects]);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jblog.space";
 
   return (
     <div className="min-h-screen bg-background overflow-x-hidden">
