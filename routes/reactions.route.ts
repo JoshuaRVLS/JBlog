@@ -10,8 +10,8 @@ router.post("/posts/:postId/reactions", authenticate, reactionsController.addRea
 // Remove reaction
 router.delete("/posts/:postId/reactions", authenticate, reactionsController.removeReaction);
 
-// Get post reactions
-router.get("/posts/:postId/reactions", reactionsController.getPostReactions);
+// Get post reactions (public, optional auth untuk userReaction)
+router.get("/posts/:postId/reactions", authenticate, reactionsController.getPostReactions);
 
 export default router;
 

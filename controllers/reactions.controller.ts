@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { StatusCodes } from "http-status-codes";
 import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
@@ -64,13 +64,14 @@ export const addReaction = async (req: AuthRequest, res: Response) => {
     const reactionCounts = await db.reaction.groupBy({
       by: ["type"],
       where: { postId },
-      _count: { type: true },
+      _count: true,
     });
 
-    const counts = reactionCounts.reduce((acc, curr) => {
-      acc[curr.type] = curr._count.type;
-      return acc;
-    }, {} as Record<string, number>);
+    // Build counts object
+    const counts: Record<string, number> = {};
+    reactionCounts.forEach((item) => {
+      counts[item.type] = item._count;
+    });
 
     res.status(StatusCodes.OK).json({
       reaction,
@@ -112,13 +113,14 @@ export const removeReaction = async (req: AuthRequest, res: Response) => {
     const reactionCounts = await db.reaction.groupBy({
       by: ["type"],
       where: { postId },
-      _count: { type: true },
+      _count: true,
     });
 
-    const counts = reactionCounts.reduce((acc, curr) => {
-      acc[curr.type] = curr._count.type;
-      return acc;
-    }, {} as Record<string, number>);
+    // Build counts object
+    const counts: Record<string, number> = {};
+    reactionCounts.forEach((item) => {
+      counts[item.type] = item._count;
+    });
 
     res.status(StatusCodes.OK).json({
       msg: "Reaction dihapus",
@@ -136,11 +138,11 @@ export const removeReaction = async (req: AuthRequest, res: Response) => {
   }
 };
 
-// Get reactions for a post
+// Get reactions for a post (public endpoint, optional auth)
 export const getPostReactions = async (req: AuthRequest, res: Response) => {
   try {
     const { postId } = req.params;
-    const userId = req.userId;
+    const userId = req.userId; // Bisa undefined jika tidak login
 
     if (!postId) {
       return res.status(StatusCodes.BAD_REQUEST).json({ msg: "postId is required" });
@@ -165,13 +167,14 @@ export const getPostReactions = async (req: AuthRequest, res: Response) => {
     const reactionCounts = await db.reaction.groupBy({
       by: ["type"],
       where: { postId },
-      _count: { type: true },
+      _count: true,
     });
 
-    const counts = reactionCounts.reduce((acc, curr) => {
-      acc[curr.type] = curr._count.type;
-      return acc;
-    }, {} as Record<string, number>);
+    // Build counts object
+    const counts: Record<string, number> = {};
+    reactionCounts.forEach((item) => {
+      counts[item.type] = item._count;
+    });
 
     // Get user's reaction if logged in
     let userReaction = null;
