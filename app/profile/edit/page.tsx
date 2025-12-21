@@ -6,7 +6,7 @@ import Link from "next/link";
 import Image from "next/image";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
-import { ArrowLeft, Upload, Loader2, Save, User, Mail, FileText, Link as LinkIcon, Plus, X } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, Save, User, Mail, FileText, Link as LinkIcon, Plus, X, Code2, Info, Palette } from "lucide-react";
 import toast from "react-hot-toast";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
 
@@ -24,6 +24,7 @@ export default function ProfileEdit() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [customLinks, setCustomLinks] = useState<Array<{ label: string; url: string }>>([]);
+  const [customCSS, setCustomCSS] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,6 +46,7 @@ export default function ProfileEdit() {
       setProfilePicture(response.data.profilePicture);
       setPreview(response.data.profilePicture || generateAvatarUrl(response.data.name));
       setCustomLinks(response.data.customLinks?.map((link: any) => ({ label: link.label, url: link.url })) || []);
+      setCustomCSS(response.data.customCSS || "");
     } catch (error: any) {
       console.error("Error fetching profile:", error);
       toast.error("Gagal mengambil data profile");
@@ -113,6 +115,7 @@ export default function ProfileEdit() {
         description,
         profilePicture: profilePicture || generateAvatarUrl(name),
         customLinks: customLinks.filter(link => link.label.trim() && link.url.trim()),
+        customCSS: customCSS.trim() || null,
       });
 
       toast.success("Profile berhasil diupdate");
@@ -321,6 +324,32 @@ export default function ProfileEdit() {
                 <p className="text-xs text-muted-foreground">
                   Maksimal 5 links. Format URL harus lengkap (https://...)
                 </p>
+              </div>
+
+              {/* Custom CSS Section */}
+              <div className="space-y-3 border-t border-border pt-6">
+                <div className="flex items-center gap-2">
+                  <Palette className="h-5 w-5 text-primary" />
+                  <label className="block text-sm font-semibold text-foreground">
+                    Custom CSS
+                  </label>
+                </div>
+                <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                  <p className="text-xs text-muted-foreground flex items-start gap-2">
+                    <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span>
+                      Tambahkan CSS custom untuk styling profile kamu. CSS akan diterapkan hanya pada halaman profile kamu. 
+                      Gunakan selector yang spesifik untuk menghindari konflik dengan styling global.
+                    </span>
+                  </p>
+                  <textarea
+                    value={customCSS}
+                    onChange={(e) => setCustomCSS(e.target.value)}
+                    placeholder="Contoh:&#10;.profile-container {&#10;  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);&#10;  padding: 2rem;&#10;  border-radius: 1rem;&#10;}&#10;&#10;.profile-name {&#10;  color: white;&#10;  font-size: 2rem;&#10;  font-weight: bold;&#10;}"
+                    className="w-full min-h-[250px] px-4 py-3 rounded-lg border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                    spellCheck={false}
+                  />
+                </div>
               </div>
 
               {/* Submit */}

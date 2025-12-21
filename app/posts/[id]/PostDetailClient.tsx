@@ -27,6 +27,7 @@ interface Post {
   readingTime: number;
   createdAt: string;
   updatedAt: string;
+  customScript?: string | null;
   author: {
     id: string;
     name: string;
@@ -448,6 +449,14 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
             <div className="prose prose-lg dark:prose-invert max-w-none">
               <MarkdownRenderer content={post.content} />
             </div>
+
+            {/* Custom Script */}
+            {post.customScript && (
+              <div 
+                className="mt-8"
+                dangerouslySetInnerHTML={{ __html: post.customScript }}
+              />
+            )}
 
             {/* Action Buttons */}
             <div className="flex items-center gap-4 mt-12 pt-8 border-t border-border">

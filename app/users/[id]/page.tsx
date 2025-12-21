@@ -25,6 +25,7 @@ interface UserProfile {
   bio: string | null;
   description: string | null;
   profilePicture: string | null;
+  customCSS?: string | null;
   customLinks?: CustomLink[];
   createdAt: string;
   _count: {
@@ -256,6 +257,10 @@ export default function UserProfile() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
+      {/* Custom CSS */}
+      {user?.customCSS && (
+        <style dangerouslySetInnerHTML={{ __html: user.customCSS }} />
+      )}
       <main className="pt-20 pb-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
           {/* Profile Header */}

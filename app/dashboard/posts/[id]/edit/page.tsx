@@ -16,6 +16,8 @@ import {
   Eye,
   EyeOff,
   User,
+  Code2,
+  Info,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
@@ -39,6 +41,7 @@ export default function EditPost() {
   const [showTagDropdown, setShowTagDropdown] = useState(false);
   const [filteredTags, setFilteredTags] = useState<Array<{ id: string; name: string; slug: string; _count?: { posts: number } }>>([]);
   const [published, setPublished] = useState(false);
+  const [customScript, setCustomScript] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [uploadingInline, setUploadingInline] = useState(false);
@@ -127,6 +130,7 @@ export default function EditPost() {
       setCoverImage(post.coverImage || null);
       setCoverImagePreview(post.coverImage || null);
       setPublished(post.published);
+      setCustomScript(post.customScript || "");
       setTags(post.tags?.map((pt: any) => pt.tag.name) || []);
     } catch (error: any) {
       console.error("Error fetching post:", error);
@@ -376,6 +380,7 @@ export default function EditPost() {
         coverImage: coverImage || null,
         tags,
         published,
+        customScript: customScript.trim() || null,
       });
     };
 
@@ -779,6 +784,32 @@ export default function EditPost() {
                   ))}
                 </div>
               )}
+            </div>
+
+            {/* Custom Script Section */}
+            <div className="space-y-3 border-t border-border pt-6">
+              <div className="flex items-center gap-2">
+                <Code2 className="h-5 w-5 text-primary" />
+                <label className="block text-sm font-semibold text-foreground">
+                  Custom Script (JavaScript/HTML)
+                </label>
+              </div>
+              <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                <p className="text-xs text-muted-foreground flex items-start gap-2">
+                  <Info className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                  <span>
+                    Tambahkan JavaScript atau HTML untuk integrasi API, widgets, atau elemen interaktif. 
+                    Script akan dieksekusi di akhir post. Gunakan dengan hati-hati dan pastikan kode aman.
+                  </span>
+                </p>
+                <textarea
+                  value={customScript}
+                  onChange={(e) => setCustomScript(e.target.value)}
+                  placeholder="Contoh:&#10;&lt;script&gt;&#10;  fetch('https://api.example.com/data')&#10;    .then(res => res.json())&#10;    .then(data => {&#10;      // Display data in your post&#10;    });&#10;&lt;/script&gt;"
+                  className="w-full min-h-[200px] px-4 py-3 rounded-lg border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm"
+                  spellCheck={false}
+                />
+              </div>
             </div>
 
             {/* Actions */}
