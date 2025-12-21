@@ -46,6 +46,7 @@ interface Message {
   deliveredAt?: string | null;
   readAt?: string | null;
   createdAt: string;
+  isDecrypted?: boolean; // Track if message has been decrypted
   sender: {
     id: string;
     name: string;
@@ -74,6 +75,10 @@ function MessagesPageContent() {
   const [generatingKeyPair, setGeneratingKeyPair] = useState(false);
   const [currentUserProfile, setCurrentUserProfile] = useState<{ name: string; profilePicture: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const isUserScrollingRef = useRef(false);
+  const isNearBottomRef = useRef(true);
+  const shouldAutoScrollRef = useRef(false); // Flag untuk force scroll (setelah send message) - default false
   const lastConversationsFetchRef = useRef<number>(0);
   const messagesCacheRef = useRef<Map<string, Message[]>>(new Map());
   const queryClient = useQueryClient();
@@ -287,7 +292,11 @@ function MessagesPageContent() {
     }
 
     if (!encryption || !encryption.hasKeys || !selectedUserId) {
+      // Update messages dan cache
       setMessages(processedMessages);
+      if (selectedUserId) {
+        messagesCacheRef.current.set(selectedUserId, processedMessages);
+      }
       return;
     }
 
@@ -303,11 +312,27 @@ function MessagesPageContent() {
         const batch = processedMessages.slice(i, i + BATCH_SIZE);
         const batchDecrypted = await Promise.all(
           batch.map(async (msg: Message) => {
-            if (msg.encryptedContent && msg.senderId !== userId) {
+            // Skip jika sudah di-decrypt sebelumnya atau tidak ada encryptedContent
+            if (msg.isDecrypted || !msg.encryptedContent) {
+              return msg;
+            }
+            
+            // Hanya decrypt jika message dari user lain (bukan dari kita sendiri)
+            if (msg.senderId !== userId) {
               try {
                 const senderPublicKey = await encryption.getUserPublicKey(msg.senderId);
                 if (senderPublicKey) {
-                  const encrypted = JSON.parse(msg.encryptedContent);
+                  // Validate encryptedContent format
+                  let encrypted;
+                  try {
+                    encrypted = typeof msg.encryptedContent === 'string' 
+                      ? JSON.parse(msg.encryptedContent) 
+                      : msg.encryptedContent;
+                  } catch (parseError) {
+                    // Invalid JSON, skip decryption
+                    return msg;
+                  }
+                  
                   const decryptedContent = await encryption.decryptFromUser(
                     encrypted,
                     senderPublicKey
@@ -317,7 +342,9 @@ function MessagesPageContent() {
                   }
                 }
               } catch (error) {
-                console.error("Error decrypting message:", error);
+                // Silent fail - mungkin message tidak encrypted atau key tidak valid
+                // Return original message tanpa decrypt (tidak log error berulang)
+                return msg;
               }
             }
             return msg;
@@ -325,15 +352,40 @@ function MessagesPageContent() {
         );
         decrypted.push(...batchDecrypted);
         
-        // Update UI incrementally untuk avoid freeze
-        setMessages([...decrypted, ...processedMessages.slice(i + BATCH_SIZE)]);
-        
         // Yield to browser untuk avoid blocking
         await new Promise(resolve => setTimeout(resolve, 0));
       }
       
-      setMessages(decrypted);
-      messagesCacheRef.current.set(selectedUserId, decrypted);
+      // Final update dengan semua decrypted messages
+      // GUARANTEE: Semua messages tetap ada, hanya content yang di-update
+      setMessages((currentMessages) => {
+        // Merge decrypted messages dengan current messages
+        // Pastikan tidak ada message yang hilang
+        const messageMap = new Map<string, Message>();
+        
+        // Add all current messages first (untuk memastikan optimistic messages tidak hilang)
+        currentMessages.forEach((msg) => {
+          messageMap.set(msg.id, msg);
+        });
+        
+        // Update dengan decrypted messages
+        decrypted.forEach((decryptedMsg) => {
+          messageMap.set(decryptedMsg.id, decryptedMsg);
+        });
+        
+        // Convert back to array dan sort
+        const finalMessages = Array.from(messageMap.values()).sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        
+        // Update cache
+        if (selectedUserId) {
+          messagesCacheRef.current.set(selectedUserId, finalMessages);
+        }
+        
+        return finalMessages;
+      });
+      
       setDecrypting(false);
     }, 100); // Debounce 100ms
 
@@ -344,17 +396,103 @@ function MessagesPageContent() {
     };
   }, [processedMessages, encryption, selectedUserId, userId]);
 
-  // Scroll to bottom when messages change (debounced dan tanpa smooth untuk avoid freeze)
+  // Scroll to bottom when messages change (hanya jika user di bottom atau force scroll)
   const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  useEffect(() => {
+  
+  // Check if user is near bottom of scroll container
+  const checkIfNearBottom = useCallback(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return false;
+    
+    const threshold = 100; // 100px dari bottom
+    const scrollTop = container.scrollTop;
+    const scrollHeight = container.scrollHeight;
+    const clientHeight = container.clientHeight;
+    
+    return scrollHeight - scrollTop - clientHeight < threshold;
+  }, []);
+  
+  const scrollToBottom = useCallback((force = false, retryCount = 0) => {
+    // Jika force = true (setelah send message), SELALU scroll
+    // Jika force = false (pesan masuk), scroll hanya jika user sudah di bottom
+    if (!force && !isNearBottomRef.current) {
+      return; // User sedang scroll ke atas, jangan scroll untuk pesan masuk
+    }
+    
+    // Jika user sedang scroll, tunggu sampai selesai (max 3 retry untuk avoid infinite loop)
+    if (isUserScrollingRef.current && retryCount < 3) {
+      // Delay sedikit untuk tunggu user selesai scroll
+      setTimeout(() => {
+        scrollToBottom(force, retryCount + 1);
+      }, 200);
+      return;
+    }
+    
+    // Jika sudah retry 3x dan masih user scrolling, skip scroll (kecuali force)
+    if (isUserScrollingRef.current && retryCount >= 3 && !force) {
+      return;
+    }
+    
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
     }
     
-    if (messages.length > 0 && !decrypting) {
+    scrollTimeoutRef.current = setTimeout(() => {
+      const container = messagesContainerRef.current;
+      if (container) {
+        // Scroll container ke bottom, bukan scrollIntoView yang bisa scroll whole page
+        container.scrollTop = container.scrollHeight;
+        // Update ref setelah scroll
+        setTimeout(() => {
+          isNearBottomRef.current = checkIfNearBottom();
+        }, 50);
+      }
+    }, 100);
+  }, [checkIfNearBottom]);
+  
+  // Handle scroll event untuk detect user scroll
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    
+    const handleScroll = () => {
+      isUserScrollingRef.current = true;
+      isNearBottomRef.current = checkIfNearBottom();
+      
+      // Reset flag setelah user selesai scroll
+      if (scrollTimeoutRef.current) {
+        clearTimeout(scrollTimeoutRef.current);
+      }
       scrollTimeoutRef.current = setTimeout(() => {
-        messagesEndRef.current?.scrollIntoView({ behavior: "auto" }); // Use auto instead of smooth
+        isUserScrollingRef.current = false;
       }, 150);
+    };
+    
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    
+    return () => {
+      container.removeEventListener("scroll", handleScroll);
+    };
+  }, [checkIfNearBottom]);
+  
+  // Auto scroll saat:
+  // 1. Force scroll flag aktif (setelah send message) - SELALU scroll
+  // 2. Pesan baru masuk DAN user sudah di bottom - scroll jika di bottom
+  useEffect(() => {
+    if (messages.length > 0 && !decrypting) {
+      // Update isNearBottomRef sebelum check
+      isNearBottomRef.current = checkIfNearBottom();
+      
+      // Case 1: Force scroll (setelah send message) - SELALU scroll
+      if (shouldAutoScrollRef.current && !isUserScrollingRef.current) {
+        scrollToBottom(true);
+        shouldAutoScrollRef.current = false;
+      }
+      // Case 2: Pesan baru masuk - scroll hanya jika user sudah di bottom
+      else if (!shouldAutoScrollRef.current && isNearBottomRef.current && !isUserScrollingRef.current) {
+        // Scroll untuk pesan baru yang masuk (hanya jika user di bottom)
+        scrollToBottom(false); // Tidak force, tapi scroll jika di bottom
+      }
     }
 
     return () => {
@@ -362,7 +500,7 @@ function MessagesPageContent() {
         clearTimeout(scrollTimeoutRef.current);
       }
     };
-  }, [messages.length, decrypting]);
+  }, [messages.length, decrypting, scrollToBottom, checkIfNearBottom]);
   
   // Prefetch messages on hover (using React Query)
   const handleConversationHover = (userId: string) => {
@@ -433,8 +571,14 @@ function MessagesPageContent() {
 
   // Listen for direct messages via global socket (single connection)
   useEffect(() => {
-    if (!socket || !userId) {
-      console.log("⚠️ Socket or userId not available", { socket: !!socket, userId: !!userId });
+    // Wait for socket and userId to be ready
+    if (!socket || !userId || !authenticated) {
+      return;
+    }
+    
+    // Wait for socket to be connected
+    if (socket.disconnected) {
+      // Socket will connect automatically, just wait
       return;
     }
 
@@ -446,10 +590,52 @@ function MessagesPageContent() {
         ( (message.senderId === selectedUserId && message.receiverId === userId) ||
           (message.senderId === userId && message.receiverId === selectedUserId) )
       ) {
-        // Ignore socket event untuk pesan yang dikirim sendiri (sudah ada optimistic message)
-        // Backend akan emit ke receiver, tapi sender sudah punya optimistic message
+        // Untuk pesan yang kita kirim sendiri:
+        // - Jika masih ada temp message, replace dengan real message dari socket
+        // - Jika sudah ada real message, ignore (duplicate)
         if (message.senderId === userId) {
-          // Ini pesan yang kita kirim sendiri - ignore socket event, tunggu response dari API
+          setMessages((prev) => {
+            // Check if real message already exists
+            const realMessageExists = prev.some((msg) => msg.id === message.id);
+            if (realMessageExists) {
+              return prev; // Already have real message, ignore
+            }
+            
+            // Replace temp message with real message from socket
+            const hasTempMessage = prev.some((msg) => 
+              msg.id.startsWith("temp-") && 
+              msg.senderId === userId && 
+              msg.receiverId === selectedUserId
+            );
+            
+            if (hasTempMessage) {
+              const updated = prev.map((msg) => {
+                // Replace first temp message with real message
+                if (msg.id.startsWith("temp-") && msg.senderId === userId && msg.receiverId === selectedUserId) {
+                  return message; // Replace temp with real
+                }
+                return msg;
+              });
+              // Update cache
+              if (selectedUserId) {
+                messagesCacheRef.current.set(selectedUserId, updated);
+              }
+              return updated;
+            }
+            
+            // No temp message, just add real message (fallback)
+            const updated = [...prev, message];
+            // Update cache
+            if (selectedUserId) {
+              messagesCacheRef.current.set(selectedUserId, updated);
+            }
+            return updated;
+          });
+          
+          // Scroll to bottom setelah message dari socket (own message)
+          shouldAutoScrollRef.current = true; // Force scroll untuk own message
+          // useEffect akan handle scroll otomatis
+          
           return;
         }
         
@@ -474,6 +660,10 @@ function MessagesPageContent() {
           }
           return prev;
         });
+        
+        // Auto-scroll untuk message dari user lain jika user sudah di bottom
+        // Tidak perlu set shouldAutoScrollRef karena useEffect akan handle berdasarkan isNearBottomRef
+        // useEffect akan otomatis scroll jika isNearBottomRef.current === true
 
         // Decrypt in background (non-blocking UI) - this prevents delay in showing messages
         if (
@@ -802,6 +992,7 @@ function MessagesPageContent() {
     };
 
     // Optimistic update
+    shouldAutoScrollRef.current = true; // Force scroll setelah send media message
     setMessages((prev) => [...prev, optimisticMessage]);
     setNewMessage("");
     setSending(true);
@@ -814,33 +1005,64 @@ function MessagesPageContent() {
         mediaUrl: mediaUrl,
       });
 
-      // Replace optimistic message
       // Replace optimistic message with real message from server
+      const realMessage = response.data.directMessage;
+      
       setMessages((prev) => {
-        // Remove temp message
-        const filtered = prev.filter((msg) => msg.id !== tempMessageId);
+        // Check if real message already exists (from socket or previous update)
+        const realMessageExists = prev.some((msg) => msg.id === realMessage.id);
         
-        // Check if real message already exists
-        const realMessageExists = filtered.some((msg) => msg.id === response.data.directMessage.id);
+        if (realMessageExists) {
+          // Real message sudah ada, hanya remove temp message
+          const filtered = prev.filter((msg) => msg.id !== tempMessageId);
+          // Update cache
+          if (selectedUserId) {
+            messagesCacheRef.current.set(selectedUserId, filtered);
+          }
+          return filtered;
+        }
         
-        if (!realMessageExists) {
-          // Add real message, sort by createdAt
-          const updated = [...filtered, response.data.directMessage].sort((a, b) => 
+        // Real message belum ada, replace temp dengan real message
+        // Pastikan temp message ada sebelum replace
+        const tempMessageExists = prev.some((msg) => msg.id === tempMessageId);
+        
+        if (tempMessageExists) {
+          // Replace temp dengan real
+          const updated = prev.map((msg) => {
+            if (msg.id === tempMessageId) {
+              return realMessage;
+            }
+            return msg;
+          });
+          
+          // Sort by createdAt to maintain order
+          updated.sort((a, b) => 
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           );
+          
+          // Update cache
+          if (selectedUserId) {
+            messagesCacheRef.current.set(selectedUserId, updated);
+          }
+          return updated;
+        } else {
+          // Temp message tidak ada, tambahkan real message
+          const updated = [...prev, realMessage].sort((a, b) => 
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+          
           // Update cache
           if (selectedUserId) {
             messagesCacheRef.current.set(selectedUserId, updated);
           }
           return updated;
         }
-        
-        // Update cache
-        if (selectedUserId) {
-          messagesCacheRef.current.set(selectedUserId, filtered);
-        }
-        return filtered;
       });
+      
+      // Scroll to bottom setelah message tersimpan di database
+      shouldAutoScrollRef.current = true; // Force scroll setelah send message
+      // useEffect akan handle scroll otomatis
+      
       refreshConversationsThrottled();
       toast.success("Media berhasil dikirim");
     } catch (error: any) {
@@ -854,7 +1076,7 @@ function MessagesPageContent() {
 
   // Original sendMessage for text only
   const sendMessage = async () => {
-    if ((!newMessage.trim() && !selectedMedia) || !selectedUserId || !userId) return;
+    if ((!newMessage.trim() && !selectedMedia) || !selectedUserId || !userId || sending) return;
 
     // If there's selected media, upload it first
     if (selectedMedia) {
@@ -863,6 +1085,9 @@ function MessagesPageContent() {
     }
 
     const messageContent = newMessage.trim();
+    if (!messageContent) return; // Double check
+    
+    setSending(true);
     const tempMessageId = `temp-${Date.now()}-${Math.random()}`;
     
     // Get selected conversation for receiver data
@@ -887,6 +1112,7 @@ function MessagesPageContent() {
       } catch (error) {
         console.error("Error encrypting message:", error);
         toast.error("Gagal mengenkripsi pesan. Mengirim sebagai plain text.");
+        // Continue without encryption
       }
     }
     
@@ -915,7 +1141,16 @@ function MessagesPageContent() {
     };
 
     // Optimistic update - add message immediately
-    setMessages((prev) => [...prev, optimisticMessage]);
+    shouldAutoScrollRef.current = true; // Force scroll setelah send message
+    setMessages((prev) => {
+      const updated = [...prev, optimisticMessage];
+      console.log(`[SendMessage] Added optimistic message, total: ${updated.length}`);
+      // Update cache immediately
+      if (selectedUserId) {
+        messagesCacheRef.current.set(selectedUserId, updated);
+      }
+      return updated;
+    });
     setNewMessage("");
 
     try {
@@ -930,38 +1165,82 @@ function MessagesPageContent() {
       });
 
       // Replace optimistic message with real message from server
-      // Pastikan tidak ada duplikasi dan pesan tidak hilang
+      // GUARANTEE: Message tidak akan hilang - selalu replace atau add
+      const realMessage = response.data.directMessage;
+      
+      if (!realMessage || !realMessage.id) {
+        console.error("[SendMessage] Invalid real message from server:", realMessage);
+        // Don't remove temp message if real message is invalid
+        return;
+      }
+      
       setMessages((prev) => {
-        // Remove temp message
-        const filtered = prev.filter((msg) => msg.id !== tempMessageId);
+        console.log(`[SendMessage] Replacing temp message, prev count: ${prev.length}, tempId: ${tempMessageId}, realId: ${realMessage.id}`);
         
         // Check if real message already exists (from socket or previous update)
-        const realMessageExists = filtered.some((msg) => msg.id === response.data.directMessage.id);
+        const realMessageExists = prev.some((msg) => msg.id === realMessage.id);
         
-        if (!realMessageExists) {
-          // Add real message, sort by createdAt to maintain order
-          const updated = [...filtered, response.data.directMessage].sort((a, b) => 
+        if (realMessageExists) {
+          console.log(`[SendMessage] Real message already exists, removing temp only`);
+          // Real message sudah ada, hanya remove temp message
+          const filtered = prev.filter((msg) => msg.id !== tempMessageId);
+          // Update cache
+          if (selectedUserId) {
+            messagesCacheRef.current.set(selectedUserId, filtered);
+          }
+          return filtered;
+        }
+        
+        // Real message belum ada - PASTIKAN ditambahkan
+        // Cari temp message dan replace, atau tambahkan jika tidak ada
+        const tempIndex = prev.findIndex((msg) => msg.id === tempMessageId);
+        
+        if (tempIndex !== -1) {
+          console.log(`[SendMessage] Replacing temp at index ${tempIndex}`);
+          // Replace temp dengan real message (GUARANTEED - tidak akan hilang)
+          const updated = [...prev];
+          updated[tempIndex] = realMessage;
+          
+          // Sort by createdAt to maintain order
+          updated.sort((a, b) => 
             new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
           );
+          
+          console.log(`[SendMessage] After replace, count: ${updated.length}`);
+          // Update cache
+          if (selectedUserId) {
+            messagesCacheRef.current.set(selectedUserId, updated);
+          }
+          return updated;
+        } else {
+          console.log(`[SendMessage] Temp message not found, adding real message`);
+          // Temp message tidak ada (mungkin sudah di-replace oleh socket), tambahkan real message
+          // GUARANTEED - message tidak akan hilang
+          const updated = [...prev, realMessage].sort((a, b) => 
+            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+          );
+          
+          console.log(`[SendMessage] After add, count: ${updated.length}`);
           // Update cache
           if (selectedUserId) {
             messagesCacheRef.current.set(selectedUserId, updated);
           }
           return updated;
         }
-        
-        // Update cache even if message already exists
-        if (selectedUserId) {
-          messagesCacheRef.current.set(selectedUserId, filtered);
-        }
-        return filtered;
       });
+      
+      // Scroll to bottom setelah message tersimpan di database
+      shouldAutoScrollRef.current = true; // Force scroll setelah send message
+      // useEffect akan handle scroll otomatis
+      
       refreshConversationsThrottled();
     } catch (error: any) {
       console.error("Error sending message:", error);
       setMessages((prev) => prev.filter((msg) => msg.id !== tempMessageId));
       setNewMessage(messageContent);
       toast.error(error.response?.data?.error || "Gagal mengirim pesan");
+    } finally {
+      setSending(false);
     }
   };
 
@@ -1026,7 +1305,11 @@ function MessagesPageContent() {
                         }`}
                       >
                         <div className="flex items-center gap-3">
-                          <div className="relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0">
+                          <div className={`relative w-12 h-12 rounded-full overflow-hidden flex-shrink-0 ${
+                            selectedUserId === conversation.user.id
+                              ? "ring-2 ring-primary-foreground/30"
+                              : "ring-2 ring-border"
+                          }`}>
                             {conversation.user.profilePicture ? (
                               <Image
                                 src={conversation.user.profilePicture}
@@ -1036,8 +1319,12 @@ function MessagesPageContent() {
                                 sizes="48px"
                               />
                             ) : (
-                              <div className="w-full h-full bg-primary/20 flex items-center justify-center">
-                                <User className="h-6 w-6 text-primary" />
+                              <div className={`w-full h-full flex items-center justify-center ${
+                                selectedUserId === conversation.user.id
+                                  ? "bg-primary-foreground/30 text-primary-foreground"
+                                  : "bg-primary/20 text-primary"
+                              }`}>
+                                <User className="h-6 w-6" />
                               </div>
                             )}
                           </div>
@@ -1074,8 +1361,8 @@ function MessagesPageContent() {
             >
               {selectedUserId ? (
                 <>
-                  {/* Header */}
-                  <div className="p-4 border-b border-border flex items-center justify-between">
+                  {/* Header - Sticky */}
+                  <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm p-4 border-b border-border flex items-center justify-between">
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setSelectedUserId(null)}
@@ -1083,7 +1370,7 @@ function MessagesPageContent() {
                       >
                         <ArrowLeft className="h-5 w-5" />
                       </button>
-                      <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                      <div className="relative w-10 h-10 rounded-full overflow-hidden ring-2 ring-border">
                         {selectedConversation?.user.profilePicture ? (
                           <Image
                             src={selectedConversation.user.profilePicture}
@@ -1143,7 +1430,11 @@ function MessagesPageContent() {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto" data-lenis-prevent>
+                  <div 
+                    ref={messagesContainerRef}
+                    className="flex-1 overflow-y-auto" 
+                    data-lenis-prevent
+                  >
                     {loadingMessages && messages.length === 0 ? (
                       <MessageSkeleton count={6} />
                     ) : messages.length === 0 ? (
