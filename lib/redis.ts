@@ -16,7 +16,8 @@ export const getRedisClient = (): Redis => {
       },
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
-      lazyConnect: false, // Auto-connect
+      lazyConnect: true, // Connect manual, jangan auto-connect saat startup
+      connectTimeout: 5000, // Timeout 5 detik
     });
 
     redisClient.on("error", (err) => {
@@ -48,7 +49,8 @@ export const getRedisSubscriber = (): Redis => {
       },
       maxRetriesPerRequest: 3,
       enableReadyCheck: true,
-      lazyConnect: false, // Auto-connect
+      lazyConnect: true, // Connect manual, jangan auto-connect saat startup
+      connectTimeout: 5000, // Timeout 5 detik
     });
 
     redisSubscriber.on("error", (err) => {

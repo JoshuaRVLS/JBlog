@@ -202,18 +202,23 @@ const io = new Server(httpServer, {
   },
 });
 
-// Setup Redis adapter untuk cluster mode (optional)
+// Setup Redis adapter untuk cluster mode (non-blocking)
 // Tanpa Redis: Socket.IO hanya work dalam instance yang sama (user di instance berbeda tidak bisa saling kirim pesan)
 // Dengan Redis: Socket.IO bisa share state antar semua instance (recommended untuk production)
 if (process.env.ENABLE_CLUSTER === "true") {
-  (async () => {
+  // Setup Redis secara async, jangan block server startup
+  setImmediate(async () => {
     try {
       const pubClient = getRedisClient();
       const subClient = getRedisSubscriber();
       
-      await Promise.all([
-        pubClient.ping().catch(() => {}),
-        subClient.ping().catch(() => {}),
+      // Coba ping Redis dengan timeout (lazyConnect akan auto-connect saat ping)
+      await Promise.race([
+        Promise.all([
+          pubClient.ping().catch(() => {}),
+          subClient.ping().catch(() => {}),
+        ]),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Redis timeout")), 5000))
       ]);
       
       io.adapter(createAdapter(pubClient, subClient));
@@ -222,9 +227,9 @@ if (process.env.ENABLE_CLUSTER === "true") {
       console.error("Failed to setup Redis adapter:", error);
       console.warn("WARNING: Socket.IO tidak akan share state antar instance!");
       console.warn("Pesan real-time hanya akan work untuk user di instance yang sama");
-      console.warn("Untuk fix: install Redis dan set ENABLE_CLUSTER=true, atau disable cluster mode");
+      console.warn("Server tetap akan start, tapi install Redis untuk full functionality");
     }
-  })();
+  });
 } else {
   console.log("Socket.IO running tanpa Redis adapter");
   console.log("NOTE: Di cluster mode, Socket.IO hanya work dalam instance yang sama");
@@ -574,7 +579,13 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 8000;
 
 // PM2 cluster mode support - signal ready after server starts
-httpServer.listen(PORT, () => {
+httpServer.listen(PORT, (err?: Error) => {
+  if (err) {
+    console.error(`Failed to start server on port ${PORT}:`, err);
+    process.exit(1);
+    return;
+  }
+  
   // PM2 set NODE_APP_INSTANCE untuk cluster mode (0, 1, 2, ...)
   const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
   const isCluster = process.env.ENABLE_CLUSTER === "true";
@@ -584,14 +595,27 @@ httpServer.listen(PORT, () => {
   console.log(`Socket.IO ready ${isCluster ? "(Cluster Mode)" : "(Single Instance)"}`);
   
   // Kirim signal ke PM2 kalau app sudah ready (untuk wait_ready)
+  // IMPORTANT: Kirim signal segera setelah server listen, jangan tunggu apapun
   if (typeof process.send === "function") {
     try {
       process.send("ready");
-      console.log("PM2 ready signal sent");
+      console.log(`PM2 ready signal sent (Instance: ${instanceId})`);
     } catch (error) {
       console.warn("Could not send PM2 ready signal:", error);
     }
+  } else {
+    console.warn("process.send tidak tersedia - mungkin bukan cluster mode");
   }
+});
+
+// Handle error saat listen
+httpServer.on("error", (err: NodeJS.ErrnoException) => {
+  if (err.code === "EADDRINUSE") {
+    console.error(`Port ${PORT} sudah digunakan`);
+  } else {
+    console.error("Server error:", err);
+  }
+  process.exit(1);
 });
 
 // Shutdown yang proper untuk cluster mode
@@ -635,3 +659,4 @@ const gracefulShutdown = async (signal: string) => {
 
 process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+
