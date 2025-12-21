@@ -193,21 +193,21 @@ export const verifyVerification = async (req: Request, res: Response) => {
             isActive: true,
           },
         });
-        console.log(`✅ Encryption key pair auto-generated for user ${storedCode.userId}`);
+        console.log(`Encryption key pair auto-generated for user ${storedCode.userId}`);
       }
     } catch (keyError: any) {
       // Don't fail verification if key generation fails
-      console.error(`⚠️ Failed to auto-generate encryption key pair:`, keyError);
+      console.error(`Failed to auto-generate encryption key pair:`, keyError);
     }
 
-    console.log(`✅ Email terverifikasi dan user auto login - User ID: ${storedCode.userId}`);
+    console.log(`Email terverifikasi dan user auto login - User ID: ${storedCode.userId}`);
     res.json({ 
       msg: "Verifikasi akun berhasil!",
       userId: storedCode.userId,
       redirectTo: "/profile/finalisation"
     });
   } catch (error) {
-    console.error("❌ Error verifikasi email:", error);
+    console.error("Error verifikasi email:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal verifikasi email" });

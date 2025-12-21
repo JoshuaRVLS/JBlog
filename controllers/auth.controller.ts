@@ -128,10 +128,10 @@ export const loginUser = async (req: Request, res: Response) => {
       ...cookieOptions,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
-    console.log(`✅ Login berhasil - User: ${user.email}`);
+    console.log(`Login berhasil - User: ${user.email}`);
     res.status(StatusCodes.OK).json({ msg: "Login berhasil" });
   } catch (error) {
-    console.error("❌ Error login:", error);
+    console.error("Error login:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal login, coba lagi nanti",
     });
@@ -159,10 +159,10 @@ export const logout = async (req: Request, res: Response) => {
     res.clearCookie("accessToken", cookieOptions);
     res.clearCookie("refreshToken", cookieOptions);
 
-    console.log("✅ Logout berhasil");
+    console.log("Logout berhasil");
     res.json({ msg: "Logout berhasil" });
   } catch (error) {
-    console.error("❌ Error logout:", error);
+    console.error("Error logout:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ msg: "Terjadi kesalahan saat logout" });
@@ -256,10 +256,10 @@ export const refreshToken = async (req: Request, res: Response) => {
       });
     }
 
-    console.log("✅ Refresh token berhasil");
+    console.log("Refresh token berhasil");
     res.json({ userId });
   } catch (error: any) {
-    console.error("❌ Error refresh token:", error);
+    console.error("Error refresh token:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ msg: "Terjadi kesalahan saat refresh token" });
@@ -360,7 +360,7 @@ export const validate = async (req: Request, res: Response) => {
 
     return res.json({ userId: null, authenticated: false });
   } catch (error) {
-    console.error("❌ Error validasi token:", error);
+    console.error("Error validasi token:", error);
     return res.json({ userId: null, authenticated: false });
   }
 };
@@ -428,7 +428,7 @@ export const getSocketToken = async (req: Request, res: Response) => {
       token: null 
     });
   } catch (error) {
-    console.error("❌ Error getting socket token:", error);
+    console.error("Error getting socket token:", error);
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       msg: "Gagal mendapatkan token",
       token: null,

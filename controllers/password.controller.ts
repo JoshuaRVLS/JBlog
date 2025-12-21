@@ -21,7 +21,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
         where: { email },
       });
     } catch (dbError: any) {
-      console.error("❌ Error database di forgotPassword:", dbError);
+      console.error("Error database di forgotPassword:", dbError);
       if (dbError.code === "P2022" || dbError.message?.includes("does not exist")) {
         return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
           error: "Database schema belum di-sync. Jalankan: npx prisma db push && npx prisma generate",
@@ -56,7 +56,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
         },
       });
     } catch (dbError: any) {
-      console.error("❌ Error database membuat reset token:", dbError);
+      console.error("Error database membuat reset token:", dbError);
       if (dbError.code === "P2022" || dbError.message?.includes("does not exist")) {
         return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
           error: "Database schema belum di-sync. Jalankan: npx prisma db push && npx prisma generate",
@@ -109,16 +109,16 @@ export const forgotPassword = async (req: Request, res: Response) => {
         }),
       });
     } catch (error) {
-      console.error("❌ Error kirim email:", error);
+      console.error("Error kirim email:", error);
       // Jangan gagal request jika email gagal
     }
 
-    console.log(`✅ Link reset password dikirim ke: ${user.email}`);
+    console.log(`Link reset password dikirim ke: ${user.email}`);
     res.json({
       msg: "Jika email terdaftar, link reset password sudah dikirim.",
     });
   } catch (error) {
-    console.error("❌ Error forgot password:", error);
+    console.error("Error forgot password:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal memproses request" });
@@ -191,10 +191,10 @@ export const resetPassword = async (req: Request, res: Response) => {
       where: { userId: resetToken.userId },
     });
 
-    console.log(`✅ Password berhasil direset - User: ${resetToken.user.email}`);
+    console.log(`Password berhasil direset - User: ${resetToken.user.email}`);
     res.json({ msg: "Password berhasil direset. Silakan login dengan password baru." });
   } catch (error) {
-    console.error("❌ Error reset password:", error);
+    console.error("Error reset password:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal reset password" });
@@ -225,7 +225,7 @@ export const verifyResetToken = async (req: Request, res: Response) => {
 
     res.json({ valid: true });
   } catch (error) {
-    console.error("❌ Error verifikasi reset token:", error);
+    console.error("Error verifikasi reset token:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal verifikasi token" });

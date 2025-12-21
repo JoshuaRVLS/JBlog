@@ -161,7 +161,7 @@ export const getUserFeed = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error("❌ Error get user feed:", error);
+    console.error("Error get user feed:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil feed",
       details: error.message,

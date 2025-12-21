@@ -79,9 +79,9 @@ export const createComment = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Komentar dibuat - Post: ${postId}, User: ${userId}`);
+    console.log(`Komentar dibuat - Post: ${postId}, User: ${userId}`);
     
-    // Create notifications
+    // Buat notifikasi
     if (parentId) {
       // Reply to comment - notify comment author
       if (comment.parent?.userId) {
@@ -108,7 +108,7 @@ export const createComment = async (req: AuthRequest, res: Response) => {
     
     res.status(StatusCodes.CREATED).json({ msg: "Komentar berhasil dibuat", comment });
   } catch (error) {
-    console.error("❌ Error membuat komentar:", error);
+    console.error("Error membuat komentar:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal membuat komentar" });
@@ -198,7 +198,7 @@ export const getComments = async (req: AuthRequest, res: Response) => {
 
     res.json({ comments: enrichedComments });
   } catch (error) {
-    console.error("❌ Error mengambil komentar:", error);
+    console.error("Error mengambil komentar:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil komentar" });
@@ -280,7 +280,7 @@ export const toggleCommentLike = async (req: AuthRequest, res: Response) => {
       likesCount,
     });
   } catch (error) {
-    console.error("❌ Error toggle like komentar:", error);
+    console.error("Error toggle like komentar:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal toggle like komentar" });
@@ -326,10 +326,10 @@ export const updateComment = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Komentar diupdate - ID: ${id}`);
+    console.log(`Komentar diupdate - ID: ${id}`);
     res.json({ msg: "Komentar berhasil diupdate", comment: updatedComment });
   } catch (error) {
-    console.error("❌ Error update komentar:", error);
+    console.error("Error update komentar:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengupdate komentar" });

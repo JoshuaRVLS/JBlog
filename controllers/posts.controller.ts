@@ -3,7 +3,7 @@ import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
 
-// Helper function to calculate reading time
+// Hitung waktu baca berdasarkan jumlah kata
 const calculateReadingTime = (content: string): number => {
   const wordsPerMinute = 200;
   const text = content.replace(/[#*`]/g, "").trim();
@@ -11,7 +11,7 @@ const calculateReadingTime = (content: string): number => {
   return Math.ceil(wordCount / wordsPerMinute) || 1;
 };
 
-// Helper function to create or get tags
+// Buat atau ambil tag dari database
 const processTags = async (tagNames: string[]) => {
   const tags = [];
   for (const name of tagNames || []) {
@@ -89,12 +89,12 @@ export const createPost = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Post berhasil dibuat - ID: ${post.id}, Judul: ${post.title}`);
+    console.log(`Post berhasil dibuat - ID: ${post.id}, Judul: ${post.title}`);
     res
       .status(StatusCodes.CREATED)
       .json({ msg: "Post berhasil dibuat", post });
   } catch (error) {
-    console.error("❌ Error membuat post:", error);
+    console.error("Error membuat post:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal membuat post" });
@@ -201,10 +201,10 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Post berhasil diupdate - ID: ${id}`);
+    console.log(`Post berhasil diupdate - ID: ${id}`);
     res.json({ msg: "Post berhasil diupdate", post });
   } catch (error) {
-    console.error("❌ Error update post:", error);
+    console.error("Error update post:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengupdate post" });
@@ -253,7 +253,7 @@ export const getUserDrafts = async (req: AuthRequest, res: Response) => {
 
     res.json({ drafts });
   } catch (error) {
-    console.error("❌ Error mengambil drafts:", error);
+    console.error("Error mengambil drafts:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil drafts" });
@@ -303,7 +303,7 @@ export const getScheduledPosts = async (req: AuthRequest, res: Response) => {
 
     res.json({ scheduled });
   } catch (error) {
-    console.error("❌ Error mengambil scheduled posts:", error);
+    console.error("Error mengambil scheduled posts:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil scheduled posts" });
@@ -364,7 +364,7 @@ export const trackPostView = async (req: AuthRequest, res: Response) => {
 
     res.status(StatusCodes.OK).json({ msg: "View tracked" });
   } catch (error: any) {
-    console.error("❌ Error tracking view:", error);
+    console.error("Error tracking view:", error);
     // Don't fail the request if tracking fails
     res.status(StatusCodes.OK).json({ msg: "View tracking skipped" });
   }
@@ -417,7 +417,7 @@ export const getPostVersions = async (req: AuthRequest, res: Response) => {
 
     res.json({ versions });
   } catch (error) {
-    console.error("❌ Error mengambil versi post:", error);
+    console.error("Error mengambil versi post:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil versi post" });
@@ -510,7 +510,7 @@ export const restorePostVersion = async (req: AuthRequest, res: Response) => {
       post: updatedPost,
     });
   } catch (error) {
-    console.error("❌ Error merestore versi post:", error);
+    console.error("Error merestore versi post:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal merestore versi post" });
@@ -545,10 +545,10 @@ export const deletePost = async (req: AuthRequest, res: Response) => {
 
     await db.post.delete({ where: { id } });
 
-    console.log(`✅ Post berhasil dihapus - ID: ${id}`);
+    console.log(`Post berhasil dihapus - ID: ${id}`);
     res.json({ msg: "Post berhasil dihapus" });
   } catch (error) {
-    console.error("❌ Error hapus post:", error);
+    console.error("Error hapus post:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal menghapus post" });
@@ -636,7 +636,7 @@ export const getPost = async (req: AuthRequest, res: Response) => {
       isReposted,
     });
   } catch (error) {
-    console.error("❌ Error mengambil post:", error);
+    console.error("Error mengambil post:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil post" });
@@ -759,7 +759,7 @@ export const getAllPosts = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("❌ Error mengambil posts:", error);
+    console.error("Error mengambil posts:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil posts" });
@@ -782,7 +782,7 @@ export const getTotalViews = async (req: AuthRequest, res: Response) => {
 
     res.json({ totalViews });
   } catch (error) {
-    console.error("❌ Error mengambil total views:", error);
+    console.error("Error mengambil total views:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil total views" });

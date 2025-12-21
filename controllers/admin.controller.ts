@@ -57,7 +57,7 @@ export const getAllUsers = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("❌ Error mengambil semua users:", error);
+    console.error("Error mengambil semua users:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil users" });
@@ -92,10 +92,10 @@ export const updateUserRole = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Role user diupdate - ID: ${id}`);
+    console.log(`Role user diupdate - ID: ${id}`);
     res.json({ msg: "Role user berhasil diupdate", user });
   } catch (error) {
-    console.error("❌ Error update role user:", error);
+    console.error("Error update role user:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengupdate user" });
@@ -116,10 +116,10 @@ export const deleteUser = async (req: AuthRequest, res: Response) => {
 
     await db.user.delete({ where: { id } });
 
-    console.log(`✅ User dihapus - ID: ${id}`);
+    console.log(`User dihapus - ID: ${id}`);
     res.json({ msg: "User berhasil dihapus" });
   } catch (error) {
-    console.error("❌ Error hapus user:", error);
+    console.error("Error hapus user:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal menghapus user" });
@@ -155,7 +155,7 @@ export const getAllAdmins = async (req: AuthRequest, res: Response) => {
 
     res.json({ admins });
   } catch (error) {
-    console.error("❌ Error mengambil semua admins:", error);
+    console.error("Error mengambil semua admins:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil admins" });
@@ -197,10 +197,10 @@ export const createAdmin = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Admin dibuat - User: ${updatedUser.email}`);
+    console.log(`Admin dibuat - User: ${updatedUser.email}`);
     res.json({ msg: "Admin berhasil dibuat", user: updatedUser });
   } catch (error) {
-    console.error("❌ Error membuat admin:", error);
+    console.error("Error membuat admin:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal membuat admin" });
@@ -278,7 +278,7 @@ export const suspendUser = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ User di-suspend - ID: ${id}, Until: ${suspendedUntil || "Permanent"}`);
+    console.log(`User di-suspend - ID: ${id}, Until: ${suspendedUntil || "Permanent"}`);
     res.json({ 
       msg: suspendedUntil 
         ? `User berhasil di-suspend selama ${days} hari` 
@@ -286,7 +286,7 @@ export const suspendUser = async (req: AuthRequest, res: Response) => {
       user: updatedUser 
     });
   } catch (error) {
-    console.error("❌ Error suspend user:", error);
+    console.error("Error suspend user:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal suspend user" });
@@ -319,10 +319,10 @@ export const unsuspendUser = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ User di-unsuspend - ID: ${id}`);
+    console.log(`User di-unsuspend - ID: ${id}`);
     res.json({ msg: "User berhasil di-unsuspend", user: updatedUser });
   } catch (error) {
-    console.error("❌ Error unsuspend user:", error);
+    console.error("Error unsuspend user:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal unsuspend user" });
@@ -387,7 +387,7 @@ export const getAllPostsAdmin = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error) {
-    console.error("❌ Error mengambil semua posts (admin):", error);
+    console.error("Error mengambil semua posts (admin):", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil posts" });
@@ -407,10 +407,10 @@ export const deletePostAdmin = async (req: AuthRequest, res: Response) => {
 
     await db.post.delete({ where: { id } });
 
-    console.log(`✅ Post dihapus oleh admin - ID: ${id}`);
+    console.log(`Post dihapus oleh admin - ID: ${id}`);
     res.json({ msg: "Post berhasil dihapus" });
   } catch (error) {
-    console.error("❌ Error hapus post (admin):", error);
+    console.error("Error hapus post (admin):", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal menghapus post" });
@@ -448,10 +448,10 @@ export const updatePostAdmin = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Post diupdate oleh admin - ID: ${id}`);
+    console.log(`Post diupdate oleh admin - ID: ${id}`);
     res.json({ msg: "Post berhasil diupdate", post: updatedPost });
   } catch (error) {
-    console.error("❌ Error update post (admin):", error);
+    console.error("Error update post (admin):", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengupdate post" });
@@ -481,7 +481,7 @@ export const getMaintenanceMode = async (req: AuthRequest, res: Response) => {
       message: setting.description || null,
     });
   } catch (error: any) {
-    console.error("❌ Error get maintenance mode:", error);
+    console.error("Error get maintenance mode:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil status maintenance mode",
       details: error.message,
@@ -530,7 +530,7 @@ export const toggleMaintenanceMode = async (req: AuthRequest, res: Response) => 
       message: setting.description || null,
     });
   } catch (error: any) {
-    console.error("❌ Error toggle maintenance mode:", error);
+    console.error("Error toggle maintenance mode:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal update maintenance mode",
       details: error.message,

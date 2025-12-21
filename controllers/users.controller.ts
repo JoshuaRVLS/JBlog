@@ -61,7 +61,7 @@ export const createUser = async (req: Request, res: Response) => {
     });
 
     // Don't auto-login, user needs to verify email first
-    console.log(`✅ User berhasil dibuat - User: ${user.email}`);
+    console.log(`User berhasil dibuat - User: ${user.email}`);
     res.status(StatusCodes.CREATED).json({
       msg: "Registrasi berhasil! Silakan cek email kamu untuk kode verifikasi.",
       user: { id: user.id, email: user.email, name: user.name },
@@ -70,13 +70,13 @@ export const createUser = async (req: Request, res: Response) => {
   } catch (error: any) {
     // Handle unique constraint violation (email already exists)
     if (error.code === "P2002") {
-      console.log(`⚠️ Email sudah terdaftar: ${req.body?.email || "unknown"}`);
+      console.log(`Email sudah terdaftar: ${req.body?.email || "unknown"}`);
       return res
         .status(StatusCodes.CONFLICT)
         .json({ msg: "Email sudah terdaftar", error: "Email sudah terdaftar" });
     }
     
-    console.error("❌ Error membuat user:", error);
+    console.error("Error membuat user:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ msg: "Gagal membuat user", error: "Gagal membuat user" });
@@ -131,7 +131,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
 
     res.json(user);
   } catch (error) {
-    console.error("❌ Error mengambil user:", error);
+    console.error("Error mengambil user:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil user" });
@@ -161,7 +161,7 @@ export const updateUserProfile = async (req: Request, res: Response) => {
 
     res.json({ msg: "Profile berhasil diupdate", user });
   } catch (error) {
-    console.error("❌ Error update profile:", error);
+    console.error("Error update profile:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengupdate profile" });
@@ -191,7 +191,7 @@ export const changePassword = async (req: Request, res: Response) => {
 
     res.json({ msg: "Password berhasil diubah" });
   } catch (error) {
-    console.error("❌ Error mengubah password:", error);
+    console.error("Error mengubah password:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengubah password" });
@@ -217,13 +217,13 @@ export const changeEmail = async (req: Request, res: Response) => {
   } catch (error: any) {
     // Handle unique constraint violation (email already exists)
     if (error.code === "P2002") {
-      console.log(`⚠️ Email sudah terdaftar: ${req.body?.newEmail || "unknown"}`);
+      console.log(`Email sudah terdaftar: ${req.body?.newEmail || "unknown"}`);
       return res
         .status(StatusCodes.CONFLICT)
         .json({ msg: "Email sudah terdaftar", error: "Email sudah terdaftar" });
     }
     
-    console.error("❌ Error mengubah email:", error);
+    console.error("Error mengubah email:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ msg: "Gagal mengubah email", error: "Gagal mengubah email" });
@@ -385,8 +385,8 @@ export const getUserActivity = async (req: AuthRequest, res: Response) => {
 
     res.json({ activity });
   } catch (error: any) {
-    console.error("❌ Error mengambil activity:", error);
-    console.error("❌ Error details:", {
+    console.error("Error mengambil activity:", error);
+    console.error("Error details:", {
       message: error.message,
       stack: error.stack,
       userId: req.userId,
@@ -447,7 +447,7 @@ export const getFollowStatus = async (req: AuthRequest, res: Response) => {
       shouldFollowBack,
     });
   } catch (error: any) {
-    console.error("❌ Error get follow status:", error);
+    console.error("Error get follow status:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil follow status",
       details: error.message,
@@ -506,14 +506,14 @@ export const followUser = async (req: AuthRequest, res: Response) => {
 
     const isFriend = !!reverseFollow;
 
-    console.log(`✅ User ${userId} follow user ${targetUserId}${isFriend ? " (now friends!)" : ""}`);
+    console.log(`User ${userId} follow user ${targetUserId}${isFriend ? " (now friends!)" : ""}`);
     res.json({
       msg: isFriend ? "Berhasil follow! Sekarang kalian sudah berteman!" : "Berhasil follow user",
       follow,
       isFriend,
     });
   } catch (error: any) {
-    console.error("❌ Error follow user:", error);
+    console.error("Error follow user:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal follow user",
       details: error.message,
@@ -542,10 +542,10 @@ export const unfollowUser = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ User ${userId} unfollow user ${targetUserId}`);
+    console.log(`User ${userId} unfollow user ${targetUserId}`);
     res.json({ msg: "Berhasil unfollow user" });
   } catch (error: any) {
-    console.error("❌ Error unfollow user:", error);
+    console.error("Error unfollow user:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal unfollow user",
       details: error.message,
@@ -655,7 +655,7 @@ export const getUserLocations = async (req: Request, res: Response) => {
       totalUsers,
     });
   } catch (error) {
-    console.error("❌ Error mengambil user locations:", error);
+    console.error("Error mengambil user locations:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil user locations" });

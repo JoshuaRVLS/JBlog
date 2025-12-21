@@ -89,7 +89,7 @@ export const uploadImage = async (req: AuthRequest, res: Response) => {
       });
 
     if (error) {
-      console.error("❌ Error upload ke Supabase:", error);
+      console.error("Error upload ke Supabase:", error);
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         error: "Gagal upload image ke storage",
         details: error.message,
@@ -101,14 +101,14 @@ export const uploadImage = async (req: AuthRequest, res: Response) => {
       .from(BUCKETS.IMAGES)
       .getPublicUrl(filePath);
 
-    console.log(`✅ Image berhasil diupload ke Supabase - ${filePath}`);
+    console.log(`Image berhasil diupload ke Supabase - ${filePath}`);
     res.status(StatusCodes.OK).json({
       msg: "Image berhasil diupload",
       url: urlData.publicUrl,
       path: filePath,
     });
   } catch (error: any) {
-    console.error("❌ Error upload image:", error);
+    console.error("Error upload image:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal upload image",
       details: error.message,
@@ -184,7 +184,7 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
       });
 
     if (error) {
-      console.error("❌ Error upload avatar ke Supabase:", error);
+      console.error("Error upload avatar ke Supabase:", error);
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         error: "Gagal upload avatar ke storage",
         details: error.message,
@@ -196,14 +196,14 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
       .from(BUCKETS.AVATARS)
       .getPublicUrl(filePath);
 
-    console.log(`✅ Avatar berhasil diupload ke Supabase - ${filePath}`);
+    console.log(`Avatar berhasil diupload ke Supabase - ${filePath}`);
     res.status(StatusCodes.OK).json({
       msg: "Avatar berhasil diupload",
       url: urlData.publicUrl,
       path: filePath,
     });
   } catch (error: any) {
-    console.error("❌ Error upload avatar:", error);
+    console.error("Error upload avatar:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal upload avatar",
       details: error.message,
@@ -259,7 +259,7 @@ export const uploadChatMedia = async (req: AuthRequest, res: Response) => {
       });
 
     if (error) {
-      console.error("❌ Error upload media ke Supabase:", error);
+      console.error("Error upload media ke Supabase:", error);
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         error: "Gagal upload media ke storage",
         details: error.message,
@@ -279,7 +279,7 @@ export const uploadChatMedia = async (req: AuthRequest, res: Response) => {
       mediaType = "audio";
     }
 
-    console.log(`✅ Media berhasil diupload ke Supabase - ${filePath} (${mediaType})`);
+    console.log(`Media berhasil diupload ke Supabase - ${filePath} (${mediaType})`);
     res.status(StatusCodes.OK).json({
       msg: "Media berhasil diupload",
       url: urlData.publicUrl,
@@ -288,7 +288,7 @@ export const uploadChatMedia = async (req: AuthRequest, res: Response) => {
       mimetype: file.mimetype,
     });
   } catch (error: any) {
-    console.error("❌ Error upload media:", error);
+    console.error("Error upload media:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal upload media",
       details: error.message,

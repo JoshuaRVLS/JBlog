@@ -45,7 +45,7 @@ export const getJPlusStatus = async (req: AuthRequest, res: Response) => {
         : null,
     });
   } catch (error: any) {
-    console.error("❌ Error getting J+ status:", error);
+    console.error("Error getting J+ status:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil status J+",
       details: error.message,
@@ -93,7 +93,7 @@ export const upgradeToJPlus = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error("❌ Error upgrading to J+:", error);
+    console.error("Error upgrading to J+:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengaktifkan J+",
       details: error.message,
@@ -124,7 +124,7 @@ export const cancelJPlus = async (req: AuthRequest, res: Response) => {
       message: "J+ berhasil dibatalkan",
     });
   } catch (error: any) {
-    console.error("❌ Error canceling J+:", error);
+    console.error("Error canceling J+:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal membatalkan J+",
       details: error.message,

@@ -78,7 +78,7 @@ export const createNotification = async (data: {
 
     return notification;
   } catch (error) {
-    console.error("❌ Error creating notification:", error);
+    console.error("Error creating notification:", error);
     return null;
   }
 };
@@ -187,7 +187,7 @@ export const getNotifications = async (req: AuthRequest, res: Response) => {
 
     res.json({ notifications: groupedNotifications });
   } catch (error: any) {
-    console.error("❌ Error fetching notifications:", error);
+    console.error("Error fetching notifications:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil notifications",
       details: error.message,
@@ -212,7 +212,7 @@ export const getUnreadCount = async (req: AuthRequest, res: Response) => {
 
     res.json({ count });
   } catch (error: any) {
-    console.error("❌ Error fetching unread count:", error);
+    console.error("Error fetching unread count:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil unread count",
       details: error.message,
@@ -255,7 +255,7 @@ export const markAsRead = async (req: AuthRequest, res: Response) => {
 
     res.json({ msg: "Notifikasi ditandai sebagai sudah dibaca" });
   } catch (error: any) {
-    console.error("❌ Error marking notification as read:", error);
+    console.error("Error marking notification as read:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal menandai notifikasi",
       details: error.message,
@@ -278,7 +278,7 @@ export const markAllAsRead = async (req: AuthRequest, res: Response) => {
 
     res.json({ msg: "Semua notifikasi ditandai sebagai sudah dibaca" });
   } catch (error: any) {
-    console.error("❌ Error marking all notifications as read:", error);
+    console.error("Error marking all notifications as read:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal menandai semua notifikasi",
       details: error.message,

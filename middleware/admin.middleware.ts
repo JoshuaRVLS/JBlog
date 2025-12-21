@@ -24,7 +24,7 @@ export const requireAdmin = async (
 
     next();
   } catch (error) {
-    console.error("❌ Error admin middleware:", error);
+    console.error("Error admin middleware:", error);
     return res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal verifikasi akses admin" });

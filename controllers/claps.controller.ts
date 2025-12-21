@@ -35,7 +35,7 @@ export const toggleClap = async (req: AuthRequest, res: Response) => {
           },
         },
       });
-      console.log(`✅ Clap dihapus - Post: ${postId}, User: ${userId}`);
+      console.log(`Clap dihapus - Post: ${postId}, User: ${userId}`);
       return res.json({ msg: "Clap dihapus", clapped: false });
     } else {
       // Tambah clap
@@ -52,7 +52,7 @@ export const toggleClap = async (req: AuthRequest, res: Response) => {
           },
         },
       });
-      console.log(`✅ Clap ditambahkan - Post: ${postId}, User: ${userId}`);
+      console.log(`Clap ditambahkan - Post: ${postId}, User: ${userId}`);
       
       // Create notification untuk post author
       if (clap.post.authorId) {
@@ -67,7 +67,7 @@ export const toggleClap = async (req: AuthRequest, res: Response) => {
       return res.json({ msg: "Clap ditambahkan", clapped: true });
     }
   } catch (error) {
-    console.error("❌ Error toggle clap:", error);
+    console.error("Error toggle clap:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal toggle clap" });
@@ -99,7 +99,7 @@ export const getClapsCount = async (req: AuthRequest, res: Response) => {
       hasClapped: !!hasClapped,
     });
   } catch (error) {
-    console.error("❌ Error mengambil jumlah clap:", error);
+    console.error("Error mengambil jumlah clap:", error);
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengambil jumlah clap" });

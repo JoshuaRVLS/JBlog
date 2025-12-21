@@ -33,13 +33,13 @@ export const createReport = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Report dibuat - ID: ${report.id}, Type: ${report.type}`);
+    console.log(`Report dibuat - ID: ${report.id}, Type: ${report.type}`);
     res.status(StatusCodes.CREATED).json({
       msg: "Report berhasil dikirim. Terima kasih atas feedbacknya!",
       report,
     });
   } catch (error: any) {
-    console.error("❌ Error membuat report:", error);
+    console.error("Error membuat report:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal membuat report",
       details: error.message,
@@ -93,7 +93,7 @@ export const getAllReports = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error("❌ Error mengambil reports:", error);
+    console.error("Error mengambil reports:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil reports",
       details: error.message,
@@ -126,7 +126,7 @@ export const getReport = async (req: AuthRequest, res: Response) => {
 
     res.json(report);
   } catch (error: any) {
-    console.error("❌ Error mengambil report:", error);
+    console.error("Error mengambil report:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil report",
       details: error.message,
@@ -160,10 +160,10 @@ export const updateReportStatus = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Report status diupdate - ID: ${id}, Status: ${status}`);
+    console.log(`Report status diupdate - ID: ${id}, Status: ${status}`);
     res.json({ msg: "Status report berhasil diupdate", report });
   } catch (error: any) {
-    console.error("❌ Error update report status:", error);
+    console.error("Error update report status:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengupdate status report",
       details: error.message,
@@ -178,10 +178,10 @@ export const deleteReport = async (req: AuthRequest, res: Response) => {
 
     await db.report.delete({ where: { id } });
 
-    console.log(`✅ Report dihapus - ID: ${id}`);
+    console.log(`Report dihapus - ID: ${id}`);
     res.json({ msg: "Report berhasil dihapus" });
   } catch (error: any) {
-    console.error("❌ Error hapus report:", error);
+    console.error("Error hapus report:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal menghapus report",
       details: error.message,

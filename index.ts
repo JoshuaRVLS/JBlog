@@ -37,8 +37,8 @@ import { Server } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { verify } from "./lib/jwt";
 import { createNotification } from "./controllers/notifications.controller";
-import { setIO } from "./lib/socket";
-import { getRedisClient, getRedisSubscriber } from "./lib/redis";
+import { setIO, getIO } from "./lib/socket";
+import { getRedisClient, getRedisSubscriber, closeRedisConnections } from "./lib/redis";
 import { checkMaintenanceMode } from "./middleware/maintenance.middleware";
 
 const app = express();
@@ -61,10 +61,10 @@ app.use(cookieParser(process.env.COOKIE_SECRET));
 // Custom morgan format dengan bahasa Indonesia
 morgan.token("status-indo", (req: any, res: any) => {
   const status = res.statusCode;
-  if (status >= 500) return "❌ Server Error";
-  if (status >= 400) return "⚠️ Client Error";
-  if (status >= 300) return "↪️ Redirect";
-  return "✅ Success";
+  if (status >= 500) return "Server Error";
+  if (status >= 400) return "Client Error";
+  if (status >= 300) return "Redirect";
+  return "Success";
 });
 
 app.use(
@@ -131,14 +131,14 @@ const publishScheduledPosts = async () => {
           scheduledAt: null, // Clear scheduledAt after publishing
         },
       });
-      console.log(`✅ Published scheduled post: ${post.id} - ${post.title}`);
+      console.log(`Published scheduled post: ${post.id} - ${post.title}`);
     }
 
     if (scheduledPosts.length > 0) {
-      console.log(`✅ Published ${scheduledPosts.length} scheduled post(s)`);
+      console.log(`Published ${scheduledPosts.length} scheduled post(s)`);
     }
   } catch (error) {
-    console.error("❌ Error publishing scheduled posts:", error);
+    console.error("Error publishing scheduled posts:", error);
   }
 };
 
@@ -202,31 +202,32 @@ const io = new Server(httpServer, {
   },
 });
 
-// Setup Redis adapter for cluster mode (after io is created)
-// Note: This is async but doesn't block server startup
+// Setup Redis adapter untuk cluster mode (optional)
+// Tanpa Redis: Socket.IO hanya work dalam instance yang sama (user di instance berbeda tidak bisa saling kirim pesan)
+// Dengan Redis: Socket.IO bisa share state antar semua instance (recommended untuk production)
 if (process.env.ENABLE_CLUSTER === "true") {
   (async () => {
     try {
       const pubClient = getRedisClient();
       const subClient = getRedisSubscriber();
       
-      // ioredis auto-connects, but we can wait for ready
       await Promise.all([
         pubClient.ping().catch(() => {}),
         subClient.ping().catch(() => {}),
       ]);
       
       io.adapter(createAdapter(pubClient, subClient));
-      console.log("✅ Socket.IO Redis Adapter enabled for cluster mode");
+      console.log("Socket.IO Redis Adapter enabled - semua instance bisa share state");
     } catch (error) {
-      console.error("❌ Failed to setup Redis adapter, falling back to in-memory:", error);
-      console.warn("⚠️  Socket.IO will work but won't share state across workers");
-      console.warn("⚠️  Make sure Redis is running and ENABLE_CLUSTER=true in .env");
-      // Don't crash - continue without Redis adapter
+      console.error("Failed to setup Redis adapter:", error);
+      console.warn("WARNING: Socket.IO tidak akan share state antar instance!");
+      console.warn("Pesan real-time hanya akan work untuk user di instance yang sama");
+      console.warn("Untuk fix: install Redis dan set ENABLE_CLUSTER=true, atau disable cluster mode");
     }
   })();
 } else {
-  console.log("ℹ️  Socket.IO running in single-instance mode (no Redis adapter)");
+  console.log("Socket.IO running tanpa Redis adapter");
+  console.log("NOTE: Di cluster mode, Socket.IO hanya work dalam instance yang sama");
 }
 
 // Make Socket.IO instance accessible from other modules
@@ -258,14 +259,14 @@ io.use(async (socket, next) => {
   }
 });
 
-// Socket.IO connection handler
+// Handle koneksi socket
 io.on("connection", (socket) => {
-  console.log(`✅ User connected: ${socket.data.user.name} (${socket.data.userId})`);
-  console.log(`🔌 Socket ID: ${socket.id}, Joined room: user:${socket.data.userId}`);
+  console.log(`User connected: ${socket.data.user.name} (${socket.data.userId})`);
+  console.log(`Socket ID: ${socket.id}, Joined room: user:${socket.data.userId}`);
   
-  // Join user's personal notification room
+  // Join room untuk notifikasi user
   socket.join(`user:${socket.data.userId}`);
-  console.log(`✅ User ${socket.data.userId} joined room user:${socket.data.userId}`);
+  console.log(`User ${socket.data.userId} joined room user:${socket.data.userId}`);
 
   // Join group chat room
   socket.on("join-group", async (groupId: string) => {
@@ -295,7 +296,7 @@ io.on("connection", (socket) => {
       }
 
       socket.join(`group:${groupId}`);
-      console.log(`✅ User ${socket.data.user.name} joined group ${groupId}`);
+      console.log(`User ${socket.data.user.name} joined group ${groupId}`);
 
       // Notify others in the group
       socket.to(`group:${groupId}`).emit("user-joined", {
@@ -303,7 +304,7 @@ io.on("connection", (socket) => {
         userName: socket.data.user.name,
       });
     } catch (error: any) {
-      console.error("❌ Error joining group:", error);
+      console.error("Error joining group:", error);
       socket.emit("error", { msg: "Gagal join group" });
     }
   });
@@ -311,7 +312,7 @@ io.on("connection", (socket) => {
   // Leave group chat room
   socket.on("leave-group", (groupId: string) => {
     socket.leave(`group:${groupId}`);
-    console.log(`✅ User ${socket.data.user.name} left group ${groupId}`);
+    console.log(`User ${socket.data.user.name} left group ${groupId}`);
   });
 
   // Typing indicator
@@ -347,7 +348,7 @@ io.on("connection", (socket) => {
         userName: socket.data.user.name,
       });
     } catch (error: any) {
-      console.error("❌ Error handling typing:", error);
+      console.error("Error handling typing:", error);
     }
   });
 
@@ -383,7 +384,7 @@ io.on("connection", (socket) => {
         userId: socket.data.userId,
       });
     } catch (error: any) {
-      console.error("❌ Error handling stop typing:", error);
+      console.error("Error handling stop typing:", error);
     }
   });
 
@@ -472,7 +473,7 @@ io.on("connection", (socket) => {
         }
       }
 
-      // OPTIMIZATION: Emit message IMMEDIATELY before database write (real-time like WhatsApp)
+      // Kirim pesan langsung ke semua user sebelum save ke database (biar lebih cepat)
       const tempMessageId = `temp-${Date.now()}-${Math.random()}`;
       const optimisticMessage = {
         id: tempMessageId,
@@ -493,10 +494,10 @@ io.on("connection", (socket) => {
         reads: [],
       };
 
-      // Emit IMMEDIATELY to all group members (before database write)
+      // Broadcast pesan ke semua member group
       io.to(`group:${groupId}`).emit("new-message", optimisticMessage);
 
-      // Save message to database in parallel (non-blocking)
+      // Save ke database
       const message = await db.message.create({
         data: {
           content: encryptedContent ? "" : (content?.trim() || ""),
@@ -524,14 +525,14 @@ io.on("connection", (socket) => {
         },
       });
 
-      // Update optimistic message with real ID (async, non-blocking)
+      // Update pesan dengan ID yang beneran dari database
       io.to(`group:${groupId}`).emit("message-updated", {
         tempId: tempMessageId,
         realId: message.id,
         message,
       });
 
-      // Create notifications for mentioned users (async, non-blocking)
+      // Buat notifikasi untuk user yang di-mention
       Promise.all(
         mentionedUserIds.map(async (mentionedUserId) => {
           try {
@@ -543,7 +544,7 @@ io.on("connection", (socket) => {
               groupChatId: groupId,
             });
             
-            // Emit real-time notification
+            // Kirim notifikasi real-time
             io.to(`user:${mentionedUserId}`).emit("new-notification", notification);
           } catch (err) {
             console.error("Error creating mention notification:", err);
@@ -551,22 +552,22 @@ io.on("connection", (socket) => {
         })
       ).catch((err) => console.error("Error in notification creation:", err));
 
-      // Update group chat updatedAt (async, non-blocking)
+      // Update timestamp group chat
       db.groupChat.update({
         where: { id: groupId },
         data: { updatedAt: new Date() },
       }).catch((err) => console.error("Error updating group chat:", err));
 
-      console.log(`✅ Message sent in group ${groupId} by ${socket.data.user.name} (type: ${type})`);
+      console.log(`Message sent in group ${groupId} by ${socket.data.user.name} (type: ${type})`);
     } catch (error: any) {
-      console.error("❌ Error sending message:", error);
+      console.error("Error sending message:", error);
       socket.emit("error", { msg: "Gagal mengirim pesan" });
     }
   });
 
   // Handle disconnect
   socket.on("disconnect", () => {
-    console.log(`❌ User disconnected: ${socket.data.user.name}`);
+    console.log(`User disconnected: ${socket.data.user.name}`);
   });
 });
 
@@ -574,36 +575,63 @@ const PORT = process.env.PORT || 8000;
 
 // PM2 cluster mode support - signal ready after server starts
 httpServer.listen(PORT, () => {
-  const instanceId = process.env.INSTANCE_ID || "single";
-  console.log(`🚀 Server berjalan di http://localhost:${PORT} (Instance: ${instanceId})`);
-  console.log(`📝 API tersedia di http://localhost:${PORT}/api`);
-  console.log(`🔌 Socket.IO ready ${process.env.ENABLE_CLUSTER === "true" ? "(Cluster Mode)" : "(Single Instance)"}`);
+  // PM2 set NODE_APP_INSTANCE untuk cluster mode (0, 1, 2, ...)
+  const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
+  const isCluster = process.env.ENABLE_CLUSTER === "true";
   
-  // Signal PM2 that the app is ready (for wait_ready option)
-  // In cluster mode, process.send is available
+  console.log(`Server berjalan di http://localhost:${PORT} (Instance: ${instanceId})`);
+  console.log(`API tersedia di http://localhost:${PORT}/api`);
+  console.log(`Socket.IO ready ${isCluster ? "(Cluster Mode)" : "(Single Instance)"}`);
+  
+  // Kirim signal ke PM2 kalau app sudah ready (untuk wait_ready)
   if (typeof process.send === "function") {
     try {
       process.send("ready");
-      console.log("✅ PM2 ready signal sent");
+      console.log("PM2 ready signal sent");
     } catch (error) {
-      console.warn("⚠️  Could not send PM2 ready signal:", error);
+      console.warn("Could not send PM2 ready signal:", error);
     }
   }
 });
 
-// Graceful shutdown
-process.on("SIGINT", async () => {
-  console.log("\n🛑 Shutting down gracefully...");
-  httpServer.close(() => {
-    console.log("✅ HTTP server closed");
-    process.exit(0);
+// Shutdown yang proper untuk cluster mode
+const gracefulShutdown = async (signal: string) => {
+  console.log(`\nReceived ${signal}, shutting down gracefully...`);
+  
+  // Tutup HTTP server (stop accepting new connections)
+  httpServer.close(async () => {
+    console.log("HTTP server closed");
+    
+    try {
+      // Tutup Socket.IO
+      const io = getIO();
+      if (io) {
+        io.close();
+        console.log("Socket.IO closed");
+      }
+      
+      // Tutup Redis connections
+      await closeRedisConnections();
+      console.log("Redis connections closed");
+      
+      // Tutup database connections (sudah di-handle di db.ts tapi kita pastikan)
+      await db.$disconnect();
+      console.log("Database connections closed");
+      
+      console.log("Graceful shutdown completed");
+      process.exit(0);
+    } catch (error) {
+      console.error("Error during graceful shutdown:", error);
+      process.exit(1);
+    }
   });
-});
+  
+  // Force exit setelah 10 detik kalau masih belum selesai
+  setTimeout(() => {
+    console.error("Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000);
+};
 
-process.on("SIGTERM", async () => {
-  console.log("\n🛑 Shutting down gracefully...");
-  httpServer.close(() => {
-    console.log("✅ HTTP server closed");
-    process.exit(0);
-  });
-});
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));

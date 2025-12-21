@@ -68,13 +68,13 @@ export const bookmarkPost = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ User ${userId} bookmarked post ${postId}`);
+    console.log(`User ${userId} bookmarked post ${postId}`);
     res.json({
       message: "Post berhasil di-bookmark",
       bookmark,
     });
   } catch (error: any) {
-    console.error("❌ Error bookmark post:", error);
+    console.error("Error bookmark post:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal bookmark post",
       details: error.message,
@@ -124,10 +124,10 @@ export const unbookmarkPost = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ User ${userId} unbookmarked post ${postId}`);
+    console.log(`User ${userId} unbookmarked post ${postId}`);
     res.json({ message: "Post berhasil di-unbookmark" });
   } catch (error: any) {
-    console.error("❌ Error unbookmark post:", error);
+    console.error("Error unbookmark post:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal unbookmark post",
       details: error.message,
@@ -196,7 +196,7 @@ export const getBookmarkedPosts = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error("❌ Error get bookmarked posts:", error);
+    console.error("Error get bookmarked posts:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil bookmarked posts",
       details: error.message,
@@ -229,7 +229,7 @@ export const checkBookmarkStatus = async (req: AuthRequest, res: Response) => {
 
     res.json({ isBookmarked: !!bookmark });
   } catch (error: any) {
-    console.error("❌ Error check bookmark status:", error);
+    console.error("Error check bookmark status:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal cek bookmark status",
       details: error.message,

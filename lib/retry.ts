@@ -1,21 +1,11 @@
-/**
- * Retry utility for database queries and other operations
- * Helps handle transient errors like connection timeouts
- */
+// Utility untuk retry operasi yang gagal, khususnya untuk error timeout database
 
 interface RetryOptions {
   maxRetries?: number;
-  delay?: number; // Initial delay in milliseconds
-  backoff?: number; // Exponential backoff multiplier
+  delay?: number; // delay awal dalam ms
+  backoff?: number; // multiplier untuk exponential backoff
   onRetry?: (error: Error, attempt: number) => void;
 }
-
-/**
- * Retry a function with exponential backoff
- * @param fn Function to retry
- * @param options Retry configuration
- * @returns Result of the function
- */
 export async function retry<T>(
   fn: () => Promise<T>,
   options: RetryOptions = {}
@@ -35,30 +25,30 @@ export async function retry<T>(
     } catch (error) {
       lastError = error as Error;
       
-      // Don't retry on last attempt
+      // Kalau sudah attempt terakhir, langsung throw error
       if (attempt === maxRetries) {
         throw lastError;
       }
 
-      // Check if error is retryable (timeout, connection errors)
+      // Cek apakah error bisa di-retry (timeout, connection error, dll)
       const isRetryable = isRetryableError(error as Error);
       if (!isRetryable) {
         throw lastError;
       }
 
-      // Calculate delay with exponential backoff
+      // Hitung delay dengan exponential backoff
       const waitTime = delay * Math.pow(backoff, attempt);
       
       if (onRetry) {
         onRetry(lastError, attempt + 1);
       } else {
         console.warn(
-          `⚠️ Retry attempt ${attempt + 1}/${maxRetries} after ${waitTime}ms:`,
+          `Retry attempt ${attempt + 1}/${maxRetries} setelah ${waitTime}ms:`,
           lastError.message
         );
       }
 
-      // Wait before retrying
+      // Tunggu sebentar sebelum retry lagi
       await new Promise((resolve) => setTimeout(resolve, waitTime));
     }
   }
@@ -66,16 +56,12 @@ export async function retry<T>(
   throw lastError!;
 }
 
-/**
- * Check if an error is retryable
- * @param error Error to check
- * @returns True if error is retryable
- */
+// Cek apakah error bisa di-retry atau tidak
 function isRetryableError(error: Error): boolean {
   const errorMessage = error.message.toLowerCase();
   const errorName = error.name.toLowerCase();
 
-  // Connection timeout errors
+  // Error timeout atau connection
   if (
     errorMessage.includes("timeout") ||
     errorMessage.includes("connection") ||
@@ -86,7 +72,7 @@ function isRetryableError(error: Error): boolean {
     return true;
   }
 
-  // PostgreSQL specific errors
+  // Error khusus PostgreSQL/Prisma
   if (
     errorName.includes("timeout") ||
     errorMessage.includes("pg") ||
@@ -95,7 +81,7 @@ function isRetryableError(error: Error): boolean {
     return true;
   }
 
-  // Network errors
+  // Error network
   if (
     errorMessage.includes("network") ||
     errorMessage.includes("socket") ||
@@ -107,12 +93,7 @@ function isRetryableError(error: Error): boolean {
   return false;
 }
 
-/**
- * Retry a database query with automatic retry on timeout
- * @param queryFn Query function to retry
- * @param options Retry configuration
- * @returns Query result
- */
+// Retry khusus untuk database query
 export async function retryQuery<T>(
   queryFn: () => Promise<T>,
   options: RetryOptions = {}
@@ -123,7 +104,7 @@ export async function retryQuery<T>(
     backoff: 2,
     onRetry: (error, attempt) => {
       console.warn(
-        `🔄 Retrying database query (attempt ${attempt}):`,
+        `Retrying database query (attempt ${attempt}):`,
         error.message
       );
     },

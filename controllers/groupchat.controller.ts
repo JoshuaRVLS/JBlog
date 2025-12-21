@@ -58,7 +58,7 @@ export const getAllGroupChats = async (req: AuthRequest, res: Response) => {
 
     res.json({ groupChats });
   } catch (error: any) {
-    console.error("❌ Error mengambil group chats:", error);
+    console.error("Error mengambil group chats:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil group chats",
       details: error.message,
@@ -121,7 +121,7 @@ export const getGroupChat = async (req: AuthRequest, res: Response) => {
 
     res.json({ groupChat });
   } catch (error: any) {
-    console.error("❌ Error mengambil group chat:", error);
+    console.error("Error mengambil group chat:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil group chat",
       details: error.message,
@@ -179,13 +179,13 @@ export const createGroupChat = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Group chat dibuat - ID: ${groupChat.id}, Name: ${groupChat.name}`);
+    console.log(`Group chat dibuat - ID: ${groupChat.id}, Name: ${groupChat.name}`);
     res.status(StatusCodes.CREATED).json({
       msg: "Group chat berhasil dibuat",
       groupChat,
     });
   } catch (error: any) {
-    console.error("❌ Error membuat group chat:", error);
+    console.error("Error membuat group chat:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal membuat group chat",
       details: error.message,
@@ -238,10 +238,10 @@ export const joinGroupChat = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ User ${userId} join group chat ${id}`);
+    console.log(`User ${userId} join group chat ${id}`);
     res.json({ msg: "Berhasil join group chat" });
   } catch (error: any) {
-    console.error("❌ Error join group chat:", error);
+    console.error("Error join group chat:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal join group chat",
       details: error.message,
@@ -291,10 +291,10 @@ export const leaveGroupChat = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ User ${userId} leave group chat ${id}`);
+    console.log(`User ${userId} leave group chat ${id}`);
     res.json({ msg: "Berhasil leave group chat" });
   } catch (error: any) {
-    console.error("❌ Error leave group chat:", error);
+    console.error("Error leave group chat:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal leave group chat",
       details: error.message,
@@ -374,7 +374,7 @@ export const getMessages = async (req: AuthRequest, res: Response) => {
 
     res.json({ messages });
   } catch (error: any) {
-    console.error("❌ Error mengambil messages:", error);
+    console.error("Error mengambil messages:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil messages",
       details: error.message,
@@ -438,7 +438,7 @@ export const getMembers = async (req: AuthRequest, res: Response) => {
 
     res.json({ members });
   } catch (error: any) {
-    console.error("❌ Error mengambil members:", error);
+    console.error("Error mengambil members:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil members",
       details: error.message,
@@ -535,10 +535,10 @@ export const updateGroupChat = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Group chat diupdate - ID: ${id}`);
+    console.log(`Group chat diupdate - ID: ${id}`);
     res.json({ msg: "Group chat berhasil diupdate", groupChat: updatedGroupChat });
   } catch (error: any) {
-    console.error("❌ Error update group chat:", error);
+    console.error("Error update group chat:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal update group chat",
       details: error.message,
@@ -613,7 +613,7 @@ export const uploadGroupLogo = async (req: AuthRequest, res: Response) => {
       });
 
     if (error) {
-      console.error("❌ Error upload logo ke Supabase:", error);
+      console.error("Error upload logo ke Supabase:", error);
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         error: "Gagal upload logo ke storage",
         details: error.message,
@@ -654,14 +654,14 @@ export const uploadGroupLogo = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Logo group chat diupload - Group: ${id}`);
+    console.log(`Logo group chat diupload - Group: ${id}`);
     res.json({
       msg: "Logo berhasil diupload",
       logo: urlData.publicUrl,
       groupChat: updatedGroupChat,
     });
   } catch (error: any) {
-    console.error("❌ Error upload logo:", error);
+    console.error("Error upload logo:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal upload logo",
       details: error.message,
@@ -744,7 +744,7 @@ export const uploadGroupBanner = async (req: AuthRequest, res: Response) => {
       });
 
     if (error) {
-      console.error("❌ Error upload banner ke Supabase:", error);
+      console.error("Error upload banner ke Supabase:", error);
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         error: "Gagal upload banner ke storage",
         details: error.message,
@@ -787,14 +787,14 @@ export const uploadGroupBanner = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Banner group chat diupload - Group: ${id}`);
+    console.log(`Banner group chat diupload - Group: ${id}`);
     res.json({
       msg: "Banner berhasil diupload",
       banner: urlData.publicUrl,
       groupChat: updatedGroupChat,
     });
   } catch (error: any) {
-    console.error("❌ Error upload banner:", error);
+    console.error("Error upload banner:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal upload banner",
       details: error.message,
@@ -867,10 +867,10 @@ export const promoteMember = async (req: AuthRequest, res: Response) => {
       data: { role: "admin" },
     });
 
-    console.log(`✅ Member ${memberId} dipromote menjadi admin di group ${id}`);
+    console.log(`Member ${memberId} dipromote menjadi admin di group ${id}`);
     res.json({ msg: "Member berhasil dipromote menjadi admin" });
   } catch (error: any) {
-    console.error("❌ Error promote member:", error);
+    console.error("Error promote member:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal promote member",
       details: error.message,
@@ -936,10 +936,10 @@ export const demoteMember = async (req: AuthRequest, res: Response) => {
       data: { role: "member" },
     });
 
-    console.log(`✅ Admin ${memberId} didemote menjadi member di group ${id}`);
+    console.log(`Admin ${memberId} didemote menjadi member di group ${id}`);
     res.json({ msg: "Admin berhasil didemote menjadi member" });
   } catch (error: any) {
-    console.error("❌ Error demote member:", error);
+    console.error("Error demote member:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal demote member",
       details: error.message,
@@ -1012,10 +1012,10 @@ export const removeMember = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Member ${memberId} dihapus dari group ${id}`);
+    console.log(`Member ${memberId} dihapus dari group ${id}`);
     res.json({ msg: "Member berhasil dihapus dari group" });
   } catch (error: any) {
-    console.error("❌ Error remove member:", error);
+    console.error("Error remove member:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal remove member",
       details: error.message,
@@ -1098,7 +1098,7 @@ export const exploreGroupChats = async (req: AuthRequest, res: Response) => {
 
     res.json({ groupChats: groupChatsWithMembership });
   } catch (error: any) {
-    console.error("❌ Error explore group chats:", error);
+    console.error("Error explore group chats:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal explore group chats",
       details: error.message,
@@ -1193,7 +1193,7 @@ export const markMessageAsRead = async (req: AuthRequest, res: Response) => {
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error("❌ Error mark message as read:", error);
+    console.error("Error mark message as read:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal menandai pesan sebagai sudah dibaca",
       details: error.message,

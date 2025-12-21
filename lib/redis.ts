@@ -20,15 +20,15 @@ export const getRedisClient = (): Redis => {
     });
 
     redisClient.on("error", (err) => {
-      console.error("❌ Redis Client Error:", err);
+      console.error("Redis Client Error:", err);
     });
 
     redisClient.on("connect", () => {
-      console.log("✅ Redis Client Connected");
+      console.log("Redis Client Connected");
     });
 
     redisClient.on("ready", () => {
-      console.log("✅ Redis Client Ready");
+      console.log("Redis Client Ready");
     });
   }
 
@@ -52,15 +52,15 @@ export const getRedisSubscriber = (): Redis => {
     });
 
     redisSubscriber.on("error", (err) => {
-      console.error("❌ Redis Subscriber Error:", err);
+      console.error("Redis Subscriber Error:", err);
     });
 
     redisSubscriber.on("connect", () => {
-      console.log("✅ Redis Subscriber Connected");
+      console.log("Redis Subscriber Connected");
     });
 
     redisSubscriber.on("ready", () => {
-      console.log("✅ Redis Subscriber Ready");
+      console.log("Redis Subscriber Ready");
     });
   }
 

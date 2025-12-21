@@ -86,7 +86,7 @@ export const searchAll = async (req: AuthRequest, res: Response) => {
       query: searchQuery,
     });
   } catch (error: any) {
-    console.error("❌ Error search:", error);
+    console.error("Error search:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal melakukan pencarian",
       details: error.message,
@@ -139,7 +139,7 @@ export const getMostPopularPosts = async (req: AuthRequest, res: Response) => {
 
     res.json({ posts });
   } catch (error: any) {
-    console.error("❌ Error mengambil popular posts:", error);
+    console.error("Error mengambil popular posts:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil popular posts",
       details: error.message,
@@ -183,7 +183,7 @@ export const getMostRecentPosts = async (req: AuthRequest, res: Response) => {
 
     res.json({ posts });
   } catch (error: any) {
-    console.error("❌ Error mengambil recent posts:", error);
+    console.error("Error mengambil recent posts:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil recent posts",
       details: error.message,
@@ -267,7 +267,7 @@ export const getSearchSuggestions = async (req: AuthRequest, res: Response) => {
 
     res.json({ suggestions });
   } catch (error: any) {
-    console.error("❌ Error mengambil search suggestions:", error);
+    console.error("Error mengambil search suggestions:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil suggestions",
       details: error.message,
@@ -335,7 +335,7 @@ export const getRecommendedUsers = async (req: AuthRequest, res: Response) => {
 
     res.json({ users });
   } catch (error: any) {
-    console.error("❌ Error mengambil recommended users:", error);
+    console.error("Error mengambil recommended users:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil recommended users",
       details: error.message,

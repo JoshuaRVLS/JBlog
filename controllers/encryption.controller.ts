@@ -15,7 +15,7 @@ export const generateUserKeyPair = async (req: AuthRequest, res: Response) => {
     }
 
     if (!db || !db.encryptionKey) {
-      console.error("❌ Prisma client belum di-generate dengan model EncryptionKey. Jalankan: npx prisma generate");
+      console.error("Prisma client belum di-generate dengan model EncryptionKey. Jalankan: npx prisma generate");
       return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         error: "Database client belum siap. Silakan restart server setelah menjalankan 'npx prisma generate'",
       });
@@ -67,7 +67,7 @@ export const generateUserKeyPair = async (req: AuthRequest, res: Response) => {
       note: "Private key tetap di frontend dan tidak pernah dikirim ke server (E2EE best practice)",
     });
   } catch (error: any) {
-    console.error("❌ Error generating key pair:", error);
+    console.error("Error generating key pair:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal membuat key pair",
       details: error.message,
@@ -101,7 +101,7 @@ export const getUserPublicKey = async (req: AuthRequest, res: Response) => {
       keyId: encryptionKey.id,
     });
   } catch (error: any) {
-    console.error("❌ Error getting public key:", error);
+    console.error("Error getting public key:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil public key",
       details: error.message,
@@ -174,7 +174,7 @@ export const getGroupEncryptionKey = async (req: AuthRequest, res: Response) => 
 
     if (!groupKey) {
       // Debug: Check if encryption is enabled and if user is a member
-      console.log(`❌ Group key not found for user ${userId} in group ${groupId}`);
+      console.log(`Group key not found for user ${userId} in group ${groupId}`);
       console.log(`   - Encryption enabled: ${groupChat.encryptionEnabled}`);
       console.log(`   - User is member: ${groupChat.members.some((m) => m.userId === userId)}`);
       
@@ -229,7 +229,7 @@ export const getGroupEncryptionKey = async (req: AuthRequest, res: Response) => 
       userPublicKey: adminPublicKey, // Public key of the admin who encrypted the group key
     });
   } catch (error: any) {
-    console.error("❌ Error getting group encryption key:", error);
+    console.error("Error getting group encryption key:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil group encryption key",
       details: error.message,
@@ -327,7 +327,7 @@ export const getGroupMembersPublicKeys = async (req: AuthRequest, res: Response)
       members: membersWithKeys,
     });
   } catch (error: any) {
-    console.error("❌ Error getting group members public keys:", error);
+    console.error("Error getting group members public keys:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil public keys member",
       details: error.message,
@@ -400,7 +400,7 @@ export const initializeGroupEncryption = async (req: AuthRequest, res: Response)
       // Verify member is part of the group
       const isMember = groupChat.members.some((m) => m.userId === memberUserId);
       if (!isMember) {
-        console.warn(`⚠️ User ${memberUserId} is not a member of group ${groupId}`);
+        console.warn(`User ${memberUserId} is not a member of group ${groupId}`);
         continue;
       }
 
@@ -414,7 +414,7 @@ export const initializeGroupEncryption = async (req: AuthRequest, res: Response)
       });
 
       if (!userKey) {
-        console.warn(`⚠️ User ${memberUserId} doesn't have encryption keys`);
+        console.warn(`User ${memberUserId} doesn't have encryption keys`);
         continue;
       }
 
@@ -454,7 +454,7 @@ export const initializeGroupEncryption = async (req: AuthRequest, res: Response)
       message: "Group encryption berhasil diaktifkan",
     });
   } catch (error: any) {
-    console.error("❌ Error initializing group encryption:", error);
+    console.error("Error initializing group encryption:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengaktifkan group encryption",
       details: error.message,

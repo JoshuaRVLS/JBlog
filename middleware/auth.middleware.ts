@@ -139,7 +139,7 @@ export const requireAuth = async (
     req.userId = userId;
     next();
   } catch (error: any) {
-    console.error("❌ Error in requireAuth middleware:", error);
+    console.error("Error in requireAuth middleware:", error);
     return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({ 
       msg: "Terjadi kesalahan saat autentikasi",
       code: "AUTH_ERROR"

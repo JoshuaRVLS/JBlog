@@ -23,22 +23,21 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
         .json({ error: "receiverId harus diisi" });
     }
 
-    // For text messages, either plain content or encryptedContent must be provided.
-    // For media messages, content can be empty but mediaUrl is required.
+    // Validasi: pesan text harus ada content atau encryptedContent
     if (type === "text" && !content && !encryptedContent) {
       return res
         .status(StatusCodes.BAD_REQUEST)
         .json({ error: "content atau encryptedContent harus diisi untuk pesan text" });
     }
 
-    // For media messages, mediaUrl is required
+    // Validasi: pesan media harus ada mediaUrl
     if (type !== "text" && !mediaUrl) {
       return res
         .status(StatusCodes.BAD_REQUEST)
         .json({ error: "mediaUrl harus diisi untuk pesan media" });
     }
 
-    // Ensure content is always a string (can be empty for media messages)
+    // Pastikan content selalu string (bisa kosong untuk media)
     const messageContent = content || "";
 
     if (senderId === receiverId) {
@@ -47,7 +46,7 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
         .json({ error: "Tidak bisa mengirim pesan ke diri sendiri" });
     }
 
-    // Check if receiver exists (minimal validation for speed)
+    // Cek apakah receiver ada
     const receiver = await db.user.findUnique({
       where: { id: receiverId },
       select: {
@@ -172,7 +171,7 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
       directMessage: message,
     });
   } catch (error: any) {
-    console.error("❌ Error send direct message:", error);
+    console.error("Error send direct message:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengirim pesan",
       details: error.message,
@@ -274,7 +273,7 @@ export const getConversation = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error("❌ Error get conversation:", error);
+    console.error("Error get conversation:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil percakapan",
       details: error.message,
@@ -386,7 +385,7 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
 
     res.json({ conversations });
   } catch (error: any) {
-    console.error("❌ Error get conversations:", error);
+    console.error("Error get conversations:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil percakapan",
       details: error.message,
@@ -440,7 +439,7 @@ export const markMessageAsDelivered = async (req: AuthRequest, res: Response) =>
 
     res.json({ success: true });
   } catch (error: any) {
-    console.error("❌ Error mark message as delivered:", error);
+    console.error("Error mark message as delivered:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal update status delivered",
       details: error.message,
@@ -494,7 +493,7 @@ export const markMessagesAsRead = async (req: AuthRequest, res: Response) => {
 
     res.json({ message: "Pesan ditandai sebagai sudah dibaca" });
   } catch (error: any) {
-    console.error("❌ Error mark messages as read:", error);
+    console.error("Error mark messages as read:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal menandai pesan",
       details: error.message,
@@ -520,7 +519,7 @@ export const getUnreadCount = async (req: AuthRequest, res: Response) => {
 
     res.json({ count });
   } catch (error: any) {
-    console.error("❌ Error get unread count:", error);
+    console.error("Error get unread count:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil jumlah pesan belum dibaca",
       details: error.message,

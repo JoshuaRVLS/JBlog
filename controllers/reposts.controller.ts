@@ -86,13 +86,13 @@ export const repostPost = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    console.log(`✅ User ${userId} reposted post ${postId}`);
+    console.log(`User ${userId} reposted post ${postId}`);
     res.json({
       message: "Post berhasil di-repost",
       repost,
     });
   } catch (error: any) {
-    console.error("❌ Error repost post:", error);
+    console.error("Error repost post:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal repost post",
       details: error.message,
@@ -142,10 +142,10 @@ export const unrepostPost = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ User ${userId} unreposted post ${postId}`);
+    console.log(`User ${userId} unreposted post ${postId}`);
     res.json({ message: "Post berhasil di-unrepost" });
   } catch (error: any) {
-    console.error("❌ Error unrepost post:", error);
+    console.error("Error unrepost post:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal unrepost post",
       details: error.message,
@@ -199,7 +199,7 @@ export const getPostReposts = async (req: AuthRequest, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.error("❌ Error get post reposts:", error);
+    console.error("Error get post reposts:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengambil reposts",
       details: error.message,
@@ -232,7 +232,7 @@ export const checkRepostStatus = async (req: AuthRequest, res: Response) => {
 
     res.json({ isReposted: !!repost });
   } catch (error: any) {
-    console.error("❌ Error check repost status:", error);
+    console.error("Error check repost status:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal cek repost status",
       details: error.message,

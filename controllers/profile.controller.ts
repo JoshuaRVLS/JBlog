@@ -106,14 +106,14 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         },
       });
 
-      console.log(`✅ Profile diupdate - User: ${updatedUser?.email}`);
+      console.log(`Profile diupdate - User: ${updatedUser?.email}`);
       return res.json({ msg: "Profile berhasil diupdate", user: updatedUser });
     }
 
-    console.log(`✅ Profile diupdate - User: ${user.email}`);
+    console.log(`Profile diupdate - User: ${user.email}`);
     res.json({ msg: "Profile berhasil diupdate", user });
   } catch (error: any) {
-    console.error("❌ Error update profile:", error);
+    console.error("Error update profile:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengupdate profile",
       details: error.message,
@@ -173,9 +173,9 @@ export const getCurrentProfile = async (req: AuthRequest, res: Response) => {
           },
         },
       });
-      console.log(`✅ User found: ${user ? user.email : "NOT FOUND"}`);
+      console.log(`User found: ${user ? user.email : "NOT FOUND"}`);
     } catch (queryError: any) {
-      console.error("❌ Prisma query error:", queryError);
+      console.error("Prisma query error:", queryError);
       throw queryError;
     }
 
@@ -214,11 +214,11 @@ export const getCurrentProfile = async (req: AuthRequest, res: Response) => {
 
       res.json(responseData);
     } catch (serializeError: any) {
-      console.error("❌ Error serializing response:", serializeError);
+      console.error("Error serializing response:", serializeError);
       throw serializeError;
     }
   } catch (error: any) {
-    console.error("❌ Error get profile:", error);
+    console.error("Error get profile:", error);
     console.error("Error details:", {
       name: error.name,
       message: error.message,
@@ -283,10 +283,10 @@ export const changePassword = async (req: AuthRequest, res: Response) => {
       data: { password: hashedPassword },
     });
 
-    console.log(`✅ Password diubah - User: ${user.email}`);
+    console.log(`Password diubah - User: ${user.email}`);
     res.json({ msg: "Password berhasil diubah" });
   } catch (error: any) {
-    console.error("❌ Error change password:", error);
+    console.error("Error change password:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengubah password",
       details: error.message,
@@ -391,16 +391,16 @@ export const requestEmailChange = async (req: AuthRequest, res: Response) => {
         }),
       });
 
-      console.log(`✅ Kode verifikasi email change dikirim - User: ${user.email} -> ${newEmail}`);
+      console.log(`Kode verifikasi email change dikirim - User: ${user.email} -> ${newEmail}`);
       res.json({ msg: "Kode verifikasi telah dikirim ke email baru Anda" });
     } catch (error) {
-      console.error("❌ Error sending email:", error);
+      console.error("Error sending email:", error);
       res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
         msg: "Gagal mengirim email, tetapi kode telah dibuat. Silakan coba lagi nanti.",
       });
     }
   } catch (error: any) {
-    console.error("❌ Error request email change:", error);
+    console.error("Error request email change:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal memproses permintaan perubahan email",
       details: error.message,
@@ -476,13 +476,13 @@ export const verifyEmailChange = async (req: AuthRequest, res: Response) => {
       where: { userId: userId },
     });
 
-    console.log(`✅ Email diubah - User: ${user?.email} -> ${emailChangeVerification.newEmail}`);
+    console.log(`Email diubah - User: ${user?.email} -> ${emailChangeVerification.newEmail}`);
     res.json({ msg: "Email berhasil diubah", user: updatedUser });
   } catch (error: any) {
     if (error.code === "P2002") {
       return res.status(StatusCodes.CONFLICT).json({ msg: "Email sudah terdaftar" });
     }
-    console.error("❌ Error verify email change:", error);
+    console.error("Error verify email change:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengubah email",
       details: error.message,
@@ -511,10 +511,10 @@ export const changeCountry = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    console.log(`✅ Country diubah - User: ${user.email} -> ${country || "null"}`);
+    console.log(`Country diubah - User: ${user.email} -> ${country || "null"}`);
     res.json({ msg: "Negara berhasil diubah", user });
   } catch (error: any) {
-    console.error("❌ Error change country:", error);
+    console.error("Error change country:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal mengubah negara",
       details: error.message,
@@ -556,10 +556,10 @@ export const deleteOwnAccount = async (req: AuthRequest, res: Response) => {
 
     await db.user.delete({ where: { id: userId } });
 
-    console.log(`✅ Akun dihapus - User: ${user.email}`);
+    console.log(`Akun dihapus - User: ${user.email}`);
     res.json({ msg: "Akun berhasil dihapus" });
   } catch (error: any) {
-    console.error("❌ Error delete account:", error);
+    console.error("Error delete account:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal menghapus akun",
       details: error.message,

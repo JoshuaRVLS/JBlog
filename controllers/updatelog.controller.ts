@@ -106,7 +106,7 @@ export const syncFromGitHub = async (req: AuthRequest, res: Response) => {
     console.log("  - GITHUB_TOKEN length:", token ? token.length : 0);
 
     if (!token) {
-      console.error("❌ GITHUB_TOKEN tidak ditemukan di environment variables");
+      console.error("GITHUB_TOKEN tidak ditemukan di environment variables");
       return res.status(StatusCodes.BAD_REQUEST).json({
         msg: "GITHUB_TOKEN tidak dikonfigurasi. Silakan tambahkan GITHUB_TOKEN di file .env backend dengan format: GITHUB_TOKEN=ghp_your_token_here",
         error: "GITHUB_TOKEN_MISSING",
@@ -132,7 +132,7 @@ export const syncFromGitHub = async (req: AuthRequest, res: Response) => {
         );
 
         if (!response.ok) {
-          console.warn(`⚠️ Failed to fetch from branch ${branch}: ${response.status}`);
+          console.warn(`Failed to fetch from branch ${branch}: ${response.status}`);
           return [];
         }
 
@@ -143,7 +143,7 @@ export const syncFromGitHub = async (req: AuthRequest, res: Response) => {
           branch,
         }));
       } catch (error: any) {
-        console.error(`❌ Error fetching from branch ${branch}:`, error.message);
+        console.error(`Error fetching from branch ${branch}:`, error.message);
         return [];
       }
     });
@@ -177,7 +177,7 @@ export const syncFromGitHub = async (req: AuthRequest, res: Response) => {
       return dateB - dateA; // Descending order
     });
 
-    console.log(`✅ Fetched ${allCommits.length} unique commits from ${branches.length} branches`);
+    console.log(`Fetched ${allCommits.length} unique commits from ${branches.length} branches`);
 
     const logs = [];
     let skipped = 0;
@@ -406,7 +406,7 @@ export const webhookSync = async (req: Request, res: Response) => {
       }
     }
 
-    console.log(`✅ Webhook sync: ${logs.length} logs created, ${skipped} skipped`);
+    console.log(`Webhook sync: ${logs.length} logs created, ${skipped} skipped`);
 
     res.status(StatusCodes.OK).json({
       msg: `Berhasil sync ${logs.length} update logs dari webhook`,
