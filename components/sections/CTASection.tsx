@@ -11,7 +11,7 @@ interface CTASectionProps {
 const CTASection = forwardRef<HTMLElement, CTASectionProps>(
   (props, ref) => {
     return (
-      <section ref={ref} id="contact" className="py-12 sm:py-16 md:py-20 relative bg-background">
+      <section ref={ref} id="contact" className="py-12 sm:py-16 md:py-20 pb-32 md:pb-40 lg:pb-32 relative bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-4xl mx-auto bg-gradient-to-r from-primary/10 via-accent/10 to-primary/10 border border-primary/20 rounded-2xl p-6 sm:p-8 md:p-12 text-center shadow-xl backdrop-blur-sm">
             <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 sm:mb-4">Ayo Collab!</h2>

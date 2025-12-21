@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
 import { Send, User, Search, ArrowLeft, MessageSquare, Image as ImageIcon, Video, Mic, X, Loader2, Play, Pause, Lock, Key, Plus, Check, CheckCheck } from "lucide-react";
+import MessageSkeleton, { ConversationSkeleton, ChatLoadingSpinner } from "@/components/MessageSkeleton";
 import toast from "react-hot-toast";
 import { useSocket } from "@/providers/SocketProvider";
 import ImageViewer from "@/components/ImageViewer";
@@ -838,13 +839,7 @@ function MessagesPageContent() {
 
               <div className="flex-1 overflow-y-auto" data-lenis-prevent>
                 {loading ? (
-                  <div className="p-4 space-y-4">
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="animate-pulse">
-                        <div className="h-16 bg-muted rounded-lg"></div>
-                      </div>
-                    ))}
-                  </div>
+                  <ConversationSkeleton count={5} />
                 ) : filteredConversations.length === 0 ? (
                   <div className="p-8 text-center text-muted-foreground">
                     <p>No conversations yet</p>
@@ -982,27 +977,25 @@ function MessagesPageContent() {
                   </div>
 
                   {/* Messages */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4" data-lenis-prevent>
+                  <div className="flex-1 overflow-y-auto" data-lenis-prevent>
                     {loadingMessages && messages.length === 0 ? (
-                      <div className="space-y-4">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"}`}>
-                            <div className="max-w-[70%] rounded-lg p-3 bg-muted animate-pulse">
-                              <div className="h-4 bg-background/50 rounded w-3/4 mb-2"></div>
-                              <div className="h-3 bg-background/30 rounded w-1/4"></div>
-                            </div>
-                          </div>
-                        ))}
+                      <MessageSkeleton count={6} />
+                    ) : messages.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
+                        <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                        <p className="text-muted-foreground">No messages yet</p>
+                        <p className="text-sm text-muted-foreground/70 mt-2">Start a conversation!</p>
                       </div>
                     ) : (
-                      messages.map((message) => {
-                      const isOwn = message.senderId === userId;
-                      
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-                        >
+                      <div className="p-4 space-y-4">
+                        {messages.map((message) => {
+                          const isOwn = message.senderId === userId;
+                          
+                          return (
+                            <div
+                              key={message.id}
+                              className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                            >
                           <div
                             className={`max-w-[70%] rounded-lg p-3 ${
                               isOwn
@@ -1105,8 +1098,10 @@ function MessagesPageContent() {
                             </div>
                           </div>
                         </div>
-                      );
-                    }))}
+                          );
+                        })}
+                      </div>
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
 

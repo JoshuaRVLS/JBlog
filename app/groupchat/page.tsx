@@ -9,6 +9,7 @@ import AxiosInstance, { getSocketUrl } from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
 import { io, Socket } from "socket.io-client";
 import { MessageCircle, Plus, Send, Users, ArrowLeft, Loader2, Image as ImageIcon, Video, Mic, VideoIcon, X, Play, Pause, Lock, Globe, Settings, Crown, UserMinus, UserPlus, Search, Compass, Key, Eye } from "lucide-react";
+import MessageSkeleton, { ConversationSkeleton, ChatLoadingSpinner } from "@/components/MessageSkeleton";
 import toast from "react-hot-toast";
 import { generateAvatarUrl } from "@/utils/avatarGenerator";
 import ImageViewer from "@/components/ImageViewer";
@@ -1290,9 +1291,7 @@ export default function GroupChatPage() {
                   </div>
 
                   {loadingGroups ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                    </div>
+                    <ConversationSkeleton count={5} />
                   ) : groupChats.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground text-sm">
                       Tidak ada group chat
@@ -1419,17 +1418,7 @@ export default function GroupChatPage() {
                     }}
                   >
                     {loadingMessages && messages.length === 0 ? (
-                      <div className="space-y-4 p-4">
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <div key={i} className={`flex gap-3 items-start ${i % 2 === 0 ? "flex-row-reverse" : ""}`}>
-                            <div className="w-8 h-8 rounded-full bg-muted animate-pulse flex-shrink-0"></div>
-                            <div className={`max-w-[70%] rounded-lg p-3 bg-muted animate-pulse ${i % 2 === 0 ? "rounded-tr-none" : "rounded-tl-none"}`}>
-                              <div className="h-4 bg-background/50 rounded w-3/4 mb-2"></div>
-                              <div className="h-3 bg-background/30 rounded w-1/4"></div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
+                      <MessageSkeleton count={6} />
                     ) : messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-center py-12">
                         <MessageCircle className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />

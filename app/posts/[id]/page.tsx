@@ -16,6 +16,7 @@ import PostDetailLoading from "@/components/PostDetailLoading";
 import BookmarkButton from "@/components/BookmarkButton";
 import RepostButton from "@/components/RepostButton";
 import ShareButton from "@/components/ShareButton";
+import ReactionsButton from "@/components/ReactionsButton";
 
 interface Post {
   id: string;
@@ -394,7 +395,7 @@ export default function PostDetail() {
           </div>
         )}
 
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 pb-32 md:pb-40">
           <div className="max-w-3xl mx-auto">
             {/* Content */}
             <div className="prose prose-lg dark:prose-invert prose-headings:font-bold prose-p:leading-relaxed prose-a:text-primary prose-a:no-underline hover:prose-a:underline max-w-none mb-12">
@@ -404,33 +405,8 @@ export default function PostDetail() {
             {/* Actions */}
             <div className="sticky bottom-4 bg-card border border-border rounded-2xl p-4 mb-12 shadow-lg backdrop-blur-sm">
               <div className="flex items-center justify-center gap-4 flex-wrap">
-                <motion.button
-                  onClick={handleClap}
-                  disabled={clapping}
-                  whileTap={{ scale: 0.95 }}
-                  animate={clapAnimating ? { scale: [1, 1.15, 1] } : {}}
-                  transition={{ duration: 0.3 }}
-                  className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all ${
-                    post.hasClapped
-                      ? "bg-primary text-primary-foreground shadow-md"
-                      : "bg-muted text-muted-foreground hover:bg-accent"
-                  }`}
-                >
-                  <motion.div
-                    animate={clapAnimating ? { scale: [1, 1.3, 1], rotate: [0, -10, 10, 0] } : {}}
-                    transition={{ duration: 0.4 }}
-                  >
-                    <Heart className={`h-5 w-5 ${post.hasClapped ? "fill-current" : ""}`} />
-                  </motion.div>
-                  <motion.span
-                    key={post._count.claps}
-                    initial={{ scale: 1 }}
-                    animate={{ scale: [1, 1.2, 1] }}
-                    transition={{ duration: 0.3 }}
-                  >
-                    {post._count.claps}
-                  </motion.span>
-                </motion.button>
+                {/* Rich Reactions Button */}
+                <ReactionsButton postId={post.id} />
                 <div className="flex items-center gap-2 px-5 py-2.5 bg-muted rounded-xl text-muted-foreground">
                   <MessageCircle className="h-5 w-5" />
                   <span>{post._count.comments}</span>

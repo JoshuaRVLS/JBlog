@@ -285,12 +285,99 @@
     @apply border-border outline-ring/50;
   }
 
+  html {
+    overflow-x: hidden;
+    overflow-y: auto;
+    height: 100%;
+  }
+
   body {
     @apply bg-background text-foreground;
     font-variant-ligatures: none;
     text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+    min-height: 100vh;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     transition: background-color 0.3s ease, color 0.3s ease;
+    /* Ensure body has padding for fixed elements */
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  /* ============================================
+     GLOBAL FIX: Ensure all pages can scroll to bottom
+     This applies to ALL pages automatically
+     ============================================ */
+
+  /* Utility class for pages with fixed bottom elements */
+  .page-content {
+    padding-bottom: 8rem !important; /* 128px for mobile - extra space */
+  }
+
+  @media (min-width: 768px) {
+    .page-content {
+      padding-bottom: 8rem !important; /* 128px for desktop */
+    }
+  }
+
+  /* GLOBAL FIX: Force all main elements to have bottom padding */
+  main {
+    padding-bottom: 8rem !important;
+    min-height: calc(100vh - 4rem);
+  }
+
+  /* GLOBAL FIX: Force all main elements with any padding class */
+  main[class*="pb-"] {
+    padding-bottom: 8rem !important;
+  }
+
+  /* GLOBAL FIX: Force all container divs that might contain page content */
+  div[class*="container"][class*="pt-"],
+  div[class*="container"][class*="pb-"] {
+    padding-bottom: 8rem !important;
+  }
+
+  /* GLOBAL FIX: Force all divs with pt-* pb-* pattern */
+  div[class*="pt-"][class*="pb-"],
+  main[class*="pt-"][class*="pb-"] {
+    padding-bottom: 8rem !important;
+  }
+
+  /* GLOBAL FIX: Specifically target posts detail and any page with pb-16, pb-20, pb-24 */
+  div[class*="pb-16"],
+  div[class*="pb-20"],
+  div[class*="pb-24"],
+  div[class*="pb-32"] {
+    padding-bottom: 10rem !important; /* 160px - extra safe space for sticky buttons */
+  }
+
+  @media (min-width: 768px) {
+    div[class*="pb-16"],
+    div[class*="pb-20"],
+    div[class*="pb-24"],
+    div[class*="pb-32"] {
+      padding-bottom: 12rem !important; /* 192px for desktop */
+    }
+  }
+
+  /* GLOBAL FIX: Ensure body and html can scroll fully */
+  html {
+    height: auto !important;
+    overflow-y: auto !important;
+  }
+
+  body {
+    min-height: 100vh !important;
+    padding-bottom: 0 !important; /* Let individual pages handle padding */
+  }
+
+  /* GLOBAL FIX: Ensure pages with sticky bottom elements have extra space */
+  div[class*="sticky"][class*="bottom"] {
+    margin-bottom: 2rem;
+  }
+
+  /* GLOBAL FIX: Extra padding for container with sticky elements inside */
+  div[class*="container"]:has([class*="sticky"]) {
+    padding-bottom: 12rem !important;
   }
 
   /* Modern gradient text effect - Subtle and elegant */

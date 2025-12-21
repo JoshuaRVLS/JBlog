@@ -368,7 +368,7 @@ export default function Home() {
         onDataChange={setReportData}
       />
 
-      <main className="pb-20 lg:pb-0">
+      <main className="pb-32 md:pb-40 lg:pb-32">
         <BroadcastBanner
           broadcast={broadcast}
           showBroadcast={showBroadcast}

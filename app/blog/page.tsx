@@ -223,7 +223,7 @@ export default function BlogPage() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-20 pb-16">
+      <main className="pt-20 page-content">
         {/* Hero Section */}
         <section className="relative bg-gradient-to-br from-primary/5 via-background to-accent/5 border-b border-border/50">
           <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
