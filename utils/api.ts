@@ -79,22 +79,39 @@ AxiosInstance.interceptors.response.use(
       return Promise.reject(error); // Silent reject for aborted requests
     }
 
+    // Check if this is actually an axios request (not a browser error)
+    // Ignore errors that don't have a config (not from axios)
+    if (!originalRequest) {
+      return Promise.reject(error);
+    }
+
+    // Ignore errors for static assets, favicon, or other non-API requests
+    const url = originalRequest.url || "";
+    if (url.includes("favicon") || url.includes(".ico") || url.includes(".png") || url.includes(".jpg") || url.includes(".svg") || url.includes("_next")) {
+      return Promise.reject(error);
+    }
+
     if (!error.response) {
-      if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
-        // Only show timeout error if not intentionally aborted
-        if (!originalRequest?.signal?.aborted) {
-          toast.error("Request timeout. Pastikan backend server sedang berjalan.", {
+      // Only show network errors for actual API requests, not for static assets
+      if (originalRequest.baseURL && url.startsWith(originalRequest.baseURL)) {
+        if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
+          // Only show timeout error if not intentionally aborted
+          if (!originalRequest?.signal?.aborted) {
+            toast.error("Request timeout. Pastikan backend server sedang berjalan.", {
+              duration: 5000,
+            });
+          }
+        } else if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
+          // Only show network error if it's actually an API request
+          toast.error("Tidak dapat terhubung ke server. Pastikan backend server sedang berjalan di http://localhost:8000", {
+            duration: 5000,
+          });
+        } else {
+          // Only show generic error if it's an API request
+          toast.error("Terjadi kesalahan jaringan. Silakan coba lagi.", {
             duration: 5000,
           });
         }
-      } else if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
-        toast.error("Tidak dapat terhubung ke server. Pastikan backend server sedang berjalan di http://localhost:8000", {
-          duration: 5000,
-        });
-      } else {
-        toast.error("Terjadi kesalahan jaringan. Silakan coba lagi.", {
-          duration: 5000,
-        });
       }
       
       return Promise.reject(error);
