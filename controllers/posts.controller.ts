@@ -29,7 +29,7 @@ const processTags = async (tagNames: string[]) => {
 
 export const createPost = async (req: AuthRequest, res: Response) => {
   try {
-    const { title, content, excerpt, coverImage, published, tags } = req.body;
+    const { title, content, excerpt, coverImage, published, scheduledAt, tags } = req.body;
     const userId = req.userId;
 
     if (!userId) {
@@ -42,6 +42,17 @@ export const createPost = async (req: AuthRequest, res: Response) => {
     const readingTime = calculateReadingTime(content);
     const tagIds = await processTags(tags);
 
+    // If scheduledAt is provided, validate it's in the future
+    let scheduledDateTime: Date | null = null;
+    if (scheduledAt) {
+      scheduledDateTime = new Date(scheduledAt);
+      if (scheduledDateTime <= new Date()) {
+        return res.status(StatusCodes.BAD_REQUEST).json({ 
+          msg: "Scheduled time must be in the future" 
+        });
+      }
+    }
+
     const post = await db.post.create({
       data: {
         title,
@@ -49,6 +60,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
         excerpt,
         coverImage,
         published: published || false,
+        scheduledAt: scheduledDateTime,
         authorId: userId,
         readingTime,
         tags: {
@@ -92,7 +104,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 export const updatePost = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, content, excerpt, coverImage, published, tags } = req.body;
+    const { title, content, excerpt, coverImage, published, scheduledAt, tags } = req.body;
     const userId = req.userId;
 
     if (!userId) {
@@ -117,7 +129,25 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
         .json({ msg: "Hanya author, owner, atau admin yang bisa mengupdate post" });
     }
 
+    // Handle scheduledAt
+    let scheduledDateTime: Date | null | undefined = undefined;
+    if (scheduledAt !== undefined) {
+      if (scheduledAt === null) {
+        scheduledDateTime = null; // Remove scheduling
+      } else {
+        scheduledDateTime = new Date(scheduledAt);
+        if (scheduledDateTime <= new Date()) {
+          return res.status(StatusCodes.BAD_REQUEST).json({ 
+            msg: "Scheduled time must be in the future" 
+          });
+        }
+      }
+    }
+
     const updateData: any = { title, excerpt, coverImage, published };
+    if (scheduledDateTime !== undefined) {
+      updateData.scheduledAt = scheduledDateTime;
+    }
     if (content) {
       updateData.content = content;
       updateData.readingTime = calculateReadingTime(content);
@@ -178,6 +208,165 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Gagal mengupdate post" });
+  }
+};
+
+// Get user's draft posts
+export const getUserDrafts = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Harus login dulu" });
+    }
+
+    const drafts = await db.post.findMany({
+      where: {
+        authorId: userId,
+        published: false,
+        scheduledAt: null, // Only drafts, not scheduled
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+        _count: {
+          select: {
+            claps: true,
+            reactions: true,
+            comments: true,
+          },
+        },
+      },
+      orderBy: { updatedAt: "desc" },
+    });
+
+    res.json({ drafts });
+  } catch (error) {
+    console.error("❌ Error mengambil drafts:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal mengambil drafts" });
+  }
+};
+
+// Get user's scheduled posts
+export const getScheduledPosts = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId;
+    if (!userId) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Harus login dulu" });
+    }
+
+    const scheduled = await db.post.findMany({
+      where: {
+        authorId: userId,
+        scheduledAt: {
+          not: null,
+        },
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+          },
+        },
+        tags: {
+          include: {
+            tag: true,
+          },
+        },
+        _count: {
+          select: {
+            claps: true,
+            reactions: true,
+            comments: true,
+          },
+        },
+      },
+      orderBy: { scheduledAt: "asc" },
+    });
+
+    res.json({ scheduled });
+  } catch (error) {
+    console.error("❌ Error mengambil scheduled posts:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Gagal mengambil scheduled posts" });
+  }
+};
+
+// Track post view (for analytics)
+export const trackPostView = async (req: AuthRequest, res: Response) => {
+  try {
+    const { postId } = req.params;
+    
+    if (!postId) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "postId is required" });
+    }
+    const userId = req.userId || null;
+    const ipAddress = req.ip || req.socket.remoteAddress || null;
+    const userAgent = req.get("user-agent") || null;
+
+    // Check if post exists and is published
+    const post = await db.post.findUnique({
+      where: { id: postId },
+      select: { published: true, scheduledAt: true },
+    });
+
+    if (!post) {
+      return res.status(StatusCodes.NOT_FOUND).json({ msg: "Post tidak ditemukan" });
+    }
+
+    // Don't track views for unpublished posts
+    if (!post.published) {
+      return res.status(StatusCodes.OK).json({ msg: "View tidak di-track untuk unpublished posts" });
+    }
+
+    // Check if scheduled post should be published
+    if (post.scheduledAt && new Date(post.scheduledAt) > new Date()) {
+      return res.status(StatusCodes.OK).json({ msg: "Post belum dijadwalkan untuk publish" });
+    }
+
+    // Create view record
+    await db.postView.create({
+      data: {
+        postId,
+        userId,
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+      },
+    });
+
+    // Increment views counter (optimistic update)
+    await db.post.update({
+      where: { id: postId },
+      data: {
+        views: {
+          increment: 1,
+        },
+      },
+    });
+
+    res.status(StatusCodes.OK).json({ msg: "View tracked" });
+  } catch (error: any) {
+    console.error("❌ Error tracking view:", error);
+    // Don't fail the request if tracking fails
+    res.status(StatusCodes.OK).json({ msg: "View tracking skipped" });
   }
 };
 

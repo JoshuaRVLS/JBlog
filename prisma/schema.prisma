@@ -29,30 +29,33 @@ model User {
   linkedin       String?
   instagram      String?
 
-  refreshTokens          RefreshToken[]
-  posts                  Post[]
-  verificationCode       VerificationCode?
-  passwordResetTokens    PasswordResetToken[]
+  refreshTokens            RefreshToken[]
+  posts                    Post[]
+  verificationCode         VerificationCode?
+  passwordResetTokens      PasswordResetToken[]
   emailChangeVerifications EmailChangeVerification[]
-  claps                  Clap[]
-  comments               Comment[]
-  reports                Report[]
-  messages               Message[]
-  groupChatMembers       GroupChatMember[]
-  createdGroupChats      GroupChat[]          @relation("GroupChatCreator")
-  notifications          Notification[]       @relation("UserNotifications")
-  actorNotifications     Notification[]       @relation("ActorNotifications")
-  mentions               MessageMention[]     @relation("UserMentions")
-  customLinks            CustomLink[]
-  bookmarks              Bookmark[]
-  reposts                Repost[]
-  sentDirectMessages     DirectMessage[]      @relation("DirectMessageSender")
-  receivedDirectMessages DirectMessage[]      @relation("DirectMessageReceiver")
-  messageReads           MessageRead[]        // Messages read by user in group chats
-  encryptionKeys         EncryptionKey[]      // User's encryption keys
-  postVersions           PostVersion[]
-  commentLikes           CommentLike[]
-  updatedSettings        Settings[]           // Settings updated by this user
+  claps                    Clap[]
+  comments                 Comment[]
+  reports                  Report[]
+  messages                 Message[]
+  groupChatMembers         GroupChatMember[]
+  createdGroupChats        GroupChat[]               @relation("GroupChatCreator")
+  notifications            Notification[]            @relation("UserNotifications")
+  actorNotifications       Notification[]            @relation("ActorNotifications")
+  mentions                 MessageMention[]          @relation("UserMentions")
+  customLinks              CustomLink[]
+  bookmarks                Bookmark[]
+  reposts                  Repost[]
+  sentDirectMessages       DirectMessage[]           @relation("DirectMessageSender")
+  receivedDirectMessages   DirectMessage[]           @relation("DirectMessageReceiver")
+  messageReads             MessageRead[] // Messages read by user in group chats
+  encryptionKeys           EncryptionKey[] // User's encryption keys
+  postVersions             PostVersion[]
+  commentLikes             CommentLike[]
+  reactions                Reaction[] // User's reactions to posts
+  collections              Collection[] // Collections created by user
+  postViews                PostView[] // Post views by user (for analytics)
+  updatedSettings          Settings[] // Settings updated by this user
 
   // Followers relationship
   followers Follow[] @relation("UserFollowers")
@@ -91,12 +94,12 @@ model Follow {
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
-  value     String
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  value      String
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
   deviceInfo String? // Store device/browser info for security
   ipAddress  String? // Store IP address for security tracking
   isRevoked  Boolean  @default(false) // For token revocation
@@ -108,32 +111,37 @@ model RefreshToken {
 }
 
 model Post {
-  id          String  @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   content     String // Markdown content
   excerpt     String?
   coverImage  String?
-  published   Boolean @default(false)
-  readingTime Int     @default(0) // in minutes
-  views       Int     @default(0) // Total views count
+  published   Boolean   @default(false)
+  scheduledAt DateTime? // For scheduled posts
+  readingTime Int       @default(0) // in minutes
+  views       Int       @default(0) // Total views count
 
   authorId String
   author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
 
   tags          PostTag[]
   claps         Clap[]
+  reactions     Reaction[] // Rich reactions
   comments      Comment[]
   notifications Notification[]
   bookmarks     Bookmark[]
   reposts       Repost[]
   versions      PostVersion[]
+  collections   CollectionPost[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([authorId])
   @@index([published])
+  @@index([scheduledAt])
   @@index([createdAt])
+  @@index([authorId, published])
 }
 
 model PostVersion {
@@ -158,6 +166,8 @@ model Tag {
   name        String  @unique
   slug        String  @unique
   description String?
+  postCount   Int     @default(0) // Cached post count for trending
+  color       String? // Optional color for tag display
 
   posts PostTag[]
 
@@ -165,6 +175,7 @@ model Tag {
   updatedAt DateTime @updatedAt
 
   @@index([slug])
+  @@index([postCount])
 }
 
 model PostTag {
@@ -193,6 +204,24 @@ model Clap {
   @@unique([postId, userId])
   @@index([postId])
   @@index([userId])
+}
+
+// Rich reactions system - supports multiple reaction types
+model Reaction {
+  id     String @id @default(cuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type   String // like, love, laugh, wow, sad, angry
+
+  createdAt DateTime @default(now())
+
+  @@unique([postId, userId]) // One reaction per user per post (can change type)
+  @@index([postId])
+  @@index([userId])
+  @@index([postId, type])
+  @@index([type])
 }
 
 model Comment {
@@ -287,21 +316,21 @@ model Report {
 }
 
 model GroupChat {
-  id            String            @id @default(cuid())
-  name          String
-  description   String?
-  logo          String? // Logo/avatar group chat
-  banner        String? // Large banner image for explore view
-  isPublic      Boolean           @default(true)
-  encryptionEnabled Boolean        @default(false) // Enable E2EE for group
-  createdBy     String
-  creator       User              @relation("GroupChatCreator", fields: [createdBy], references: [id], onDelete: Cascade)
-  members       GroupChatMember[]
-  messages      Message[]
-  notifications Notification[]
-  encryptionKeys EncryptionKey[]  // Group encryption keys
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id                String            @id @default(cuid())
+  name              String
+  description       String?
+  logo              String? // Logo/avatar group chat
+  banner            String? // Large banner image for explore view
+  isPublic          Boolean           @default(true)
+  encryptionEnabled Boolean           @default(false) // Enable E2EE for group
+  createdBy         String
+  creator           User              @relation("GroupChatCreator", fields: [createdBy], references: [id], onDelete: Cascade)
+  members           GroupChatMember[]
+  messages          Message[]
+  notifications     Notification[]
+  encryptionKeys    EncryptionKey[] // Group encryption keys
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@index([createdBy])
   @@index([isPublic])
@@ -322,23 +351,23 @@ model GroupChatMember {
 }
 
 model Message {
-  id             String           @id @default(cuid())
-  content        String
-  encryptedContent String? // Encrypted content untuk E2EE
+  id                String           @id @default(cuid())
+  content           String
+  encryptedContent  String? // Encrypted content untuk E2EE
   encryptionKeyId   String? // Reference to encryption key used
-  groupChatId    String
-  groupChat      GroupChat        @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
-  userId         String
-  user           User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type           String           @default("text") // text, image, video, audio
-  mediaUrl       String? // URL untuk photo, video, audio
+  groupChatId       String
+  groupChat         GroupChat        @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type              String           @default("text") // text, image, video, audio
+  mediaUrl          String? // URL untuk photo, video, audio
   encryptedMediaUrl String? // Encrypted media URL untuk E2EE
-  mediaThumbnail String? // Thumbnail untuk video
-  mentions       MessageMention[]
-  reads          MessageRead[]    // Users who have seen this message
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  notifications  Notification[]
+  mediaThumbnail    String? // Thumbnail untuk video
+  mentions          MessageMention[]
+  reads             MessageRead[] // Users who have seen this message
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  notifications     Notification[]
 
   @@index([groupChatId])
   @@index([userId])
@@ -429,6 +458,52 @@ model Bookmark {
   @@index([createdAt])
 }
 
+// Collections for organizing saved posts
+model Collection {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  isPublic    Boolean          @default(false) // Public collections can be shared
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  posts       CollectionPost[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([userId, isPublic])
+}
+
+model CollectionPost {
+  id           String     @id @default(cuid())
+  collectionId String
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  postId       String
+  post         Post       @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([collectionId, postId])
+  @@index([collectionId])
+  @@index([postId])
+}
+
+// Post views tracking for analytics
+model PostView {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String? // Null for anonymous views
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([postId])
+  @@index([userId])
+  @@index([postId, createdAt])
+  @@index([createdAt])
+}
+
 model Repost {
   id        String   @id @default(cuid())
   userId    String
@@ -444,22 +519,22 @@ model Repost {
 }
 
 model DirectMessage {
-  id         String   @id @default(cuid())
-  senderId   String
-  sender     User     @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
-  receiverId String
-  receiver   User     @relation("DirectMessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
-  content    String
-  encryptedContent String? // Encrypted content untuk E2EE
+  id                String    @id @default(cuid())
+  senderId          String
+  sender            User      @relation("DirectMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  receiverId        String
+  receiver          User      @relation("DirectMessageReceiver", fields: [receiverId], references: [id], onDelete: Cascade)
+  content           String
+  encryptedContent  String? // Encrypted content untuk E2EE
   encryptionKeyId   String? // Reference to encryption key used
-  type       String   @default("text") // text, image, video, audio
-  mediaUrl   String? // URL untuk photo, video, audio
+  type              String    @default("text") // text, image, video, audio
+  mediaUrl          String? // URL untuk photo, video, audio
   encryptedMediaUrl String? // Encrypted media URL untuk E2EE
-  read       Boolean  @default(false)
-  deliveredAt DateTime? // When message was delivered to receiver
-  readAt     DateTime? // When message was read by receiver
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  read              Boolean   @default(false)
+  deliveredAt       DateTime? // When message was delivered to receiver
+  readAt            DateTime? // When message was read by receiver
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([senderId])
   @@index([receiverId])
@@ -474,26 +549,26 @@ model DirectMessage {
 }
 
 model Broadcast {
-  id                String   @id @default(cuid())
-  title             String
-  message           String
-  type              String   @default("info")
-  theme             String?  @default("default")
-  icon              String?
-  backgroundColor   String?
-  textColor         String?
-  borderColor       String?
-  particleEffect   String?  // "none", "snow", "confetti", "stars", "hearts", "fireworks", "sparkles"
+  id                           String    @id @default(cuid())
+  title                        String
+  message                      String
+  type                         String    @default("info")
+  theme                        String?   @default("default")
+  icon                         String?
+  backgroundColor              String?
+  textColor                    String?
+  borderColor                  String?
+  particleEffect               String? // "none", "snow", "confetti", "stars", "hearts", "fireworks", "sparkles"
   particleEffectAfterCountdown String? // Particle effect setelah countdown selesai
-  hasCountdown      Boolean  @default(false)
-  countdownEndDate  DateTime?
-  actionAfterCountdown String? // "hide", "change_message", "redirect"
-  messageAfterCountdown String?
-  redirectUrlAfterCountdown String?
-  isActive          Boolean  @default(true)
-  createdBy         String
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  hasCountdown                 Boolean   @default(false)
+  countdownEndDate             DateTime?
+  actionAfterCountdown         String? // "hide", "change_message", "redirect"
+  messageAfterCountdown        String?
+  redirectUrlAfterCountdown    String?
+  isActive                     Boolean   @default(true)
+  createdBy                    String
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
 
   @@index([isActive])
   @@index([createdAt])
@@ -518,17 +593,17 @@ model UpdateLog {
 }
 
 model EncryptionKey {
-  id            String   @id @default(cuid())
-  userId        String
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  publicKey     String?  // Base64 encoded public key (ECDH) - null for group keys
+  id                  String     @id @default(cuid())
+  userId              String
+  user                User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  publicKey           String? // Base64 encoded public key (ECDH) - null for group keys
   privateKeyEncrypted String? // Encrypted private key (optional, for backup) or encrypted group key
-  keyType       String   @default("ecdh") // ecdh, group
-  groupChatId   String? // For group chat keys
-  groupChat     GroupChat? @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
-  isActive      Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  keyType             String     @default("ecdh") // ecdh, group
+  groupChatId         String? // For group chat keys
+  groupChat           GroupChat? @relation(fields: [groupChatId], references: [id], onDelete: Cascade)
+  isActive            Boolean    @default(true)
+  createdAt           DateTime   @default(now())
+  updatedAt           DateTime   @updatedAt
 
   @@unique([userId, groupChatId, keyType])
   @@index([userId])
@@ -537,14 +612,14 @@ model EncryptionKey {
 }
 
 model Settings {
-  id              String   @id @default(cuid())
-  key             String   @unique
-  value           String
-  description     String?
-  updatedBy       String?  // User ID who last updated this setting
-  updatedByUser   User?    @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id            String   @id @default(cuid())
+  key           String   @unique
+  value         String
+  description   String?
+  updatedBy     String? // User ID who last updated this setting
+  updatedByUser User?    @relation(fields: [updatedBy], references: [id], onDelete: SetNull)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   @@index([key])
 }

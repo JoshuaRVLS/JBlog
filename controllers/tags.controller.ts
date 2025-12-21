@@ -4,6 +4,12 @@ import { StatusCodes } from "http-status-codes";
 
 export const getAllTags = async (req: Request, res: Response) => {
   try {
+    const { trending } = req.query;
+    
+    const orderBy = trending === "true" 
+      ? { postCount: "desc" as const }
+      : { posts: { _count: "desc" as const } };
+
     const tags = await db.tag.findMany({
       include: {
         _count: {
@@ -12,11 +18,7 @@ export const getAllTags = async (req: Request, res: Response) => {
           },
         },
       },
-      orderBy: {
-        posts: {
-          _count: "desc",
-        },
-      },
+      orderBy,
     });
 
     res.json({ tags });
@@ -25,6 +27,40 @@ export const getAllTags = async (req: Request, res: Response) => {
     res
       .status(StatusCodes.INTERNAL_SERVER_ERROR)
       .json({ error: "Failed to get tags" });
+  }
+};
+
+// Get trending tags
+export const getTrendingTags = async (req: Request, res: Response) => {
+  try {
+    const { limit = "10" } = req.query;
+    const limitNum = parseInt(limit as string, 10);
+
+    const tags = await db.tag.findMany({
+      where: {
+        postCount: {
+          gt: 0,
+        },
+      },
+      orderBy: {
+        postCount: "desc",
+      },
+      take: limitNum,
+      include: {
+        _count: {
+          select: {
+            posts: true,
+          },
+        },
+      },
+    });
+
+    res.json({ tags });
+  } catch (error) {
+    console.error("Get trending tags error:", error);
+    res
+      .status(StatusCodes.INTERNAL_SERVER_ERROR)
+      .json({ error: "Failed to get trending tags" });
   }
 };
 

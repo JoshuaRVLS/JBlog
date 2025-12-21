@@ -23,6 +23,9 @@ import BroadcastRoutes from "./routes/broadcast.route";
 import UpdateLogRoutes from "./routes/updatelog.route";
 import EncryptionRoutes from "./routes/encryption.route";
 import JPlusRoutes from "./routes/jplus.route";
+import ReactionsRoutes from "./routes/reactions.route";
+import CollectionsRoutes from "./routes/collections.route";
+import AnalyticsRoutes from "./routes/analytics.route";
 import db from "./lib/db";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -103,6 +106,47 @@ app.use("/api/broadcast/", BroadcastRoutes);
 app.use("/api/updatelog/", UpdateLogRoutes);
 app.use("/api/encryption/", EncryptionRoutes);
 app.use("/api/jplus/", JPlusRoutes);
+app.use("/api/", ReactionsRoutes);
+app.use("/api/", CollectionsRoutes);
+app.use("/api/", AnalyticsRoutes);
+
+// Function to publish scheduled posts
+const publishScheduledPosts = async () => {
+  try {
+    const now = new Date();
+    const scheduledPosts = await db.post.findMany({
+      where: {
+        scheduledAt: {
+          lte: now,
+        },
+        published: false,
+      },
+    });
+
+    for (const post of scheduledPosts) {
+      await db.post.update({
+        where: { id: post.id },
+        data: {
+          published: true,
+          scheduledAt: null, // Clear scheduledAt after publishing
+        },
+      });
+      console.log(`✅ Published scheduled post: ${post.id} - ${post.title}`);
+    }
+
+    if (scheduledPosts.length > 0) {
+      console.log(`✅ Published ${scheduledPosts.length} scheduled post(s)`);
+    }
+  } catch (error) {
+    console.error("❌ Error publishing scheduled posts:", error);
+  }
+};
+
+// Check for scheduled posts every minute
+setInterval(publishScheduledPosts, 60 * 1000);
+
+// Publish scheduled posts on server start
+publishScheduledPosts();
 
 // Cluster info endpoint (for verification)
 app.get("/api/cluster-info", (req, res) => {
