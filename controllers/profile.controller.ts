@@ -15,7 +15,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
     }
 
-    const { name, bio, profilePicture, country, website, location, twitter, github, linkedin, instagram, customLinks } = req.body;
+    const { name, bio, profilePicture, country, website, location, twitter, github, linkedin, instagram, customLinks, customCSS } = req.body;
 
     const user = await db.user.update({
       where: { id: userId },
@@ -30,6 +30,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         ...(github !== undefined && { github }),
         ...(linkedin !== undefined && { linkedin }),
         ...(instagram !== undefined && { instagram }),
+        ...(customCSS !== undefined && { customCSS }),
       },
       select: {
         id: true,
@@ -198,6 +199,7 @@ export const getCurrentProfile = async (req: AuthRequest, res: Response) => {
         github: user.github ?? null,
         linkedin: user.linkedin ?? null,
         instagram: user.instagram ?? null,
+        customCSS: user.customCSS ?? null,
         isVerified: user.isVerified ?? false,
         isOwner: user.isOwner ?? false,
         isAdmin: user.isAdmin ?? false,

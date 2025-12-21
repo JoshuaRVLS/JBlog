@@ -102,6 +102,7 @@ export const getUserProfile = async (req: Request, res: Response) => {
         github: true,
         linkedin: true,
         instagram: true,
+        customCSS: true,
         isOwner: true,
         isAdmin: true,
         isVerified: true,

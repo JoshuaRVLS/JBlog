@@ -29,7 +29,7 @@ const processTags = async (tagNames: string[]) => {
 
 export const createPost = async (req: AuthRequest, res: Response) => {
   try {
-    const { title, content, excerpt, coverImage, published, scheduledAt, tags } = req.body;
+    const { title, content, excerpt, coverImage, published, scheduledAt, tags, customScript } = req.body;
     const userId = req.userId;
 
     if (!userId) {
@@ -63,6 +63,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
         scheduledAt: scheduledDateTime,
         authorId: userId,
         readingTime,
+        customScript: customScript || null,
         tags: {
           create: tagIds.map((tagId) => ({ tagId })),
         },
@@ -104,7 +105,7 @@ export const createPost = async (req: AuthRequest, res: Response) => {
 export const updatePost = async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, content, excerpt, coverImage, published, scheduledAt, tags } = req.body;
+    const { title, content, excerpt, coverImage, published, scheduledAt, tags, customScript } = req.body;
     const userId = req.userId;
 
     if (!userId) {
@@ -151,6 +152,9 @@ export const updatePost = async (req: AuthRequest, res: Response) => {
     if (content) {
       updateData.content = content;
       updateData.readingTime = calculateReadingTime(content);
+    }
+    if (customScript !== undefined) {
+      updateData.customScript = customScript || null;
     }
 
     // Simpan versi lama sebelum update (versioning)
