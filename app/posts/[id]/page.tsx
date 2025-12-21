@@ -40,14 +40,34 @@ async function getPost(id: string): Promise<Post | null> {
       return null;
     }
 
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL?.replace(":3000", ":8000") || "https://api.jblog.space";
-    // Pastikan URL valid - remove /api jika ada, lalu tambahkan lagi
-    let apiUrl = backendUrl.replace(/\/api\/?$/, "");
-    if (!apiUrl.startsWith("http://") && !apiUrl.startsWith("https://")) {
-      apiUrl = `https://${apiUrl}`;
+    // Construct backend URL untuk server-side fetch
+    // Di production, gunakan absolute URL
+    let apiBaseUrl: string;
+    
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      // Jika NEXT_PUBLIC_API_URL sudah di-set, gunakan itu
+      apiBaseUrl = process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, "");
+    } else {
+      // Fallback: construct dari SITE_URL atau default
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jblog.space";
+      if (siteUrl.includes(":3000")) {
+        // Development: replace port
+        apiBaseUrl = siteUrl.replace(":3000", ":8000");
+      } else if (siteUrl.includes("jblog.space") && !siteUrl.includes("api.")) {
+        // Production: replace domain
+        apiBaseUrl = siteUrl.replace("jblog.space", "api.jblog.space");
+      } else {
+        // Default fallback
+        apiBaseUrl = "https://api.jblog.space";
+      }
     }
     
-    const fullUrl = `${apiUrl}/api/posts/${id}/public`;
+    // Pastikan URL valid dengan protocol
+    if (!apiBaseUrl.startsWith("http://") && !apiBaseUrl.startsWith("https://")) {
+      apiBaseUrl = `https://${apiBaseUrl}`;
+    }
+    
+    const fullUrl = `${apiBaseUrl}/api/posts/${id}/public`;
     
     // Gunakan endpoint public untuk SEO (tidak increment views)
     const response = await fetch(fullUrl, {
@@ -58,6 +78,7 @@ async function getPost(id: string): Promise<Post | null> {
     });
     
     if (!response.ok) {
+      console.error(`[SEO] Failed to fetch post ${id}: ${response.status} ${response.statusText}`);
       if (response.status === 404) {
         return null;
       }
@@ -65,9 +86,10 @@ async function getPost(id: string): Promise<Post | null> {
     }
 
     const data = await response.json();
+    console.log(`[SEO] Successfully fetched post ${id}`);
     return data;
   } catch (error) {
-    console.error("Error fetching post for SEO:", error);
+    console.error(`[SEO] Error fetching post ${id}:`, error);
     return null;
   }
 }
@@ -130,21 +152,24 @@ export default async function PostPage({ params }: { params: Promise<{ id: strin
   // Await params karena di Next.js 15+ params adalah Promise
   const { id } = await params;
   
-  // Fetch post data untuk initial render (SEO)
-  const post = await getPost(id);
-
-  // Kalau post tidak ditemukan atau tidak published, return 404
-  if (!post || !post.published) {
+  if (!id || id === "undefined") {
+    console.error("[PostPage] Invalid post ID:", id);
     notFound();
   }
+  
+  // Fetch post data untuk initial render (SEO)
+  // Jika gagal, client component akan fetch sendiri
+  const post = await getPost(id);
 
-  // Pass initial data ke client component dengan default values untuk properties yang tidak ada dari public endpoint
-  const postWithDefaults = {
+  // Jika post tidak ditemukan di server-side, tetap render client component
+  // Client component akan handle fetch dan error sendiri
+  // Jangan langsung notFound() karena mungkin masalah network/server-side fetch
+  const postWithDefaults = post ? {
     ...post,
     hasClapped: false,
     isBookmarked: false,
     isReposted: false,
-  };
+  } : null;
 
   return <PostDetailClient initialPost={postWithDefaults} postId={id} />;
 }

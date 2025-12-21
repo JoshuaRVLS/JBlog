@@ -241,11 +241,28 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
   }
 
   if (!post) {
+    // Jika masih loading atau belum fetch, show loading
+    if (!initialPost && postId) {
+      return (
+        <div className="min-h-screen bg-background">
+          <Navbar />
+          <PostDetailLoading />
+        </div>
+      );
+    }
+    
+    // Jika sudah fetch tapi tidak ditemukan
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24 text-center">
           <p className="text-xl text-muted-foreground">Post not found</p>
+          <button
+            onClick={() => router.push("/")}
+            className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:opacity-90"
+          >
+            Back to Home
+          </button>
         </div>
       </div>
     );
