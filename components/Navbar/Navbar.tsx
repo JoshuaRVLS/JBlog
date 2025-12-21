@@ -312,11 +312,11 @@ export default function Navbar() {
 
   if (!mounted || loading) {
     return (
-      <nav className="fixed top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 shadow-sm">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex h-16 items-center justify-between">
+      <nav className="fixed top-0 z-[100] w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 shadow-sm pointer-events-auto">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 pointer-events-auto">
+          <div className="flex h-16 items-center justify-between pointer-events-auto">
             {/* Logo */}
-            <Link href="/">
+            <Link href="/" className="pointer-events-auto" style={{ pointerEvents: 'auto' }}>
               <div className="flex items-center gap-2 cursor-pointer">
                 <Terminal className="h-6 w-6 text-primary" />
                 <span className="text-xl font-bold text-foreground terminal-glow tracking-tight">
@@ -335,11 +335,11 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 shadow-sm overflow-visible">
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 overflow-visible">
-        <div className="flex h-16 items-center justify-between overflow-visible">
+    <nav className="fixed top-0 z-[100] w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 shadow-sm overflow-visible pointer-events-auto">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 overflow-visible pointer-events-auto">
+        <div className="flex h-16 items-center justify-between overflow-visible pointer-events-auto">
           {/* Logo */}
-          <Link href="/">
+          <Link href="/" className="pointer-events-auto" style={{ pointerEvents: 'auto' }}>
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
@@ -386,11 +386,12 @@ export default function Navbar() {
                       >
                         <Link
                           href={item.href}
-                          className={`relative flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-300 flex-shrink-0 ${
+                          className={`relative flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-300 flex-shrink-0 pointer-events-auto ${
                             isActive
                               ? "bg-primary/10 text-primary"
                               : "text-foreground/60 hover:text-primary hover:bg-accent/50"
                           }`}
+                          style={{ pointerEvents: 'auto' }}
                         >
                           <motion.div
                             animate={isActive ? { scale: 1.1, rotate: 0 } : { scale: 1, rotate: 0 }}
@@ -608,11 +609,12 @@ export default function Navbar() {
                         <Link
                           href={item.href}
                           onClick={() => setMobileMenuOpen(false)}
-                          className={`group relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border transition-all duration-200 ${
+                          className={`group relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border transition-all duration-200 pointer-events-auto ${
                             isActive
                               ? "bg-primary/10 border-primary/30 text-primary shadow-lg shadow-primary/10"
                               : "bg-card/50 border-border/50 text-foreground/70 hover:bg-accent/50 hover:border-primary/20 hover:text-primary hover:shadow-md"
                           }`}
+                          style={{ pointerEvents: 'auto' }}
                         >
                           {/* Active indicator */}
                           {isActive && (

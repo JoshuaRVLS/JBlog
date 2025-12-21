@@ -36,7 +36,7 @@ export default function ImageViewer({ imageUrl, onClose, alt = "Image" }: ImageV
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm"
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 backdrop-blur-sm"
       onClick={onClose}
     >
       <button

@@ -67,7 +67,7 @@ export default function ReactionsButton({ postId, className = "" }: ReactionsBut
 
       // Close popup after a short delay (better UX on mobile)
       setTimeout(() => {
-        setIsOpen(false);
+      setIsOpen(false);
         setIsHovered(false);
       }, 300);
     } catch (error: any) {
@@ -190,7 +190,7 @@ export default function ReactionsButton({ postId, className = "" }: ReactionsBut
               setIsHovered(false);
               // Only auto-close on desktop (not mobile)
               if (window.innerWidth >= 768) {
-                setTimeout(() => setIsOpen(false), 200);
+              setTimeout(() => setIsOpen(false), 200);
               }
             }}
             onClick={(e) => e.stopPropagation()}

@@ -67,7 +67,7 @@ export default function Dashboard() {
     enabled: !!userId && authenticated && !authLoading,
     staleTime: 5 * 60 * 1000, // 5 menit
   });
-
+      
   // Fetch posts dengan React Query (cached dan optimized)
   const { data: postsData, isLoading: loadingPosts } = useQuery({
     queryKey: ["dashboard-posts", userId, user?.isOwner],
@@ -149,7 +149,7 @@ export default function Dashboard() {
   }
 
   const loading = authLoading || loadingPosts || !user;
-  
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background">

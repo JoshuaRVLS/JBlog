@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useContext, useRef, Suspense, useCallback } from "react";
+import { useState, useEffect, useContext, useRef, Suspense, useCallback, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -277,13 +277,17 @@ function MessagesPageContent() {
   });
 
   // Process messages dengan decryption (optimized - batch decrypt untuk avoid freeze)
-  const processedMessages = messagesData?.pages.flatMap((page) => page.messages) || [];
+  // Use useMemo untuk avoid re-creating array setiap render
+  const processedMessages = useMemo(() => {
+    return messagesData?.pages.flatMap((page) => page.messages) || [];
+  }, [messagesData]);
   
   // Decrypt messages jika perlu
   const [messages, setMessages] = useState<Message[]>([]);
   const [decrypting, setDecrypting] = useState(false);
   const loadingMessages = loadingMessagesQuery;
   const decryptTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const previousProcessedMessagesRef = useRef<Message[]>([]);
   
   useEffect(() => {
     // Clear previous timeout
@@ -291,9 +295,27 @@ function MessagesPageContent() {
       clearTimeout(decryptTimeoutRef.current);
     }
 
+    // Check if processedMessages actually changed (by comparing IDs)
+    const currentIds = processedMessages.map(m => m.id).join(',');
+    const previousIds = previousProcessedMessagesRef.current.map(m => m.id).join(',');
+    
+    // Skip update jika messages tidak berubah
+    if (currentIds === previousIds && processedMessages.length === previousProcessedMessagesRef.current.length) {
+      return;
+    }
+    
+    // Update ref
+    previousProcessedMessagesRef.current = processedMessages;
+
     if (!encryption || !encryption.hasKeys || !selectedUserId) {
-      // Update messages dan cache
-      setMessages(processedMessages);
+      // Update messages dan cache hanya jika berbeda
+      setMessages((prev) => {
+        const prevIds = prev.map(m => m.id).join(',');
+        if (prevIds === currentIds && prev.length === processedMessages.length) {
+          return prev; // No change, return previous
+        }
+        return processedMessages;
+      });
       if (selectedUserId) {
         messagesCacheRef.current.set(selectedUserId, processedMessages);
       }
@@ -378,6 +400,19 @@ function MessagesPageContent() {
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
         
+        // Check if finalMessages actually changed (by comparing IDs and content)
+        const finalIds = finalMessages.map(m => m.id).join(',');
+        const currentIds = currentMessages.map(m => m.id).join(',');
+        const finalContents = finalMessages.map(m => `${m.id}:${m.content}`).join('|');
+        const currentContents = currentMessages.map(m => `${m.id}:${m.content}`).join('|');
+        
+        // Skip update jika tidak ada perubahan
+        if (finalIds === currentIds && 
+            finalMessages.length === currentMessages.length &&
+            finalContents === currentContents) {
+          return currentMessages; // No change, return previous
+        }
+        
         // Update cache
         if (selectedUserId) {
           messagesCacheRef.current.set(selectedUserId, finalMessages);
@@ -431,7 +466,7 @@ function MessagesPageContent() {
     // Jika sudah retry 3x dan masih user scrolling, skip scroll (kecuali force)
     if (isUserScrollingRef.current && retryCount >= 3 && !force) {
       return;
-    }
+      }
     
     if (scrollTimeoutRef.current) {
       clearTimeout(scrollTimeoutRef.current);
@@ -492,7 +527,7 @@ function MessagesPageContent() {
       else if (!shouldAutoScrollRef.current && isNearBottomRef.current && !isUserScrollingRef.current) {
         // Scroll untuk pesan baru yang masuk (hanya jika user di bottom)
         scrollToBottom(false); // Tidak force, tapi scroll jika di bottom
-      }
+    }
     }
 
     return () => {
@@ -562,10 +597,10 @@ function MessagesPageContent() {
       try {
         const response = await AxiosInstance.put(`/direct-messages/${otherUserId}/read`);
         console.log(`[Read Receipt] Marked messages as read from ${otherUserId}`);
-        refreshConversationsThrottled();
-      } catch (error) {
-        console.error("Error marking as read:", error);
-      }
+      refreshConversationsThrottled();
+    } catch (error) {
+      console.error("Error marking as read:", error);
+    }
     }, 500);
   };
 
@@ -719,7 +754,7 @@ function MessagesPageContent() {
         if (message.senderId === selectedUserId && message.receiverId === userId) {
           // Delay sedikit untuk memastikan message sudah di-render
           setTimeout(() => {
-            markAsRead(selectedUserId);
+          markAsRead(selectedUserId);
           }, 500);
         }
       }
@@ -1014,12 +1049,12 @@ function MessagesPageContent() {
         
         if (realMessageExists) {
           // Real message sudah ada, hanya remove temp message
-          const filtered = prev.filter((msg) => msg.id !== tempMessageId);
+        const filtered = prev.filter((msg) => msg.id !== tempMessageId);
           // Update cache
           if (selectedUserId) {
             messagesCacheRef.current.set(selectedUserId, filtered);
-          }
-          return filtered;
+        }
+        return filtered;
         }
         
         // Real message belum ada, replace temp dengan real message
@@ -1183,12 +1218,12 @@ function MessagesPageContent() {
         if (realMessageExists) {
           console.log(`[SendMessage] Real message already exists, removing temp only`);
           // Real message sudah ada, hanya remove temp message
-          const filtered = prev.filter((msg) => msg.id !== tempMessageId);
+        const filtered = prev.filter((msg) => msg.id !== tempMessageId);
           // Update cache
           if (selectedUserId) {
             messagesCacheRef.current.set(selectedUserId, filtered);
-          }
-          return filtered;
+        }
+        return filtered;
         }
         
         // Real message belum ada - PASTIKAN ditambahkan
@@ -1259,9 +1294,9 @@ function MessagesPageContent() {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main className="pt-20 pb-16">
-        <div className="container mx-auto px-2 sm:px-4 lg:px-8 max-w-7xl">
-          <div className="flex flex-col md:flex-row h-[calc(100vh-8rem)] min-h-0 border border-border rounded-xl overflow-hidden bg-card">
+      <main className="pt-20 pb-16" style={{ pointerEvents: 'auto' }}>
+        <div className="container mx-auto px-2 sm:px-4 lg:px-8 max-w-7xl" style={{ pointerEvents: 'auto' }}>
+          <div className="flex flex-col md:flex-row h-[calc(100vh-8rem)] min-h-0 border border-border rounded-xl overflow-hidden bg-card" style={{ pointerEvents: 'auto' }}>
             {/* Conversations List */}
             <div
               className={`w-full md:w-1/3 border-b md:border-b-0 md:border-r border-border flex flex-col ${
@@ -1446,13 +1481,13 @@ function MessagesPageContent() {
                     ) : (
                       <div className="p-4 space-y-4">
                         {messages.map((message) => {
-                          const isOwn = message.senderId === userId;
-                          
-                          return (
-                            <div
-                              key={message.id}
-                              className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
-                            >
+                      const isOwn = message.senderId === userId;
+                      
+                      return (
+                        <div
+                          key={message.id}
+                          className={`flex ${isOwn ? "justify-end" : "justify-start"}`}
+                        >
                           <div
                             className={`max-w-[70%] rounded-lg p-3 ${
                               isOwn
@@ -1555,7 +1590,7 @@ function MessagesPageContent() {
                             </div>
                           </div>
                         </div>
-                          );
+                      );
                         })}
                       </div>
                     )}
