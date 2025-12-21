@@ -17,6 +17,66 @@ export const getUserFeed = async (req: AuthRequest, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
+    
+    // Advanced filters
+    const sortBy = (req.query.sortBy as string) || "newest";
+    const timeRange = (req.query.timeRange as string) || "all";
+    const search = (req.query.search as string) || "";
+    const tags = (req.query.tags as string)?.split(",").filter(Boolean) || [];
+    const minReadingTime = req.query.minReadingTime ? parseInt(req.query.minReadingTime as string) : null;
+    const maxReadingTime = req.query.maxReadingTime ? parseInt(req.query.maxReadingTime as string) : null;
+    
+    // Build time range filter
+    let timeFilter: any = {};
+    if (timeRange !== "all") {
+      const now = new Date();
+      switch (timeRange) {
+        case "today":
+          timeFilter = { gte: new Date(now.setHours(0, 0, 0, 0)) };
+          break;
+        case "week":
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          timeFilter = { gte: weekAgo };
+          break;
+        case "month":
+          const monthAgo = new Date();
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          timeFilter = { gte: monthAgo };
+          break;
+        case "year":
+          const yearAgo = new Date();
+          yearAgo.setFullYear(yearAgo.getFullYear() - 1);
+          timeFilter = { gte: yearAgo };
+          break;
+      }
+    }
+    
+    // Build sort order
+    let orderBy: any = { createdAt: "desc" };
+    switch (sortBy) {
+      case "oldest":
+        orderBy = { createdAt: "asc" };
+        break;
+      case "mostClapped":
+        orderBy = { claps: { _count: "desc" } };
+        break;
+      case "mostCommented":
+        orderBy = { comments: { _count: "desc" } };
+        break;
+      case "trending":
+        // Trending = combination of recent + engagement
+        orderBy = [
+          { views: "desc" },
+          { createdAt: "desc" },
+        ];
+        break;
+      case "mostViewed":
+        orderBy = { views: "desc" };
+        break;
+      default:
+        orderBy = { createdAt: "desc" };
+    }
 
     // Get list of users that current user is following
     const following = await db.follow.findMany({

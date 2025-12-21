@@ -58,8 +58,25 @@ export const loginUser = async (req: Request, res: Response) => {
       },
     });
 
-    // Cek apakah user ada dan password benar
-    if (!user || !(await bcrypt.compare(password, user.password))) {
+    // Cek apakah user ada
+    if (!user) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ msg: "Email atau password salah" });
+    }
+
+    // Check if user is OAuth-only user (no password)
+    if (!user.password) {
+      return res
+        .status(StatusCodes.UNAUTHORIZED)
+        .json({ 
+          msg: "Akun ini menggunakan login OAuth. Silakan login dengan Google atau GitHub.",
+          requiresOAuth: true
+        });
+    }
+
+    // Cek password benar
+    if (!(await bcrypt.compare(password, user.password))) {
       return res
         .status(StatusCodes.UNAUTHORIZED)
         .json({ msg: "Email atau password salah" });

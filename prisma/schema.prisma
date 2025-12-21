@@ -17,7 +17,7 @@ model User {
   id             String  @id @default(cuid())
   name           String
   email          String  @unique
-  password       String
+  password       String? // Optional for OAuth users
   bio            String?
   description    String?
   profilePicture String?
@@ -28,6 +28,11 @@ model User {
   github         String?
   linkedin       String?
   instagram      String?
+  
+  // OAuth fields
+  googleId       String? @unique
+  githubId       String? @unique
+  oauthProvider  String? // "google" or "github"
 
   refreshTokens            RefreshToken[]
   posts                    Post[]

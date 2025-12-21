@@ -11,12 +11,24 @@ import {
   resetPassword,
   verifyResetToken,
 } from "../controllers/password.controller";
+import {
+  googleCallback,
+  githubCallback,
+  getGoogleAuthUrl,
+  getGithubAuthUrl,
+} from "../controllers/oauth.controller";
 import { authenticate } from "../middleware/auth.middleware";
 
 const router = Router();
 
 router.post("/login", loginUser);
 router.delete("/logout", logout);
+
+// OAuth routes
+router.get("/google/url", getGoogleAuthUrl);
+router.get("/google/callback", googleCallback);
+router.get("/github/url", getGithubAuthUrl);
+router.get("/github/callback", githubCallback);
 router.post("/validate", validate);
 router.post("/refresh", refreshToken);
 router.get("/socket-token", authenticate, getSocketToken);
