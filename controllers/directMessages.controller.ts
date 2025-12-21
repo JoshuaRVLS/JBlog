@@ -280,46 +280,95 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
         .json({ error: "Harus login dulu" });
     }
 
-    // Get all messages in one query, then process in memory (much faster than N+1 queries)
-    const allMessages = await db.directMessage.findMany({
+    // Optimize: Get only last message per conversation using subquery (much faster)
+    // First, get all unique conversation partners
+    const conversationPartners = await db.directMessage.findMany({
       where: {
         OR: [
           { senderId: userId },
           { receiverId: userId },
         ],
       },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            name: true,
-            profilePicture: true,
-          },
-        },
-        receiver: {
-          select: {
-            id: true,
-            name: true,
-            profilePicture: true,
-          },
-        },
+      select: {
+        senderId: true,
+        receiverId: true,
       },
-      orderBy: { createdAt: "desc" },
+      distinct: ["senderId", "receiverId"],
     });
 
-    // Group by conversation partner and get last message
+    // Get unique other user IDs
+    const otherUserIdsSet = new Set<string>();
+    for (const msg of conversationPartners) {
+      if (msg.senderId === userId) {
+        otherUserIdsSet.add(msg.receiverId);
+      } else {
+        otherUserIdsSet.add(msg.senderId);
+      }
+    }
+    const otherUserIds = Array.from(otherUserIdsSet);
+
+    if (otherUserIds.length === 0) {
+      return res.json({ conversations: [] });
+    }
+
+    // Get last message for each conversation partner (optimized query)
+    const lastMessages = await Promise.all(
+      otherUserIds.map(async (otherUserId) => {
+        const lastMessage = await db.directMessage.findFirst({
+          where: {
+            OR: [
+              { senderId: userId, receiverId: otherUserId },
+              { senderId: otherUserId, receiverId: userId },
+            ],
+          },
+          include: {
+            sender: {
+              select: {
+                id: true,
+                name: true,
+                profilePicture: true,
+              },
+            },
+            receiver: {
+              select: {
+                id: true,
+                name: true,
+                profilePicture: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        });
+        return { otherUserId, lastMessage };
+      })
+    );
+
+    // Get user info for all partners in one query
+    const users = await db.user.findMany({
+      where: {
+        id: { in: otherUserIds },
+      },
+      select: {
+        id: true,
+        name: true,
+        profilePicture: true,
+      },
+    });
+
+    const userMap = new Map(users.map((u) => [u.id, u]));
+
+    // Build conversation map
     const conversationMap = new Map<string, {
-      lastMessage: typeof allMessages[0];
+      lastMessage: typeof lastMessages[0]["lastMessage"];
       otherUser: { id: string; name: string; profilePicture: string | null };
     }>();
 
-    for (const message of allMessages) {
-      const otherUserId = message.senderId === userId ? message.receiverId : message.senderId;
-      const otherUser = message.senderId === userId ? message.receiver : message.sender;
-
-      if (!conversationMap.has(otherUserId)) {
+    for (const { otherUserId, lastMessage } of lastMessages) {
+      if (lastMessage && userMap.has(otherUserId)) {
+        const otherUser = userMap.get(otherUserId)!;
         conversationMap.set(otherUserId, {
-          lastMessage: message,
+          lastMessage,
           otherUser: {
             id: otherUser.id,
             name: otherUser.name,
@@ -328,8 +377,6 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
         });
       }
     }
-
-    const otherUserIds = Array.from(conversationMap.keys());
 
     // Batch get unread counts for all conversations at once
     const unreadCounts = otherUserIds.length > 0
@@ -362,7 +409,7 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
       };
     });
 
-    // Sort by last message time (already sorted from query, but ensure it's correct)
+    // Sort by last message time
     conversations.sort((a, b) => {
       if (!a.lastMessage || !b.lastMessage) return 0;
       return (
@@ -454,6 +501,18 @@ export const markMessagesAsRead = async (req: AuthRequest, res: Response) => {
     }
 
     const now = new Date();
+    
+    // Get messages that will be updated (for logging)
+    const messagesToUpdate = await db.directMessage.findMany({
+      where: {
+        senderId,
+        receiverId,
+        read: false,
+      },
+      select: { id: true },
+    });
+    
+    // Update all unread messages
     const updatedMessages = await db.directMessage.updateMany({
       where: {
         senderId,
@@ -470,13 +529,17 @@ export const markMessagesAsRead = async (req: AuthRequest, res: Response) => {
       },
     });
 
-    // Emit read receipts to sender
+    // Emit read receipts to sender dengan informasi lengkap
     const io = getIO();
-    if (io) {
+    if (io && updatedMessages.count > 0) {
+      // Emit dengan message IDs yang di-update untuk lebih akurat
       io.to(`user:${senderId}`).emit("messagesRead", {
         receiverId,
-        readAt: now,
+        readAt: now.toISOString(),
+        messageIds: messagesToUpdate.map(m => m.id), // List message IDs yang di-update
       });
+      
+      console.log(`[Read Receipt] Marked ${updatedMessages.count} messages as read from ${senderId} to ${receiverId}`);
     }
 
     res.json({ message: "Pesan ditandai sebagai sudah dibaca" });

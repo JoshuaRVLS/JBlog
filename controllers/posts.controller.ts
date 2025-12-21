@@ -755,51 +755,54 @@ export const getAllPosts = async (req: AuthRequest, res: Response) => {
     // Get user ID from request if authenticated
     const userId = (req as AuthRequest).userId;
 
-    // Check bookmark and repost status for each post if user is authenticated
-    const postsWithStatus = userId
-      ? await Promise.all(
-          posts.map(async (post) => {
-            const [hasClapped, isBookmarked, isReposted] = await Promise.all([
-              db.clap.findUnique({
-                where: {
-                  postId_userId: {
-                    postId: post.id,
-                    userId,
-                  },
-                },
-              }),
-              db.bookmark.findUnique({
-                where: {
-                  userId_postId: {
-                    userId,
-                    postId: post.id,
-                  },
-                },
-              }),
-              db.repost.findUnique({
-                where: {
-                  userId_postId: {
-                    userId,
-                    postId: post.id,
-                  },
-                },
-              }),
-            ]);
+    // Batch check if user has clapped, bookmarked, or reposted each post (optimize N+1 query)
+    let postsWithStatus;
+    if (userId) {
+      const postIds = posts.map((p) => p.id);
+      const [claps, bookmarks, reposts] = await Promise.all([
+        db.clap.findMany({
+          where: {
+            postId: { in: postIds },
+            userId,
+          },
+          select: { postId: true },
+        }),
+        db.bookmark.findMany({
+          where: {
+            userId,
+            postId: { in: postIds },
+          },
+          select: { postId: true },
+        }),
+        db.repost.findMany({
+          where: {
+            userId,
+            postId: { in: postIds },
+          },
+          select: { postId: true },
+        }),
+      ]);
 
-            return {
-              ...post,
-              hasClapped: !!hasClapped,
-              isBookmarked: !!isBookmarked,
-              isReposted: !!isReposted,
-            };
-          })
-        )
-      : posts.map((post) => ({
-          ...post,
-          hasClapped: false,
-          isBookmarked: false,
-          isReposted: false,
-        }));
+      // Create sets for O(1) lookup
+      const clappedPostIds = new Set(claps.map((c) => c.postId));
+      const bookmarkedPostIds = new Set(bookmarks.map((b) => b.postId));
+      const repostedPostIds = new Set(reposts.map((r) => r.postId));
+
+      // Map posts with status (O(n) instead of O(n*3))
+      postsWithStatus = posts.map((post) => ({
+        ...post,
+        hasClapped: clappedPostIds.has(post.id),
+        isBookmarked: bookmarkedPostIds.has(post.id),
+        isReposted: repostedPostIds.has(post.id),
+      }));
+    } else {
+      postsWithStatus = posts.map((post) => ({
+        ...post,
+        hasClapped: false,
+        isBookmarked: false,
+        isReposted: false,
+      }));
+    }
 
     res.json({
       posts: postsWithStatus,
