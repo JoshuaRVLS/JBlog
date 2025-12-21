@@ -35,17 +35,28 @@ interface Post {
 // Fetch post data untuk SEO (server-side)
 async function getPost(id: string): Promise<Post | null> {
   try {
+    if (!id || id === "undefined") {
+      console.error("Invalid post ID:", id);
+      return null;
+    }
+
     const backendUrl = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_SITE_URL?.replace(":3000", ":8000") || "https://api.jblog.space";
-    const apiUrl = backendUrl.replace("/api", "");
+    // Pastikan URL valid - remove /api jika ada, lalu tambahkan lagi
+    let apiUrl = backendUrl.replace(/\/api\/?$/, "");
+    if (!apiUrl.startsWith("http://") && !apiUrl.startsWith("https://")) {
+      apiUrl = `https://${apiUrl}`;
+    }
+    
+    const fullUrl = `${apiUrl}/api/posts/${id}/public`;
     
     // Gunakan endpoint public untuk SEO (tidak increment views)
-    const response = await fetch(`${apiUrl}/api/posts/${id}/public`, {
+    const response = await fetch(fullUrl, {
       next: { revalidate: 300 }, // Revalidate setiap 5 menit
       headers: {
         "Accept": "application/json",
       },
     });
-
+    
     if (!response.ok) {
       if (response.status === 404) {
         return null;
@@ -62,8 +73,9 @@ async function getPost(id: string): Promise<Post | null> {
 }
 
 // Generate metadata untuk SEO
-export async function generateMetadata({ params }: { params: { id: string } }): Promise<Metadata> {
-  const post = await getPost(params.id);
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const { id } = await params;
+  const post = await getPost(id);
 
   if (!post || !post.published) {
     return {
@@ -114,9 +126,12 @@ export async function generateMetadata({ params }: { params: { id: string } }): 
 }
 
 // Server component wrapper
-export default async function PostPage({ params }: { params: { id: string } }) {
+export default async function PostPage({ params }: { params: Promise<{ id: string }> }) {
+  // Await params karena di Next.js 15+ params adalah Promise
+  const { id } = await params;
+  
   // Fetch post data untuk initial render (SEO)
-  const post = await getPost(params.id);
+  const post = await getPost(id);
 
   // Kalau post tidak ditemukan atau tidak published, return 404
   if (!post || !post.published) {
@@ -131,5 +146,5 @@ export default async function PostPage({ params }: { params: { id: string } }) {
     isReposted: false,
   };
 
-  return <PostDetailClient initialPost={postWithDefaults} postId={params.id} />;
+  return <PostDetailClient initialPost={postWithDefaults} postId={id} />;
 }
