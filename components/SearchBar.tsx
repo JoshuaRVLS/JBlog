@@ -154,7 +154,7 @@ export default function SearchBar() {
   const totalResults = (results?.posts.length || 0) + (results?.users.length || 0);
 
   return (
-    <div ref={searchRef} className="relative w-full max-w-2xl" style={{ zIndex: 100 }}>
+    <div ref={searchRef} className="relative w-full max-w-2xl z-[50] md:z-[300]" style={{ isolation: 'isolate' }}>
       {/* Search Input */}
       <div className="relative">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -207,7 +207,7 @@ export default function SearchBar() {
 
       {/* Suggestions Dropdown (when input is empty or focused) */}
       {showSuggestions && query.trim().length === 0 && !loading && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border/50 rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden" style={{ zIndex: 101 }}>
+        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border/50 rounded-xl shadow-2xl backdrop-blur-sm overflow-hidden z-[51] md:z-[301]">
           <div className="p-4 border-b border-border/50">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-primary" />
@@ -244,7 +244,7 @@ export default function SearchBar() {
 
       {/* Search Results Dropdown */}
       {showResults && query.trim().length >= 2 && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border/50 rounded-xl shadow-2xl max-h-[600px] overflow-y-auto backdrop-blur-sm" style={{ zIndex: 101 }}>
+        <div className="absolute top-full left-0 right-0 mt-2 bg-card border border-border/50 rounded-xl shadow-2xl max-h-[600px] overflow-y-auto backdrop-blur-sm z-[51] md:z-[301]">
           {loading ? (
             <div className="p-8 text-center">
               <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto mb-2" />

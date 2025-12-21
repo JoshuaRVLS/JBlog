@@ -237,7 +237,7 @@ export default function BlogPage() {
               </p>
               
               {/* Search Bar */}
-              <div className="max-w-2xl mx-auto relative z-10">
+              <div className="max-w-2xl mx-auto relative z-[50] md:z-[300]">
                 <SearchBar />
               </div>
             </div>
@@ -245,7 +245,7 @@ export default function BlogPage() {
         </section>
 
         {/* Controls Section */}
-        <section className="sticky top-16 z-20 bg-background/80 backdrop-blur-md border-b border-border/50">
+        <section className="sticky top-16 z-[5] bg-background/80 backdrop-blur-md border-b border-border/50">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
             <div className="flex flex-col md:flex-row items-center justify-between gap-4">
               {/* Sort & View Toggle */}

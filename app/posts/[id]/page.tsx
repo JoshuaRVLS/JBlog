@@ -59,7 +59,7 @@ async function getPost(id: string): Promise<Post | null> {
       } else {
         // Default fallback
         apiBaseUrl = "https://api.jblog.space";
-      }
+    }
     }
     
     // Pastikan URL valid dengan protocol

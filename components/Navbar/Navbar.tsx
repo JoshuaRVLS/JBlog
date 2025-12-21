@@ -163,6 +163,11 @@ interface NavItem {
   name: string;
   href: string;
   icon: React.ComponentType<{ className?: string }>;
+  submenu?: Array<{
+    name: string;
+    href: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }>;
 }
 
 export default function Navbar() {
@@ -171,15 +176,26 @@ export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState<boolean>(false);
   const [profileMenuOpen, setProfileMenuOpen] = useState<boolean>(false);
+  const [blogMenuOpen, setBlogMenuOpen] = useState<boolean>(false);
   const [mounted, setMounted] = useState<boolean>(false);
   const [user, setUser] = useState<any>(null);
   const hasAnimatedRef = useRef<boolean>(false);
   const [activeLabels, setActiveLabels] = useState<Set<string>>(new Set());
   const lastFetchedUserIdRef = useRef<string | null>(null); // Track last fetched userId to prevent refetch
+  const blogMenuRef = useRef<HTMLDivElement>(null);
+  const [isTouchDevice, setIsTouchDevice] = useState<boolean>(false);
 
   useEffect(() => {
     setMounted(true);
     hasAnimatedRef.current = true;
+    
+    // Detect touch device
+    const checkTouchDevice = () => {
+      setIsTouchDevice('ontouchstart' in window || navigator.maxTouchPoints > 0);
+    };
+    checkTouchDevice();
+    window.addEventListener('resize', checkTouchDevice);
+    return () => window.removeEventListener('resize', checkTouchDevice);
   }, []);
 
   // Load user data from cache first, then fetch if needed (only when userId changes)
@@ -257,31 +273,47 @@ export default function Navbar() {
   }, [userId]);
 
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
+    const handleClickOutside = (event: MouseEvent | TouchEvent) => {
       const target = event.target as HTMLElement;
       if (!target.closest(".profile-dropdown")) {
         setProfileMenuOpen(false);
       }
+      if (!target.closest(".blog-menu")) {
+        setBlogMenuOpen(false);
+      }
     };
 
-    if (profileMenuOpen) {
+    if (profileMenuOpen || blogMenuOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside);
     }
 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
-  }, [profileMenuOpen]);
+  }, [profileMenuOpen, blogMenuOpen]);
 
 
   const navItems: NavItem[] = [
     { name: "Home", href: "/", icon: Home },
-    ...(isSuspended ? [] : [{ name: "Blog", href: "/blog", icon: BookOpen }]),
-    ...(authenticated && !isSuspended
-      ? [
+    ...(isSuspended ? [] : [
+      {
+        name: "Blog",
+        href: "/blog",
+        icon: BookOpen,
+        ...(authenticated && !isSuspended ? {
+          submenu: [
+            { name: "Blog", href: "/blog", icon: BookOpen },
           { name: "Feed", href: "/feed", icon: Rss },
           { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
           { name: "Bookmarks", href: "/bookmarks", icon: BookmarkCheck },
+          ]
+        } : {})
+      }
+    ]),
+    ...(authenticated && !isSuspended
+      ? [
           { name: "Messages", href: "/messages", icon: MessageSquare },
           { name: "Group Chat", href: "/groupchat", icon: MessageCircle },
         ]
@@ -295,16 +327,14 @@ export default function Navbar() {
       if (isActive) {
         newActiveLabels.add(item.name);
       }
-    });
-    setActiveLabels(newActiveLabels);
-  }, [pathname, authenticated, user]);
-
-  useEffect(() => {
-    const newActiveLabels = new Set<string>();
-    navItems.forEach((item) => {
-      const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
-      if (isActive) {
+      // Check submenu items
+      if (item.submenu) {
+        item.submenu.forEach((subItem) => {
+          const isSubActive = pathname === subItem.href || (subItem.href !== "/" && pathname?.startsWith(subItem.href));
+          if (isSubActive) {
         newActiveLabels.add(item.name);
+          }
+        });
       }
     });
     setActiveLabels(newActiveLabels);
@@ -335,192 +365,374 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="fixed top-0 z-[100] w-full border-b border-border/50 bg-background/80 backdrop-blur-xl supports-[backdrop-filter]:bg-background/70 shadow-sm overflow-visible pointer-events-auto">
+    <nav className="fixed top-0 z-[100] md:z-[100] w-full border-b border-border/60 bg-background/90 backdrop-blur-2xl supports-[backdrop-filter]:bg-background/80 shadow-lg shadow-black/5 overflow-visible pointer-events-auto">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 overflow-visible pointer-events-auto">
-        <div className="flex h-16 items-center justify-between overflow-visible pointer-events-auto">
-          {/* Logo */}
+        <div className="flex h-20 items-center justify-between overflow-visible pointer-events-auto">
+          {/* Logo - Modern Redesign */}
           <Link href="/" className="pointer-events-auto" style={{ pointerEvents: 'auto' }}>
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.5 }}
-              whileHover={{ scale: 1.05 }}
-              className="flex items-center gap-2 cursor-pointer"
+              whileHover={{ scale: 1.02 }}
+              className="flex items-center gap-3 cursor-pointer group"
             >
-              <div className="relative h-8 w-8 rounded-xl overflow-hidden bg-card border border-border/60 shadow-sm">
+              <div className="relative h-10 w-10 rounded-2xl overflow-hidden bg-gradient-to-br from-primary/20 to-primary/10 border border-border/60 shadow-md group-hover:shadow-lg transition-all duration-300">
                 <Image
                   src="/jblog-logo.svg"
                   alt="jblog.space logo"
                   fill
-                  sizes="32px"
-                  className="object-contain"
+                  sizes="40px"
+                  className="object-contain p-1.5"
                   priority
                 />
               </div>
-              <span className="text-xl font-bold text-foreground terminal-glow tracking-tight">
+              <div className="flex flex-col">
+                <span className="text-lg font-bold text-foreground terminal-glow tracking-tight leading-tight">
                 jblog<span className="text-primary">.space</span>
               </span>
+                <span className="text-[10px] text-muted-foreground/70 font-medium leading-tight -mt-0.5">
+                  Modern Blogging
+                </span>
+              </div>
             </motion.div>
           </Link>
 
-          {/* Desktop Navigation - Icon Only with Animated Label */}
-          <div className="hidden md:flex items-center gap-3">
+          {/* Desktop Navigation - Modern Redesign */}
+          <div className="hidden md:flex items-center gap-1.5 px-2 py-1.5 bg-card/40 backdrop-blur-md border border-border/50 rounded-2xl shadow-lg shadow-black/5">
             {navItems.map((item: NavItem, index: number) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+              const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href)) ||
+                (item.submenu && item.submenu.some(sub => pathname === sub.href || (sub.href !== "/" && pathname?.startsWith(sub.href))));
+              const hasSubmenu = item.submenu && item.submenu.length > 0;
               
               return (
                 <motion.div
                   key={item.name}
-                  initial={hasAnimatedRef.current ? { opacity: 1, y: 0 } : { opacity: 0, y: -20 }}
+                  initial={hasAnimatedRef.current ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={hasAnimatedRef.current ? { duration: 0 } : { duration: 0.5, delay: index * 0.1 }}
-                  whileHover={{ scale: 1.05 }}
-                  className="relative group"
+                  transition={hasAnimatedRef.current ? { duration: 0 } : { duration: 0.4, delay: index * 0.05 }}
+                  className="relative group blog-menu"
+                  ref={hasSubmenu ? blogMenuRef : null}
+                  onMouseEnter={() => {
+                    // Only use hover for desktop (non-touch devices)
+                    if (hasSubmenu && !isTouchDevice) {
+                      setBlogMenuOpen(true);
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    // Only use hover for desktop (non-touch devices)
+                    if (hasSubmenu && !isTouchDevice) {
+                      setBlogMenuOpen(false);
+                    }
+                  }}
                 >
-                  <div className="flex items-center">
-                    <Tooltip content={item.name} delay={200}>
+                  <Tooltip content={item.name} delay={150}>
                       <motion.div
-                        whileTap={{ scale: 0.9 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                         transition={{ duration: 0.15, ease: "easeOut" }}
                       >
-                        <Link
-                          href={item.href}
-                          className={`relative flex items-center justify-center w-10 h-10 rounded-lg transition-all duration-300 flex-shrink-0 pointer-events-auto ${
+                      {hasSubmenu ? (
+                        <button
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setBlogMenuOpen(!blogMenuOpen);
+                          }}
+                          onTouchStart={(e) => {
+                            // For touch devices, toggle on touch
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setBlogMenuOpen(!blogMenuOpen);
+                          }}
+                          className={`relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-300 pointer-events-auto group ${
                             isActive
-                              ? "bg-primary/10 text-primary"
-                              : "text-foreground/60 hover:text-primary hover:bg-accent/50"
+                              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                              : "text-foreground/70 hover:text-foreground hover:bg-accent/60"
                           }`}
                           style={{ pointerEvents: 'auto' }}
                         >
+                          {/* Active indicator background */}
+                          {isActive && (
+                            <motion.div
+                              layoutId="desktopActiveIndicator"
+                              className="absolute inset-0 rounded-xl bg-primary"
+                              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                          )}
+                          
+                          {/* Icon */}
                           <motion.div
-                            animate={isActive ? { scale: 1.1, rotate: 0 } : { scale: 1, rotate: 0 }}
+                            className="relative z-10"
+                            animate={isActive ? { scale: 1.1 } : { scale: 1 }}
                             transition={{ duration: 0.2 }}
                           >
-                            <Icon className="h-5 w-5 flex-shrink-0" />
+                            <Icon className={`h-4 w-4 flex-shrink-0 transition-colors ${
+                              isActive ? "text-primary-foreground" : "text-foreground/70 group-hover:text-foreground"
+                            }`} />
                           </motion.div>
+                          
+                          {/* Label */}
+                          <span className={`relative z-10 text-sm font-medium whitespace-nowrap transition-colors ${
+                            isActive ? "text-primary-foreground" : "text-foreground/70 group-hover:text-foreground"
+                          }`}>
+                            {item.name}
+                          </span>
+                          
+                          {/* Dropdown arrow */}
+                          <motion.div
+                            className="relative z-10"
+                            animate={{ rotate: blogMenuOpen ? 180 : 0 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                          </motion.div>
+                          
+                          {/* Hover glow effect */}
+                          {!isActive && (
+                            <motion.div
+                              className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-primary/10 to-transparent blur-sm"
+                              initial={false}
+                            />
+                          )}
+                        </button>
+                      ) : (
+                        <Link
+                          href={item.href}
+                          className={`relative flex items-center gap-2.5 px-4 py-2.5 rounded-xl transition-all duration-300 pointer-events-auto group ${
+                            isActive
+                              ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                              : "text-foreground/70 hover:text-foreground hover:bg-accent/60"
+                          }`}
+                          style={{ pointerEvents: 'auto' }}
+                        >
+                          {/* Active indicator background */}
+                          {isActive && (
+                          <motion.div
+                              layoutId="desktopActiveIndicator"
+                              className="absolute inset-0 rounded-xl bg-primary"
+                              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                            />
+                          )}
+                          
+                          {/* Icon */}
+                          <motion.div
+                            className="relative z-10"
+                            animate={isActive ? { scale: 1.1 } : { scale: 1 }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <Icon className={`h-4 w-4 flex-shrink-0 transition-colors ${
+                              isActive ? "text-primary-foreground" : "text-foreground/70 group-hover:text-foreground"
+                            }`} />
+                          </motion.div>
+                          
+                          {/* Label */}
+                          <span className={`relative z-10 text-sm font-medium whitespace-nowrap transition-colors ${
+                            isActive ? "text-primary-foreground" : "text-foreground/70 group-hover:text-foreground"
+                          }`}>
+                            {item.name}
+                          </span>
+                          
+                          {/* Hover glow effect */}
+                          {!isActive && (
+                            <motion.div
+                              className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity duration-300 bg-gradient-to-br from-primary/10 to-transparent blur-sm"
+                              initial={false}
+                            />
+                          )}
                         </Link>
+                      )}
                       </motion.div>
                     </Tooltip>
                     
-                    {/* Animated Label - Only show when active, slide from left to right */}
-                    <AnimatePresence mode="wait">
-                      {isActive && (
+                  {/* Blog Submenu Dropdown */}
+                  {hasSubmenu && (
+                    <AnimatePresence>
+                      {blogMenuOpen && (
                         <motion.div
-                          key={`label-${item.name}-${pathname}`}
-                          initial={{ opacity: 0, x: -20, width: 0 }}
-                          animate={{ opacity: 1, x: 0, width: "auto" }}
-                          exit={{ opacity: 0, x: -20, width: 0 }}
-                          transition={{ 
-                            duration: 0.3, 
-                            ease: [0.4, 0, 0.2, 1],
-                            opacity: { duration: 0.2 }
-                          }}
-                          className="ml-3 whitespace-nowrap overflow-hidden flex-shrink-0"
+                          initial={{ opacity: 0, y: -8, scale: 0.96 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                          transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                          className="absolute top-full left-0 mt-2 w-56 bg-card/95 backdrop-blur-xl border border-border/60 rounded-2xl shadow-2xl shadow-black/10 overflow-hidden z-[60]"
                         >
-                          <span className="inline-block px-3 py-1.5 bg-primary/10 text-primary rounded-lg text-sm font-medium backdrop-blur-sm border border-primary/20 shadow-sm">
-                            {item.name}
+                          {item.submenu?.map((subItem, subIndex) => {
+                            const SubIcon = subItem.icon;
+                            const isSubActive = pathname === subItem.href || (subItem.href !== "/" && pathname?.startsWith(subItem.href));
+                            
+                            return (
+                              <motion.div
+                                key={subItem.name}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.2, delay: subIndex * 0.03 }}
+                                whileHover={{ x: 2 }}
+                                whileTap={{ scale: 0.98 }}
+                              >
+                                <Link
+                                  href={subItem.href}
+                                  onClick={() => setBlogMenuOpen(false)}
+                                  className={`flex items-center gap-3 px-4 py-3 hover:bg-accent/60 transition-all group ${
+                                    isSubActive ? "bg-primary/10 border-l-2 border-primary" : ""
+                                  }`}
+                        >
+                                  <div className={`p-1.5 rounded-lg transition-colors ${
+                                    isSubActive 
+                                      ? "bg-primary/20" 
+                                      : "bg-muted/50 group-hover:bg-primary/10"
+                                  }`}>
+                                    <SubIcon className={`h-4 w-4 transition-colors ${
+                                      isSubActive 
+                                        ? "text-primary" 
+                                        : "text-muted-foreground group-hover:text-primary"
+                                    }`} />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <span className={`text-sm font-medium transition-colors ${
+                                      isSubActive ? "text-primary" : "text-foreground group-hover:text-primary"
+                                    }`}>
+                                      {subItem.name}
                           </span>
+                                  </div>
+                                </Link>
+                              </motion.div>
+                            );
+                          })}
                         </motion.div>
                       )}
                     </AnimatePresence>
-                  </div>
+                  )}
                 </motion.div>
               );
             })}
           </div>
 
              {/* Right Side - Auth, Theme Toggle & Mobile Menu */}
-             <div className="flex items-center gap-3">
+             <div className="flex items-center gap-2.5">
                {(authenticated || isSuspended) ? (
                  <>
                    {!isSuspended && (
+                     <div className="hidden md:block">
                      <NotificationsDropdown />
+                     </div>
                    )}
                    
-                   {/* Profile Dropdown */}
+                   {/* Profile Dropdown - Modern Redesign */}
                 <div className="hidden md:block relative profile-dropdown">
-                  <button
+                  <motion.button
                     onClick={() => setProfileMenuOpen(!profileMenuOpen)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-accent transition-colors"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className={`flex items-center gap-2.5 px-3 py-2 rounded-xl transition-all duration-300 ${
+                      profileMenuOpen 
+                        ? "bg-accent shadow-md" 
+                        : "hover:bg-accent/60"
+                    }`}
                   >
                     {user?.profilePicture ? (
-                      <div className="relative w-8 h-8 rounded-full overflow-hidden">
+                      <div className="relative w-9 h-9 rounded-xl overflow-hidden ring-2 ring-border/50 shadow-sm">
                         <Image
                           src={user.profilePicture}
                           alt={user.name || "Profile"}
                           fill
-                          sizes="32px"
+                          sizes="36px"
                           className="object-cover"
                         />
                       </div>
                     ) : (
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center ring-2 ring-border/50 shadow-sm">
                         <User className="h-4 w-4 text-primary" />
                       </div>
                     )}
-                    <span className="text-sm font-medium text-foreground/80">
+                    <div className="flex flex-col items-start">
+                      <span className="text-sm font-semibold text-foreground leading-tight">
                       {user?.name || "User"}
                     </span>
-                  </button>
+                      <span className="text-xs text-muted-foreground leading-tight">
+                        Profile
+                      </span>
+                    </div>
+                  </motion.button>
 
-                  {/* Dropdown Menu */}
+                  {/* Dropdown Menu - Modern Redesign */}
                   <AnimatePresence>
                     {profileMenuOpen && (
                       <motion.div
-                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        initial={{ opacity: 0, y: -8, scale: 0.96 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                        transition={{ duration: 0.2 }}
-                        className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg overflow-hidden z-[60]"
+                        exit={{ opacity: 0, y: -8, scale: 0.96 }}
+                        transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
+                        className="absolute right-0 mt-2.5 w-56 bg-card/95 backdrop-blur-xl border border-border/60 rounded-2xl shadow-2xl shadow-black/10 overflow-hidden z-[60]"
                       >
                         <motion.div
-                          whileTap={{ scale: 0.97 }}
+                          whileHover={{ x: 2 }}
+                          whileTap={{ scale: 0.98 }}
                           transition={{ duration: 0.15, ease: "easeOut" }}
                         >
                           <Link
                             href={`/users/${userId}`}
                             onClick={() => setProfileMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-accent transition-all"
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-accent/60 transition-all group"
                           >
-                            <User className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-foreground">Profil Saya</span>
+                            <div className="p-1.5 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                              <User className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-foreground">Profil Saya</span>
+                              <span className="text-xs text-muted-foreground">View profile</span>
+                            </div>
                           </Link>
                         </motion.div>
                         <motion.div
-                          whileTap={{ scale: 0.97 }}
+                          whileHover={{ x: 2 }}
+                          whileTap={{ scale: 0.98 }}
                           transition={{ duration: 0.15, ease: "easeOut" }}
                         >
                           <Link
                             href="/profile/settings"
                             onClick={() => setProfileMenuOpen(false)}
-                            className="flex items-center gap-3 px-4 py-3 hover:bg-accent transition-all"
+                            className="flex items-center gap-3 px-4 py-3 hover:bg-accent/60 transition-all group"
                           >
-                            <Settings className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-foreground">Pengaturan</span>
+                            <div className="p-1.5 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                              <Settings className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-foreground">Pengaturan</span>
+                              <span className="text-xs text-muted-foreground">Account settings</span>
+                            </div>
                           </Link>
                         </motion.div>
                         {(user?.isAdmin || user?.isOwner) && (
                           <>
-                            <div className="border-t border-border"></div>
+                            <div className="border-t border-border/50 my-1"></div>
                             <motion.div
-                              whileTap={{ scale: 0.97 }}
+                              whileHover={{ x: 2 }}
+                              whileTap={{ scale: 0.98 }}
                               transition={{ duration: 0.15, ease: "easeOut" }}
                             >
                               <Link
                                 href="/admin"
                                 onClick={() => setProfileMenuOpen(false)}
-                                className="flex items-center gap-3 px-4 py-3 hover:bg-accent transition-all"
+                                className="flex items-center gap-3 px-4 py-3 hover:bg-accent/60 transition-all group"
                               >
-                                <Shield className="h-4 w-4 text-muted-foreground" />
-                                <span className="text-sm text-foreground">Admin Panel</span>
+                                <div className="p-1.5 rounded-lg bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                                  <Shield className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="text-sm font-medium text-foreground">Admin Panel</span>
+                                  <span className="text-xs text-muted-foreground">Manage system</span>
+                                </div>
                               </Link>
                             </motion.div>
                           </>
                         )}
-                        <div className="border-t border-border"></div>
+                        <div className="border-t border-border/50 my-1"></div>
                         <motion.div
-                          whileTap={{ scale: 0.97 }}
+                          whileHover={{ x: 2 }}
+                          whileTap={{ scale: 0.98 }}
                           transition={{ duration: 0.15, ease: "easeOut" }}
                         >
                           <button
@@ -529,10 +741,15 @@ export default function Navbar() {
                               await logout();
                               router.push("/");
                             }}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-destructive/10 text-destructive transition-all"
+                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-destructive/10 text-destructive transition-all group rounded-lg"
                           >
+                            <div className="p-1.5 rounded-lg bg-destructive/10 group-hover:bg-destructive/20 transition-colors">
                             <LogOut className="h-4 w-4" />
-                            <span className="text-sm">Logout</span>
+                            </div>
+                            <div className="flex flex-col items-start">
+                              <span className="text-sm font-medium">Logout</span>
+                              <span className="text-xs text-muted-foreground">Sign out</span>
+                            </div>
                           </button>
                         </motion.div>
                       </motion.div>
@@ -542,12 +759,13 @@ export default function Navbar() {
               </>
             ) : (
               <motion.div
-                whileTap={{ scale: 0.95 }}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
                 transition={{ duration: 0.15, ease: "easeOut" }}
               >
                 <Link
                   href="/login"
-                  className="flex items-center gap-2 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold bg-primary text-primary-foreground rounded-full hover:opacity-90 transition-all active:scale-95 shadow-sm"
+                  className="flex items-center gap-2 px-4 py-2.5 text-sm font-semibold bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-all shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30"
                 >
                   <span>Login</span>
                 </Link>
@@ -585,7 +803,7 @@ export default function Navbar() {
               animate={{ opacity: 1, height: "auto" }}
               exit={{ opacity: 0, height: 0 }}
               transition={{ duration: 0.3 }}
-              className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl overflow-hidden"
+              className="md:hidden border-t border-border/50 bg-background/95 backdrop-blur-xl overflow-hidden z-[400] relative"
             >
               <div className="px-4 py-4 max-h-[calc(100vh-64px)] overflow-y-auto">
                 {/* Main Navigation - Grid Layout */}
@@ -593,6 +811,117 @@ export default function Navbar() {
                   {navItems.map((item: NavItem, index: number) => {
                     const Icon = item.icon;
                     const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+                    const hasSubmenu = item.submenu && item.submenu.length > 0;
+                    
+                    // For items with submenu, show the submenu items instead
+                    if (hasSubmenu && item.submenu) {
+                      return (
+                        <React.Fragment key={item.name}>
+                          {/* Main Blog item */}
+                          <motion.div
+                            initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.9 }}
+                            transition={{ 
+                              duration: 0.3, 
+                              delay: index * 0.05,
+                              ease: [0.4, 0, 0.2, 1]
+                            }}
+                            whileTap={{ scale: 0.95 }}
+                            className="col-span-2"
+                          >
+                            <Link
+                              href={item.href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className={`group relative flex items-center gap-2.5 p-3 rounded-lg border transition-all duration-200 pointer-events-auto ${
+                                isActive
+                                  ? "bg-primary/10 border-primary/30 text-primary shadow-lg shadow-primary/10"
+                                  : "bg-card/50 border-border/50 text-foreground/70 hover:bg-accent/50 hover:border-primary/20 hover:text-primary hover:shadow-md"
+                              }`}
+                              style={{ pointerEvents: 'auto' }}
+                            >
+                              <div className={`relative z-10 p-1.5 rounded-md transition-all ${
+                                isActive 
+                                  ? "bg-primary/20" 
+                                  : "bg-muted/50 group-hover:bg-primary/10"
+                              }`}>
+                                <Icon className={`h-4 w-4 transition-colors ${
+                                  isActive ? "text-primary" : "text-foreground/60 group-hover:text-primary"
+                                }`} />
+                              </div>
+                              <span className={`relative z-10 text-sm font-medium transition-colors ${
+                                isActive ? "text-primary" : "text-foreground/70 group-hover:text-primary"
+                              }`}>
+                                {item.name}
+                              </span>
+                            </Link>
+                          </motion.div>
+                          
+                          {/* Submenu items */}
+                          {item.submenu.map((subItem, subIndex) => {
+                            const SubIcon = subItem.icon;
+                            const isSubActive = pathname === subItem.href || (subItem.href !== "/" && pathname?.startsWith(subItem.href));
+                            return (
+                              <motion.div
+                                key={subItem.name}
+                                initial={{ opacity: 0, scale: 0.9, y: 10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.9 }}
+                                transition={{ 
+                                  duration: 0.3, 
+                                  delay: (index * 0.05) + ((subIndex + 1) * 0.03),
+                                  ease: [0.4, 0, 0.2, 1]
+                                }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <Link
+                                  href={subItem.href}
+                                  onClick={() => setMobileMenuOpen(false)}
+                                  className={`group relative flex flex-col items-center justify-center gap-1.5 p-3 rounded-lg border transition-all duration-200 pointer-events-auto ${
+                                    isSubActive
+                                      ? "bg-primary/10 border-primary/30 text-primary shadow-lg shadow-primary/10"
+                                      : "bg-card/50 border-border/50 text-foreground/70 hover:bg-accent/50 hover:border-primary/20 hover:text-primary hover:shadow-md"
+                                  }`}
+                                  style={{ pointerEvents: 'auto' }}
+                                >
+                                  {/* Active indicator */}
+                                  {isSubActive && (
+                                    <motion.div
+                                      layoutId="mobileActiveIndicator"
+                                      className="absolute inset-0 rounded-xl bg-primary/5 border-2 border-primary/30"
+                                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                    />
+                                  )}
+                                  
+                                  {/* Icon */}
+                                  <div className={`relative z-10 p-1.5 rounded-md transition-all ${
+                                    isSubActive 
+                                      ? "bg-primary/20" 
+                                      : "bg-muted/50 group-hover:bg-primary/10"
+                                  }`}>
+                                    <SubIcon className={`h-4 w-4 transition-colors ${
+                                      isSubActive ? "text-primary" : "text-foreground/60 group-hover:text-primary"
+                                    }`} />
+                                  </div>
+                                  
+                                  {/* Label */}
+                                  <span className={`relative z-10 text-xs font-medium text-center transition-colors ${
+                                    isSubActive ? "text-primary" : "text-foreground/70 group-hover:text-primary"
+                                  }`}>
+                                    {subItem.name}
+                                  </span>
+                                  
+                                  {/* Hover glow effect */}
+                                  <div className="absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-br from-primary/5 to-transparent blur-xl" />
+                                </Link>
+                              </motion.div>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    }
+                    
+                    // Regular items without submenu
                     return (
                       <motion.div
                         key={item.name}

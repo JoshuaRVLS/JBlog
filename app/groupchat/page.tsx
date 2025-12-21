@@ -130,6 +130,12 @@ export default function GroupChatPage() {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupDescription, setNewGroupDescription] = useState("");
   const [newGroupIsPublic, setNewGroupIsPublic] = useState(true);
+  const [newGroupBanner, setNewGroupBanner] = useState<File | null>(null);
+  const [newGroupBannerPreview, setNewGroupBannerPreview] = useState<string | null>(null);
+  const [newGroupLogo, setNewGroupLogo] = useState<File | null>(null);
+  const [newGroupLogoPreview, setNewGroupLogoPreview] = useState<string | null>(null);
+  const [uploadingBanner, setUploadingBanner] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   
   const [showSettings, setShowSettings] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
@@ -140,9 +146,7 @@ export default function GroupChatPage() {
   
   const [editingName, setEditingName] = useState("");
   const [editingDescription, setEditingDescription] = useState("");
-  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
-  const [uploadingBanner, setUploadingBanner] = useState(false);
   
   const [showExplore, setShowExplore] = useState(false);
   const [exploreGroups, setExploreGroups] = useState<GroupChat[]>([]);
@@ -1122,6 +1126,62 @@ export default function GroupChatPage() {
     }
   };
 
+  const handleBannerSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith("image/")) {
+      toast.error("Hanya file gambar yang diizinkan");
+      return;
+    }
+    
+    // Validasi ukuran lebih ketat untuk GIF
+    const maxSize = file.type === "image/gif" ? 5 * 1024 * 1024 : 10 * 1024 * 1024; // 5MB untuk GIF, 10MB untuk lainnya
+    if (file.size > maxSize) {
+      toast.error(`Ukuran file maksimal ${maxSize / (1024 * 1024)}MB${file.type === "image/gif" ? " untuk GIF" : ""}`);
+      return;
+    }
+    
+    // Gunakan URL.createObjectURL untuk preview yang lebih efisien (tidak perlu load ke memory)
+    // Cleanup object URL sebelumnya jika ada
+    if (newGroupBannerPreview) {
+      URL.revokeObjectURL(newGroupBannerPreview);
+    }
+    
+    setNewGroupBanner(file);
+    
+    // Create object URL untuk preview (lebih efisien, tidak load ke memory)
+    const objectUrl = URL.createObjectURL(file);
+    setNewGroupBannerPreview(objectUrl);
+  };
+  
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith("image/")) {
+      toast.error("Hanya file gambar yang diizinkan");
+      return;
+    }
+    
+    // Validasi ukuran lebih ketat untuk GIF
+    const maxSize = file.type === "image/gif" ? 3 * 1024 * 1024 : 5 * 1024 * 1024; // 3MB untuk GIF, 5MB untuk lainnya
+    if (file.size > maxSize) {
+      toast.error(`Ukuran file maksimal ${maxSize / (1024 * 1024)}MB${file.type === "image/gif" ? " untuk GIF" : ""}`);
+      return;
+    }
+    
+    // Gunakan URL.createObjectURL untuk preview yang lebih efisien
+    // Cleanup object URL sebelumnya jika ada
+    if (newGroupLogoPreview) {
+      URL.revokeObjectURL(newGroupLogoPreview);
+    }
+    
+    setNewGroupLogo(file);
+    const objectUrl = URL.createObjectURL(file);
+    setNewGroupLogoPreview(objectUrl);
+  };
+
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newGroupName.trim()) {
@@ -1131,6 +1191,8 @@ export default function GroupChatPage() {
 
     try {
       setCreatingGroup(true);
+      
+      // Create group first
       const response = await AxiosInstance.post("/groupchat", {
         name: newGroupName.trim(),
         description: newGroupDescription.trim() || null,
@@ -1138,12 +1200,78 @@ export default function GroupChatPage() {
       });
 
       const newGroup = response.data.groupChat;
-      setGroupChats((prev) => [newGroup, ...prev]);
-      setSelectedGroup(newGroup);
+      
+      // Upload banner if selected
+      if (newGroupBanner) {
+        try {
+          setUploadingBanner(true);
+          const bannerFormData = new FormData();
+          bannerFormData.append("banner", newGroupBanner);
+          
+          await AxiosInstance.post(
+            `/upload/group-banner/${newGroup.id}`,
+            bannerFormData,
+            {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          );
+        } catch (error: any) {
+          console.error("Error uploading banner:", error);
+          toast.error("Gagal upload banner, tapi group berhasil dibuat");
+        } finally {
+          setUploadingBanner(false);
+        }
+      }
+      
+      // Upload logo if selected
+      if (newGroupLogo) {
+        try {
+          setUploadingLogo(true);
+          const logoFormData = new FormData();
+          logoFormData.append("logo", newGroupLogo);
+          
+          await AxiosInstance.post(
+            `/upload/group-logo/${newGroup.id}`,
+            logoFormData,
+            {
+              headers: {
+                "Content-Type": "multipart/form-data",
+              },
+            }
+          );
+        } catch (error: any) {
+          console.error("Error uploading logo:", error);
+          toast.error("Gagal upload logo, tapi group berhasil dibuat");
+        } finally {
+          setUploadingLogo(false);
+        }
+      }
+      
+      // Refresh group data to get updated banner/logo
+      const updatedResponse = await AxiosInstance.get(`/groupchat/${newGroup.id}`);
+      const updatedGroup = updatedResponse.data.groupChat;
+      
+      setGroupChats((prev) => [updatedGroup, ...prev]);
+      setSelectedGroup(updatedGroup);
       setShowCreateModal(false);
+      
+      // Reset form dan cleanup object URLs
+      if (newGroupBannerPreview) {
+        URL.revokeObjectURL(newGroupBannerPreview);
+      }
+      if (newGroupLogoPreview) {
+        URL.revokeObjectURL(newGroupLogoPreview);
+      }
       setNewGroupName("");
       setNewGroupDescription("");
       setNewGroupIsPublic(true);
+      setNewGroupBanner(null);
+      setNewGroupBannerPreview(null);
+      setNewGroupLogo(null);
+      setNewGroupLogoPreview(null);
+      
       toast.success("Group chat berhasil dibuat!");
     } catch (error: any) {
       console.error("Error creating group:", error);
@@ -1993,21 +2121,136 @@ export default function GroupChatPage() {
 
         {/* Create Group Modal */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-lg max-w-md w-full relative">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 overflow-y-auto">
+          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-lg max-w-2xl w-full relative my-8">
             <button
               onClick={() => {
+                // Cleanup object URLs sebelum reset
+                if (newGroupBannerPreview) {
+                  URL.revokeObjectURL(newGroupBannerPreview);
+                }
+                if (newGroupLogoPreview) {
+                  URL.revokeObjectURL(newGroupLogoPreview);
+                }
                 setShowCreateModal(false);
                 setNewGroupName("");
                 setNewGroupDescription("");
                 setNewGroupIsPublic(true);
+                setNewGroupBanner(null);
+                setNewGroupBannerPreview(null);
+                setNewGroupLogo(null);
+                setNewGroupLogoPreview(null);
               }}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-accent/50 transition-colors text-muted-foreground"
+              className="absolute top-4 right-4 p-2 rounded-full hover:bg-accent/50 transition-colors text-muted-foreground z-10"
             >
               <X className="h-5 w-5" />
             </button>
             <h2 className="text-2xl font-bold mb-6 text-gradient">Buat Group Chat Baru</h2>
-            <form onSubmit={handleCreateGroup} className="space-y-4">
+            <form onSubmit={handleCreateGroup} className="space-y-6">
+              {/* Banner Section */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Banner Group (Opsional)
+                </label>
+                <div className="relative">
+                  {newGroupBannerPreview ? (
+                    <div className="relative w-full h-48 rounded-xl overflow-hidden border-2 border-border/50">
+                      <img
+                        src={newGroupBannerPreview}
+                        alt="Banner preview"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Cleanup object URL
+                          if (newGroupBannerPreview) {
+                            URL.revokeObjectURL(newGroupBannerPreview);
+                          }
+                          setNewGroupBanner(null);
+                          setNewGroupBannerPreview(null);
+                        }}
+                        className="absolute top-2 right-2 p-2 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+                        disabled={creatingGroup}
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-dashed border-border/50 rounded-xl cursor-pointer hover:border-primary/50 transition-colors bg-muted/20">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        <ImageIcon className="h-10 w-10 text-muted-foreground mb-2" />
+                        <p className="mb-2 text-sm text-foreground">
+                          <span className="font-semibold">Klik untuk upload</span> atau drag & drop
+                        </p>
+                        <p className="text-xs text-muted-foreground">PNG, JPG, GIF (MAX. 10MB)</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleBannerSelect}
+                        className="hidden"
+                        disabled={creatingGroup}
+                      />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Logo/Profile Picture Section */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Logo/Profile Picture (Opsional)
+                </label>
+                <div className="flex items-center gap-4">
+                  {newGroupLogoPreview ? (
+                    <div className="relative w-24 h-24 rounded-full overflow-hidden border-2 border-border/50 ring-2 ring-primary/20">
+                      <img
+                        src={newGroupLogoPreview}
+                        alt="Logo preview"
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          // Cleanup object URL
+                          if (newGroupLogoPreview) {
+                            URL.revokeObjectURL(newGroupLogoPreview);
+                          }
+                          setNewGroupLogo(null);
+                          setNewGroupLogoPreview(null);
+                        }}
+                        className="absolute top-0 right-0 p-1 bg-black/50 hover:bg-black/70 rounded-full text-white transition-colors"
+                        disabled={creatingGroup}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="flex items-center justify-center w-24 h-24 border-2 border-dashed border-border/50 rounded-full cursor-pointer hover:border-primary/50 transition-colors bg-muted/20">
+                      <ImageIcon className="h-8 w-8 text-muted-foreground" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoSelect}
+                        className="hidden"
+                        disabled={creatingGroup}
+                      />
+                    </label>
+                  )}
+                  <div className="flex-1">
+                    <p className="text-sm text-foreground mb-1">
+                      Upload logo untuk group chat
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      PNG, JPG, GIF (MAX. 5MB) - Disarankan 1:1 ratio
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">
                   Nama Group <span className="text-destructive">*</span>

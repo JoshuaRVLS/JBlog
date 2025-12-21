@@ -76,9 +76,11 @@ function MessagesPageContent() {
   const [currentUserProfile, setCurrentUserProfile] = useState<{ name: string; profilePicture: string | null } | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const loadMoreTriggerRef = useRef<HTMLDivElement>(null); // Ref untuk trigger load older messages
   const isUserScrollingRef = useRef(false);
   const isNearBottomRef = useRef(true);
   const shouldAutoScrollRef = useRef(false); // Flag untuk force scroll (setelah send message) - default false
+  const hasScrolledToBottomRef = useRef(false); // Track apakah sudah scroll ke bottom saat chat dibuka
   const lastConversationsFetchRef = useRef<number>(0);
   const messagesCacheRef = useRef<Map<string, Message[]>>(new Map());
   const queryClient = useQueryClient();
@@ -278,8 +280,13 @@ function MessagesPageContent() {
 
   // Process messages dengan decryption (optimized - batch decrypt untuk avoid freeze)
   // Use useMemo untuk avoid re-creating array setiap render
+  // Messages dari API sudah diurutkan dari terbaru ke terlama, kita perlu reverse untuk display
   const processedMessages = useMemo(() => {
-    return messagesData?.pages.flatMap((page) => page.messages) || [];
+    if (!messagesData?.pages) return [];
+    // Flatten semua pages dan reverse untuk mendapatkan urutan terlama ke terbaru
+    const allMessages = messagesData.pages.flatMap((page) => page.messages);
+    // Reverse untuk mendapatkan urutan terlama ke terbaru (untuk display)
+    return allMessages.reverse();
   }, [messagesData]);
   
   // Decrypt messages jika perlu
@@ -399,7 +406,7 @@ function MessagesPageContent() {
         const finalMessages = Array.from(messageMap.values()).sort((a, b) => 
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
         );
-        
+      
         // Check if finalMessages actually changed (by comparing IDs and content)
         const finalIds = finalMessages.map(m => m.id).join(',');
         const currentIds = currentMessages.map(m => m.id).join(',');
@@ -510,11 +517,28 @@ function MessagesPageContent() {
     };
   }, [checkIfNearBottom]);
   
+  // Auto scroll ke bottom saat chat pertama kali dibuka
+  useEffect(() => {
+    if (selectedUserId && messages.length > 0 && !decrypting && !hasScrolledToBottomRef.current) {
+      // Scroll ke bottom saat chat pertama kali dibuka
+      setTimeout(() => {
+        scrollToBottom(true);
+        hasScrolledToBottomRef.current = true;
+        isNearBottomRef.current = true;
+      }, 300); // Delay sedikit untuk memastikan messages sudah rendered
+    }
+    
+    // Reset flag saat selectedUserId berubah
+    if (selectedUserId) {
+      hasScrolledToBottomRef.current = false;
+    }
+  }, [selectedUserId, messages.length, decrypting, scrollToBottom]);
+
   // Auto scroll saat:
   // 1. Force scroll flag aktif (setelah send message) - SELALU scroll
   // 2. Pesan baru masuk DAN user sudah di bottom - scroll jika di bottom
   useEffect(() => {
-    if (messages.length > 0 && !decrypting) {
+    if (messages.length > 0 && !decrypting && hasScrolledToBottomRef.current) {
       // Update isNearBottomRef sebelum check
       isNearBottomRef.current = checkIfNearBottom();
       
@@ -527,7 +551,7 @@ function MessagesPageContent() {
       else if (!shouldAutoScrollRef.current && isNearBottomRef.current && !isUserScrollingRef.current) {
         // Scroll untuk pesan baru yang masuk (hanya jika user di bottom)
         scrollToBottom(false); // Tidak force, tapi scroll jika di bottom
-    }
+      }
     }
 
     return () => {
@@ -536,6 +560,43 @@ function MessagesPageContent() {
       }
     };
   }, [messages.length, decrypting, scrollToBottom, checkIfNearBottom]);
+  
+  // Infinite scroll - load older messages saat scroll ke atas
+  useEffect(() => {
+    const container = messagesContainerRef.current;
+    const loadMoreTrigger = loadMoreTriggerRef.current;
+    
+    if (!container || !loadMoreTrigger || !hasNextPage || isFetchingNextPage) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (entry.isIntersecting && hasNextPage && !isFetchingNextPage) {
+          // User scroll ke atas, load older messages
+          const previousScrollHeight = container.scrollHeight;
+          fetchNextPage().then(() => {
+            // Maintain scroll position setelah load older messages
+            setTimeout(() => {
+              const newScrollHeight = container.scrollHeight;
+              const scrollDiff = newScrollHeight - previousScrollHeight;
+              container.scrollTop += scrollDiff;
+            }, 50);
+          });
+        }
+      },
+      {
+        root: container,
+        rootMargin: '100px',
+        threshold: 0.1,
+      }
+    );
+    
+    observer.observe(loadMoreTrigger);
+    
+    return () => {
+      observer.disconnect();
+    };
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
   
   // Prefetch messages on hover (using React Query)
   const handleConversationHover = (userId: string) => {
@@ -1477,9 +1538,23 @@ function MessagesPageContent() {
                         <MessageSquare className="h-16 w-16 mx-auto mb-4 opacity-50" />
                         <p className="text-muted-foreground">No messages yet</p>
                         <p className="text-sm text-muted-foreground/70 mt-2">Start a conversation!</p>
-                      </div>
+                            </div>
                     ) : (
                       <div className="p-4 space-y-4">
+                        {/* Load more trigger - untuk infinite scroll */}
+                        {hasNextPage && (
+                          <div ref={loadMoreTriggerRef} className="flex justify-center py-2">
+                            {isFetchingNextPage ? (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <span>Loading older messages...</span>
+                      </div>
+                    ) : (
+                              <div className="h-1 w-full" /> // Invisible trigger
+                            )}
+                          </div>
+                        )}
+                        
                         {messages.map((message) => {
                       const isOwn = message.senderId === userId;
                       
