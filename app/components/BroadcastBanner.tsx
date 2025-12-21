@@ -23,73 +23,80 @@ export default function BroadcastBanner({
     return null;
   }
 
+  // Get type-based colors
+  const getTypeColors = () => {
+    if (broadcast.backgroundColor && broadcast.textColor) {
+      return {
+        bg: broadcast.backgroundColor,
+        text: broadcast.textColor,
+        border: broadcast.borderColor || broadcast.backgroundColor,
+      };
+    }
+
+    switch (broadcast.type) {
+      case "info":
+        return {
+          bg: "rgb(59, 130, 246)",
+          text: "rgb(30, 64, 175)",
+          border: "rgb(37, 99, 235)",
+        };
+      case "warning":
+        return {
+          bg: "rgb(234, 179, 8)",
+          text: "rgb(146, 64, 14)",
+          border: "rgb(217, 119, 6)",
+        };
+      case "success":
+        return {
+          bg: "rgb(34, 197, 94)",
+          text: "rgb(20, 83, 45)",
+          border: "rgb(22, 163, 74)",
+        };
+      default:
+        return {
+          bg: "rgb(239, 68, 68)",
+          text: "rgb(185, 28, 28)",
+          border: "rgb(220, 38, 38)",
+        };
+    }
+  };
+
+  const colors = getTypeColors();
+
   return (
     <div
-      className={`fixed top-16 left-0 right-0 z-40 transition-transform duration-300 ease-out relative overflow-hidden ${
-        showBroadcast ? "translate-y-0" : "-translate-y-full"
+      className={`fixed top-20 left-0 right-0 z-[90] transition-all duration-500 ease-out relative ${
+        showBroadcast ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"
       }`}
     >
-      {/* Background with better opacity - light mode */}
+      {/* Modern gradient background */}
       <div
-        className="absolute inset-0 backdrop-blur-xl dark:hidden"
+        className="absolute inset-0 backdrop-blur-md border-b"
         style={{
-          backgroundColor: broadcast.backgroundColor
-            ? broadcast.type === "info"
-              ? `color-mix(in srgb, ${broadcast.backgroundColor} 85%, white)`
-              : broadcast.type === "warning"
-              ? `color-mix(in srgb, ${broadcast.backgroundColor} 90%, white)`
-              : broadcast.type === "success"
-              ? `color-mix(in srgb, ${broadcast.backgroundColor} 85%, white)`
-              : `color-mix(in srgb, ${broadcast.backgroundColor} 90%, white)`
-            : broadcast.type === "info"
-            ? "color-mix(in srgb, rgb(59, 130, 246) 85%, white)"
-            : broadcast.type === "warning"
-            ? "color-mix(in srgb, rgb(234, 179, 8) 90%, white)"
-            : broadcast.type === "success"
-            ? "color-mix(in srgb, rgb(34, 197, 94) 85%, white)"
-            : "color-mix(in srgb, rgb(239, 68, 68) 90%, white)",
-        }}
-      />
-      {/* Background with better opacity - dark mode */}
-      <div
-        className="absolute inset-0 backdrop-blur-xl hidden dark:block"
-        style={{
-          backgroundColor: broadcast.backgroundColor
-            ? broadcast.type === "info"
-              ? `color-mix(in srgb, ${broadcast.backgroundColor} 75%, black)`
-              : broadcast.type === "warning"
-              ? `color-mix(in srgb, ${broadcast.backgroundColor} 80%, black)`
-              : broadcast.type === "success"
-              ? `color-mix(in srgb, ${broadcast.backgroundColor} 75%, black)`
-              : `color-mix(in srgb, ${broadcast.backgroundColor} 80%, black)`
-            : broadcast.type === "info"
-            ? "color-mix(in srgb, rgb(59, 130, 246) 75%, black)"
-            : broadcast.type === "warning"
-            ? "color-mix(in srgb, rgb(234, 179, 8) 80%, black)"
-            : broadcast.type === "success"
-            ? "color-mix(in srgb, rgb(34, 197, 94) 75%, black)"
-            : "color-mix(in srgb, rgb(239, 68, 68) 80%, black)",
+          background: `linear-gradient(135deg, ${colors.bg}15 0%, ${colors.bg}08 100%)`,
+          borderColor: `${colors.border}30`,
         }}
       />
 
-      {/* Border with gradient effect */}
+      {/* Subtle animated gradient overlay */}
       <div
-        className="absolute bottom-0 left-0 right-0 h-[1px]"
+        className="absolute inset-0 opacity-40"
         style={{
-          background: broadcast.borderColor
-            ? `linear-gradient(90deg, transparent, ${broadcast.borderColor}, transparent)`
-            : broadcast.type === "info"
-            ? "linear-gradient(90deg, transparent, rgb(59, 130, 246), transparent)"
-            : broadcast.type === "warning"
-            ? "linear-gradient(90deg, transparent, rgb(234, 179, 8), transparent)"
-            : broadcast.type === "success"
-            ? "linear-gradient(90deg, transparent, rgb(34, 197, 94), transparent)"
-            : "linear-gradient(90deg, transparent, rgb(239, 68, 68), transparent)",
+          background: `linear-gradient(90deg, transparent 0%, ${colors.bg}20 50%, transparent 100%)`,
+          animation: "broadcast-shimmer 3s ease-in-out infinite",
         }}
       />
 
-      {/* Shadow for depth */}
-      <div className="absolute inset-0 shadow-[0_4px_20px_-2px_rgba(0,0,0,0.1)] dark:shadow-[0_4px_20px_-2px_rgba(0,0,0,0.3)] pointer-events-none" />
+      {/* Top accent line */}
+      <div
+        className="absolute top-0 left-0 right-0 h-0.5"
+        style={{
+          background: `linear-gradient(90deg, transparent, ${colors.border}, transparent)`,
+        }}
+      />
+
+      {/* Bottom shadow */}
+      <div className="absolute bottom-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
 
       <BroadcastParticles
         effect={
@@ -99,27 +106,22 @@ export default function BroadcastBanner({
         }
       />
 
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 relative z-10 pointer-events-auto">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3.5 sm:py-4 relative z-10 pointer-events-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
           <div className="flex items-start sm:items-center gap-3 sm:gap-4 flex-1 min-w-0">
             {broadcast.icon && (
-              <div className="flex-shrink-0 mt-0.5 sm:mt-0 text-lg sm:text-xl">
+              <div 
+                className="flex-shrink-0 mt-0.5 sm:mt-0 text-xl sm:text-2xl transition-transform duration-300 hover:scale-110"
+                style={{ color: colors.border }}
+              >
                 {broadcast.icon}
               </div>
             )}
-            <div className="flex-1 min-w-0 space-y-1">
-              <div
-                className="font-bold text-sm sm:text-base leading-tight dark:text-white/95"
+            <div className="flex-1 min-w-0 space-y-1.5">
+              <h3
+                className="font-bold text-sm sm:text-base leading-tight text-foreground"
                 style={{
-                  color:
-                    broadcast.textColor ||
-                    (broadcast.type === "info"
-                      ? "rgb(30, 64, 175)"
-                      : broadcast.type === "warning"
-                      ? "rgb(146, 64, 14)"
-                      : broadcast.type === "success"
-                      ? "rgb(20, 83, 45)"
-                      : "rgb(185, 28, 28)"),
+                  color: broadcast.textColor || colors.text,
                 }}
               >
                 {countdownFinished &&
@@ -127,78 +129,48 @@ export default function BroadcastBanner({
                 broadcast.messageAfterCountdown
                   ? broadcast.messageAfterCountdown
                   : broadcast.title}
-              </div>
+              </h3>
               {(!countdownFinished ||
                 broadcast.actionAfterCountdown !== "change_message" ||
                 !broadcast.messageAfterCountdown) && (
-                <div
-                  className="text-xs sm:text-sm leading-relaxed line-clamp-2 sm:line-clamp-3 dark:text-white/90"
+                <p
+                  className="text-xs sm:text-sm leading-relaxed text-muted-foreground line-clamp-2 sm:line-clamp-3"
                   style={{
-                    color: broadcast.textColor
-                      ? undefined
-                      : broadcast.type === "info"
-                      ? "rgb(30, 64, 175)"
-                      : broadcast.type === "warning"
-                      ? "rgb(146, 64, 14)"
-                      : broadcast.type === "success"
-                      ? "rgb(20, 83, 45)"
-                      : "rgb(185, 28, 28)",
+                    color: broadcast.textColor 
+                      ? `${broadcast.textColor}DD`
+                      : undefined,
                   }}
                 >
-                  {broadcast.textColor ? (
-                    <span
-                      className="opacity-90 dark:opacity-95"
-                      style={{ color: broadcast.textColor }}
-                    >
-                      {broadcast.message}
-                    </span>
-                  ) : (
-                    <span className="opacity-90 dark:opacity-95">
-                      {broadcast.message}
-                    </span>
-                  )}
-                </div>
+                  {broadcast.message}
+                </p>
               )}
             </div>
           </div>
+          
           {broadcast.hasCountdown && countdown && !countdownFinished && (
             <div className="flex items-center justify-end sm:justify-center gap-2 flex-shrink-0">
-              <div className="flex items-center gap-2 px-4 py-2 bg-white/90 dark:bg-black/60 backdrop-blur-md rounded-full border border-white/50 dark:border-white/10 shadow-lg">
+              <div 
+                className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl backdrop-blur-sm border shadow-md transition-all duration-300 hover:shadow-lg hover:scale-105"
+                style={{
+                  backgroundColor: `${colors.bg}15`,
+                  borderColor: `${colors.border}40`,
+                }}
+              >
                 {countdown.days > 0 && (
-                  <span className="px-2 py-1 bg-primary/10 dark:bg-primary/20 font-bold rounded-md text-xs sm:text-sm">
-                    <span
-                      className="dark:!text-white/95"
-                      style={
-                        !broadcast.textColor
-                          ? {
-                              color:
-                                broadcast.type === "info"
-                                  ? "rgb(30, 64, 175)"
-                                  : broadcast.type === "warning"
-                                  ? "rgb(146, 64, 14)"
-                                  : broadcast.type === "success"
-                                  ? "rgb(20, 83, 45)"
-                                  : "rgb(185, 28, 28)",
-                            }
-                          : undefined
-                      }
-                    >
-                      {countdown.days}d
-                    </span>
+                  <span 
+                    className="px-2.5 py-1 rounded-lg font-bold text-xs sm:text-sm"
+                    style={{
+                      backgroundColor: `${colors.bg}25`,
+                      color: colors.text,
+                    }}
+                  >
+                    {countdown.days}d
                   </span>
                 )}
                 <span
-                  className="tabular-nums font-bold text-sm sm:text-base dark:text-white/95"
+                  className="tabular-nums font-bold text-sm sm:text-base"
                   style={{
-                    color:
-                      broadcast.textColor ||
-                      (broadcast.type === "info"
-                        ? "rgb(30, 64, 175)"
-                        : broadcast.type === "warning"
-                        ? "rgb(146, 64, 14)"
-                        : broadcast.type === "success"
-                        ? "rgb(20, 83, 45)"
-                        : "rgb(185, 28, 28)"),
+                    color: broadcast.textColor || colors.text,
                   }}
                 >
                   {String(countdown.hours).padStart(2, "0")}:
@@ -210,6 +182,7 @@ export default function BroadcastBanner({
           )}
         </div>
       </div>
+      
     </div>
   );
 }

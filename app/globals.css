@@ -752,3 +752,13 @@ div[id*="react-hot-toast"] {
   background: var(--card) !important;
   opacity: 1 !important;
 }
+
+/* Broadcast banner shimmer animation */
+@keyframes broadcast-shimmer {
+  0%, 100% {
+    transform: translateX(-100%);
+  }
+  50% {
+    transform: translateX(100%);
+  }
+}
