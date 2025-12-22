@@ -73,5 +73,6 @@ export type BlockTemplate = Omit<Block, "id">;
 export interface DragDropPostEditorProps {
   value: string;
   onChange: (markdown: string) => void;
+  customScript?: string;
 }
 

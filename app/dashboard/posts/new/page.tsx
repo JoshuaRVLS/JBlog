@@ -460,7 +460,7 @@ export default function NewPost() {
               <label className="block text-sm font-semibold text-foreground">
                 Konten
               </label>
-              <DragDropPostEditor value={content} onChange={setContent} />
+              <DragDropPostEditor value={content} onChange={setContent} customScript={customScript} />
             </div>
 
             {/* Custom API Section */}

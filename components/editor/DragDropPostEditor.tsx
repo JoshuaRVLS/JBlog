@@ -7,6 +7,7 @@ import { createId } from "./utils";
 import { useBlockEditor } from "./hooks/useBlockEditor";
 import { useImageUpload } from "./hooks/useImageUpload";
 import { useSlashMenu } from "./hooks/useSlashMenu";
+import { usePlaceholderAutocomplete } from "./hooks/usePlaceholderAutocomplete";
 import { useTextSelection } from "./hooks/useTextSelection";
 import EditorToolbar from "./EditorToolbar";
 import TemplateSection from "./TemplateSection";
@@ -16,6 +17,7 @@ import type { Block, BlockType, CodeBlock } from "./types";
 export default function DragDropPostEditor({
   value,
   onChange,
+  customScript,
 }: DragDropPostEditorProps) {
   const {
     blocks,
@@ -39,6 +41,11 @@ export default function DragDropPostEditor({
   } = useImageUpload(updateBlock, addBlocks, createId);
 
   const { slashMenu, setSlashMenu, filteredSlashCommands } = useSlashMenu();
+  const {
+    placeholderMenu,
+    setPlaceholderMenu,
+    filteredPlaceholders,
+  } = usePlaceholderAutocomplete(customScript);
   const { selection, setSelection } = useTextSelection();
 
   const applySlashCommand = (blockId: string, type: BlockType) => {
@@ -69,6 +76,53 @@ export default function DragDropPostEditor({
             imageUrl: null,
             caption: "",
           };
+      }
+    });
+  };
+
+  const applyPlaceholder = (blockId: string, placeholder: string) => {
+    setPlaceholderMenu({ blockId: null, query: "", position: null });
+    const ref = textareaRefs.current.get(blockId);
+    if (!ref) return;
+
+    const cursorPos = ref.selectionStart ?? 0;
+    const value = ref.value;
+    
+    // Find the position of the last '{' before cursor
+    const beforeCursor = value.slice(0, cursorPos);
+    const lastBraceIndex = beforeCursor.lastIndexOf('{');
+    
+    if (lastBraceIndex === -1) return;
+    
+    // Replace from '{' to cursor with '{placeholder}'
+    const newValue = 
+      value.slice(0, lastBraceIndex) + 
+      `{${placeholder}}` + 
+      value.slice(cursorPos);
+
+    updateBlock(blockId, (block) => {
+      switch (block.type) {
+        case "paragraph":
+        case "heading":
+        case "quote":
+          return { ...block, text: newValue } as Block;
+        case "list":
+          return { ...block, items: newValue } as Block;
+        case "code":
+          return { ...(block as CodeBlock), code: newValue } as Block;
+        default:
+          return block;
+      }
+    });
+
+    // Set cursor after the placeholder
+    const newCursorPos = lastBraceIndex + `{${placeholder}}`.length;
+    requestAnimationFrame(() => {
+      try {
+        ref.focus();
+        ref.setSelectionRange(newCursorPos, newCursorPos);
+      } catch {
+        // ignore
       }
     });
   };
@@ -154,6 +208,8 @@ export default function DragDropPostEditor({
             selection={selection}
             slashMenu={slashMenu}
             filteredSlashCommands={filteredSlashCommands}
+            placeholderMenu={placeholderMenu}
+            filteredPlaceholders={filteredPlaceholders}
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDrop={onDrop}
@@ -161,7 +217,9 @@ export default function DragDropPostEditor({
             onUpdate={updateBlock}
             onSelectionChange={setSelection}
             onSlashMenuChange={setSlashMenu}
+            onPlaceholderMenuChange={setPlaceholderMenu}
             onApplySlashCommand={applySlashCommand}
+            onApplyPlaceholder={applyPlaceholder}
             onApplyInlineFormat={applyInlineFormat}
             onImageUploadClick={handleImageUploadClick}
           />

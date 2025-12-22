@@ -306,12 +306,12 @@ export default function BookmarksPage() {
               <div>
                 <h1 className="text-4xl font-bold mb-2 flex items-center gap-3 text-gradient">
                   <BookmarkCheck className="h-10 w-10" />
-                  My Bookmarks
-                </h1>
-                <p className="text-muted-foreground">
-                  Posts you've saved for later
-                </p>
-              </div>
+              My Bookmarks
+            </h1>
+            <p className="text-muted-foreground">
+              Posts you've saved for later
+            </p>
+          </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
@@ -710,12 +710,12 @@ export default function BookmarksPage() {
                   Clear Filters
                 </button>
               ) : (
-                <Link
-                  href="/blog"
-                  className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-                >
-                  Explore Posts
-                </Link>
+              <Link
+                href="/blog"
+                className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Explore Posts
+              </Link>
               )}
             </div>
           ) : (
@@ -748,9 +748,9 @@ export default function BookmarksPage() {
                       onCollectionChange={() => fetchBookmarks(1, true)}
                     />
                   ))}
-                </div>
-              ) : (
-                <div className="space-y-6">
+            </div>
+          ) : (
+            <div className="space-y-6">
                   {bookmarks.map((bookmark) => (
                     <BookmarkCard
                       key={bookmark.id}
@@ -810,10 +810,10 @@ function BookmarkCard({
     }
   };
 
-  const post = bookmark.post;
+                const post = bookmark.post;
   const currentCollection = collections.find((c) => c.id === bookmark.collectionId);
 
-  return (
+                return (
     <article className={`bg-card border rounded-xl overflow-hidden hover:shadow-lg transition-all ${
       isSelected ? "border-primary ring-2 ring-primary" : "border-border"
     }`}>
@@ -829,76 +829,76 @@ function BookmarkCard({
           )}
         </button>
         <div className="flex-1">
-          {post.coverImage && (
-            <Link href={`/posts/${post.id}`}>
+                    {post.coverImage && (
+                      <Link href={`/posts/${post.id}`}>
               <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden">
-                <Image
-                  src={post.coverImage}
-                  alt={post.title}
-                  fill
-                  className="object-cover"
-                  sizes="(max-width: 768px) 100vw, 800px"
-                />
-              </div>
-            </Link>
-          )}
+                          <Image
+                            src={post.coverImage}
+                            alt={post.title}
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 768px) 100vw, 800px"
+                          />
+                        </div>
+                      </Link>
+                    )}
           <div className="p-4">
-            <div className="flex items-center gap-3 mb-4">
-              <Link href={`/users/${post.author.id}`}>
-                <div className="relative w-10 h-10 rounded-full overflow-hidden">
-                  {post.author.profilePicture ? (
-                    <Image
-                      src={post.author.profilePicture}
-                      alt={post.author.name}
-                      fill
-                      className="object-cover"
-                      sizes="40px"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-primary/20 flex items-center justify-center">
-                      <User className="h-5 w-5 text-primary" />
-                    </div>
-                  )}
-                </div>
-              </Link>
-              <div>
-                <Link
-                  href={`/users/${post.author.id}`}
-                  className="font-semibold hover:underline"
-                >
-                  {post.author.name}
-                </Link>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Clock className="h-3 w-3" />
-                  <span>{post.readingTime} min read</span>
-                </div>
-              </div>
-            </div>
+                      <div className="flex items-center gap-3 mb-4">
+                        <Link href={`/users/${post.author.id}`}>
+                          <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                            {post.author.profilePicture ? (
+                              <Image
+                                src={post.author.profilePicture}
+                                alt={post.author.name}
+                                fill
+                                className="object-cover"
+                                sizes="40px"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                                <User className="h-5 w-5 text-primary" />
+                              </div>
+                            )}
+                          </div>
+                        </Link>
+                        <div>
+                          <Link
+                            href={`/users/${post.author.id}`}
+                            className="font-semibold hover:underline"
+                          >
+                            {post.author.name}
+                          </Link>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Clock className="h-3 w-3" />
+                            <span>{post.readingTime} min read</span>
+                          </div>
+                        </div>
+                      </div>
 
-            <Link href={`/posts/${post.id}`}>
-              <h2 className="text-2xl font-bold mb-2 hover:text-primary transition-colors">
-                {post.title}
-              </h2>
-              {post.excerpt && (
-                <p className="text-muted-foreground mb-4 line-clamp-3">
-                  {post.excerpt}
-                </p>
-              )}
-            </Link>
+                      <Link href={`/posts/${post.id}`}>
+                        <h2 className="text-2xl font-bold mb-2 hover:text-primary transition-colors">
+                          {post.title}
+                        </h2>
+                        {post.excerpt && (
+                          <p className="text-muted-foreground mb-4 line-clamp-3">
+                            {post.excerpt}
+                          </p>
+                        )}
+                      </Link>
 
-            {post.tags.length > 0 && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {post.tags.map(({ tag }) => (
-                  <Link
-                    key={tag.id}
-                    href={`/blog?tag=${tag.slug}`}
-                    className="px-3 py-1 bg-muted rounded-full text-sm hover:bg-accent transition-colors"
-                  >
-                    #{tag.name}
-                  </Link>
-                ))}
-              </div>
-            )}
+                      {post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                          {post.tags.map(({ tag }) => (
+                            <Link
+                              key={tag.id}
+                              href={`/blog?tag=${tag.slug}`}
+                              className="px-3 py-1 bg-muted rounded-full text-sm hover:bg-accent transition-colors"
+                            >
+                              #{tag.name}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
 
             {bookmark.notes && (
               <div className="mb-4 p-3 bg-muted/50 rounded-lg">
@@ -915,15 +915,15 @@ function BookmarkCard({
               </div>
             )}
 
-            <div className="flex items-center gap-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Heart className="h-4 w-4" />
-                <span>{post._count.claps}</span>
-              </div>
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <MessageCircle className="h-4 w-4" />
-                <span>{post._count.comments}</span>
-              </div>
+                      <div className="flex items-center gap-4 pt-4 border-t border-border">
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <Heart className="h-4 w-4" />
+                          <span>{post._count.claps}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-muted-foreground">
+                          <MessageCircle className="h-4 w-4" />
+                          <span>{post._count.comments}</span>
+                        </div>
               <div className="relative">
                 <button
                   onClick={() => setShowCollectionMenu(!showCollectionMenu)}
@@ -956,20 +956,20 @@ function BookmarkCard({
                   </div>
                 )}
               </div>
-              <BookmarkButton
-                postId={post.id}
-                initialBookmarked={true}
-                onToggle={(bookmarked) => {
-                  if (!bookmarked) {
+                        <BookmarkButton
+                          postId={post.id}
+                          initialBookmarked={true}
+                          onToggle={(bookmarked) => {
+                            if (!bookmarked) {
                     onUnbookmark(post.id);
-                  }
-                }}
-              />
-              <ShareButton postId={post.id} title={post.title} />
-            </div>
-          </div>
+                            }
+                          }}
+                        />
+                        <ShareButton postId={post.id} title={post.title} />
+                      </div>
+                    </div>
         </div>
-      </div>
+    </div>
     </article>
   );
 }

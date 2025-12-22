@@ -725,7 +725,7 @@ export default function EditPost() {
                   </div>
                 </div>
               ) : (
-                <DragDropPostEditor value={content} onChange={setContent} />
+                <DragDropPostEditor value={content} onChange={setContent} customScript={customScript} />
               )}
               
               <p className="text-xs text-muted-foreground">

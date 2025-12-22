@@ -30,6 +30,15 @@ interface BlockRendererProps {
     label: string;
     description: string;
   }>;
+  placeholderMenu: {
+    blockId: string | null;
+    query: string;
+    position: { top: number; left: number } | null;
+  };
+  filteredPlaceholders: Array<{
+    placeholder: string;
+    apiField: string;
+  }>;
   onUpdate: (id: string, updater: (block: Block) => Block) => void;
   onSelectionChange: (selection: {
     blockId: string | null;
@@ -37,7 +46,13 @@ interface BlockRendererProps {
     end: number;
   }) => void;
   onSlashMenuChange: (menu: { blockId: string | null; query: string }) => void;
+  onPlaceholderMenuChange: (menu: {
+    blockId: string | null;
+    query: string;
+    position: { top: number; left: number } | null;
+  }) => void;
   onApplySlashCommand: (blockId: string, type: BlockType) => void;
+  onApplyPlaceholder: (blockId: string, placeholder: string) => void;
   onApplyInlineFormat: (format: "bold" | "italic" | "code" | "link") => void;
   onImageUploadClick: (blockId: string) => void;
 }
@@ -48,10 +63,14 @@ export default function BlockRenderer({
   selection,
   slashMenu,
   filteredSlashCommands,
+  placeholderMenu,
+  filteredPlaceholders,
   onUpdate,
   onSelectionChange,
   onSlashMenuChange,
+  onPlaceholderMenuChange,
   onApplySlashCommand,
+  onApplyPlaceholder,
   onApplyInlineFormat,
   onImageUploadClick,
 }: BlockRendererProps) {
@@ -78,6 +97,73 @@ export default function BlockRenderer({
     if (selection.blockId === block.id) {
       onSelectionChange({ blockId: null, start: 0, end: 0 });
     }
+    // Close placeholder menu on blur
+    if (placeholderMenu.blockId === block.id) {
+      onPlaceholderMenuChange({ blockId: null, query: "", position: null });
+    }
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>,
+    getValue: () => string
+  ) => {
+    const target = e.currentTarget;
+    const cursorPos = target.selectionStart ?? 0;
+    const value = getValue();
+    
+    // Check if we should show placeholder autocomplete
+    if (filteredPlaceholders.length > 0) {
+      const beforeCursor = value.slice(0, cursorPos);
+      const lastBraceIndex = beforeCursor.lastIndexOf('{');
+      
+      if (lastBraceIndex !== -1) {
+        // Check if there's a closing brace after the last opening brace
+        const afterBrace = beforeCursor.slice(lastBraceIndex + 1);
+        const closingBraceIndex = afterBrace.indexOf('}');
+        
+        // Only show menu if there's no closing brace yet
+        if (closingBraceIndex === -1) {
+          const query = afterBrace;
+          
+          // Calculate position for menu
+          const rect = target.getBoundingClientRect();
+          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+          const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+          
+          // Create a temporary span to measure text position
+          const tempSpan = document.createElement('span');
+          tempSpan.style.visibility = 'hidden';
+          tempSpan.style.position = 'absolute';
+          tempSpan.style.whiteSpace = 'pre-wrap';
+          tempSpan.style.font = window.getComputedStyle(target).font;
+          tempSpan.textContent = value.slice(0, lastBraceIndex);
+          document.body.appendChild(tempSpan);
+          
+          const textRect = tempSpan.getBoundingClientRect();
+          document.body.removeChild(tempSpan);
+          
+          // Calculate position
+          const top = rect.top + scrollTop + (target.scrollTop || 0) + 20;
+          const left = rect.left + scrollLeft + (textRect.width || 0);
+          
+          onPlaceholderMenuChange({
+            blockId: block.id,
+            query,
+            position: { top, left },
+          });
+        } else {
+          // Close menu if closing brace exists
+          if (placeholderMenu.blockId === block.id) {
+            onPlaceholderMenuChange({ blockId: null, query: "", position: null });
+          }
+        }
+      } else {
+        // Close menu if no opening brace
+        if (placeholderMenu.blockId === block.id) {
+          onPlaceholderMenuChange({ blockId: null, query: "", position: null });
+        }
+      }
+    }
   };
 
   if (block.type === "paragraph") {
@@ -85,15 +171,20 @@ export default function BlockRenderer({
       <textarea
         ref={setRef}
         value={(block as ParagraphBlock).text}
-        onChange={(e) =>
+        onChange={(e) => {
           onUpdate(block.id, (prev) => ({
             ...prev,
             text: e.target.value,
-          }))
-        }
+          }));
+          handleInputChange(e, () => e.target.value);
+        }}
         onKeyDown={(e) => {
           if (e.key === "/" && !e.shiftKey && (block as ParagraphBlock).text.length === 0) {
             onSlashMenuChange({ blockId: block.id, query: "" });
+          }
+          // Close placeholder menu on Escape
+          if (e.key === "Escape" && placeholderMenu.blockId === block.id) {
+            onPlaceholderMenuChange({ blockId: null, query: "", position: null });
           }
         }}
         onSelect={(e) => handleSelect(e.currentTarget)}
@@ -140,12 +231,18 @@ export default function BlockRenderer({
           type="text"
           ref={setRef}
           value={headingBlock.text}
-          onChange={(e) =>
+          onChange={(e) => {
             onUpdate(block.id, (prev) => ({
               ...prev,
               text: e.target.value,
-            }))
-          }
+            }));
+            handleInputChange(e, () => e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && placeholderMenu.blockId === block.id) {
+              onPlaceholderMenuChange({ blockId: null, query: "", position: null });
+            }
+          }}
           onSelect={(e) => handleSelect(e.currentTarget)}
           onBlur={handleBlur}
           placeholder="Judul section..."
@@ -160,12 +257,18 @@ export default function BlockRenderer({
       <textarea
         ref={setRef}
         value={(block as QuoteBlock).text}
-        onChange={(e) =>
+        onChange={(e) => {
           onUpdate(block.id, (prev) => ({
             ...prev,
             text: e.target.value,
-          }))
-        }
+          }));
+          handleInputChange(e, () => e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && placeholderMenu.blockId === block.id) {
+            onPlaceholderMenuChange({ blockId: null, query: "", position: null });
+          }
+        }}
         onSelect={(e) => handleSelect(e.currentTarget)}
         onBlur={handleBlur}
         placeholder="Tulis quote atau highlight di sini..."
@@ -180,12 +283,18 @@ export default function BlockRenderer({
       <textarea
         ref={setRef}
         value={(block as ListBlock).items}
-        onChange={(e) =>
+        onChange={(e) => {
           onUpdate(block.id, (prev) => ({
             ...prev,
             items: e.target.value,
-          }))
-        }
+          }));
+          handleInputChange(e, () => e.target.value);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && placeholderMenu.blockId === block.id) {
+            onPlaceholderMenuChange({ blockId: null, query: "", position: null });
+          }
+        }}
         onSelect={(e) => handleSelect(e.currentTarget)}
         onBlur={handleBlur}
         placeholder={"Satu item per baris.\nContoh:\n- Item 1\n- Item 2"}
@@ -220,12 +329,18 @@ export default function BlockRenderer({
         <textarea
           ref={setRef}
           value={codeBlock.code}
-          onChange={(e) =>
+          onChange={(e) => {
             onUpdate(block.id, (prev) => ({
               ...(prev as CodeBlock),
               code: e.target.value,
-            }))
-          }
+            }));
+            handleInputChange(e, () => e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && placeholderMenu.blockId === block.id) {
+              onPlaceholderMenuChange({ blockId: null, query: "", position: null });
+            }
+          }}
           onSelect={(e) => handleSelect(e.currentTarget)}
           onBlur={handleBlur}
           placeholder="Tempel atau tulis kode di sini..."

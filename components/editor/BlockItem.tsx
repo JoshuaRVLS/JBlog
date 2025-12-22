@@ -2,6 +2,7 @@ import BlockActions from "./BlockActions";
 import BlockRenderer from "./BlockRenderer";
 import InlineToolbar from "./InlineToolbar";
 import SlashMenu from "./SlashMenu";
+import PlaceholderAutocompleteMenu from "./PlaceholderAutocompleteMenu";
 import type { Block, BlockType } from "./types";
 
 interface BlockItemProps {
@@ -24,6 +25,15 @@ interface BlockItemProps {
     label: string;
     description: string;
   }>;
+  placeholderMenu: {
+    blockId: string | null;
+    query: string;
+    position: { top: number; left: number } | null;
+  };
+  filteredPlaceholders: Array<{
+    placeholder: string;
+    apiField: string;
+  }>;
   onDragStart: (id: string) => void;
   onDragOver: (e: React.DragEvent<HTMLDivElement>, overId: string) => void;
   onDrop: () => void;
@@ -35,7 +45,13 @@ interface BlockItemProps {
     end: number;
   }) => void;
   onSlashMenuChange: (menu: { blockId: string | null; query: string }) => void;
+  onPlaceholderMenuChange: (menu: {
+    blockId: string | null;
+    query: string;
+    position: { top: number; left: number } | null;
+  }) => void;
   onApplySlashCommand: (blockId: string, type: BlockType) => void;
+  onApplyPlaceholder: (blockId: string, placeholder: string) => void;
   onApplyInlineFormat: (format: "bold" | "italic" | "code" | "link") => void;
   onImageUploadClick: (blockId: string) => void;
 }
@@ -47,6 +63,8 @@ export default function BlockItem({
   selection,
   slashMenu,
   filteredSlashCommands,
+  placeholderMenu,
+  filteredPlaceholders,
   onDragStart,
   onDragOver,
   onDrop,
@@ -54,7 +72,9 @@ export default function BlockItem({
   onUpdate,
   onSelectionChange,
   onSlashMenuChange,
+  onPlaceholderMenuChange,
   onApplySlashCommand,
+  onApplyPlaceholder,
   onApplyInlineFormat,
   onImageUploadClick,
 }: BlockItemProps) {
@@ -80,10 +100,14 @@ export default function BlockItem({
           selection={selection}
           slashMenu={slashMenu}
           filteredSlashCommands={filteredSlashCommands}
+          placeholderMenu={placeholderMenu}
+          filteredPlaceholders={filteredPlaceholders}
           onUpdate={onUpdate}
           onSelectionChange={onSelectionChange}
           onSlashMenuChange={onSlashMenuChange}
+          onPlaceholderMenuChange={onPlaceholderMenuChange}
           onApplySlashCommand={onApplySlashCommand}
+          onApplyPlaceholder={onApplyPlaceholder}
           onApplyInlineFormat={onApplyInlineFormat}
           onImageUploadClick={onImageUploadClick}
         />
@@ -102,6 +126,19 @@ export default function BlockItem({
             <SlashMenu
               commands={filteredSlashCommands}
               onSelect={(type) => onApplySlashCommand(block.id, type)}
+            />
+          )}
+
+        {placeholderMenu.blockId === block.id &&
+          (block.type === "paragraph" ||
+            block.type === "heading" ||
+            block.type === "quote" ||
+            block.type === "list" ||
+            block.type === "code") && (
+            <PlaceholderAutocompleteMenu
+              placeholders={filteredPlaceholders}
+              onSelect={(placeholder) => onApplyPlaceholder(block.id, placeholder)}
+              position={placeholderMenu.position}
             />
           )}
       </div>
