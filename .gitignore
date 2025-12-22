@@ -1,6 +1,5 @@
 # dependencies (bun install)
 node_modules
-.cursor
 .env
 # output
 out
@@ -35,3 +34,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 .DS_Store
 
 /generated/prisma
+
+# cursor
+.cursor
