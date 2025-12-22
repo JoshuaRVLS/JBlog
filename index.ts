@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import UsersRoutes from "./routes/users.route";
 import AuthRoutes from "./routes/auth.route";
 import EmailRoutes from "./routes/email.route";
@@ -45,19 +46,39 @@ import os from "os";
 const app = express();
 
 app.set("trust proxy", 1);
+
+// Enable HTTP compression (gzip/brotli) - CRITICAL for performance
+app.use(
+  compression({
+    level: 6, // Balance between compression and CPU (1-9, 6 is optimal)
+    threshold: 1024, // Only compress responses > 1KB
+    filter: (req, res) => {
+      // Don't compress if client doesn't support it
+      if (req.headers["x-no-compression"]) {
+        return false;
+      }
+      // Use compression for all text-based responses
+      return compression.filter(req, res);
+    },
+  })
+);
+
 app.use(
   cors({
     credentials: true,
     origin: process.env.NODE_ENV === "production" && process.env.FRONTEND_URL
       ? [process.env.FRONTEND_URL]
-      : ["http://localhost:3000", "http://127.0.0.1:3000"],
+      : ["http://localhost:3000", "http://127.0.0.1:3000", "http://localhost:3001"],
     methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
+    allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    exposedHeaders: ["Content-Length", "Content-Type"],
+    maxAge: 86400, // 24 hours
   })
 );
 
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+// Optimize JSON parsing - reduce limit for better performance
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser(process.env.COOKIE_SECRET));
 // Custom morgan format dengan bahasa Indonesia
 morgan.token("status-indo", (req: any, res: any) => {
@@ -77,10 +98,29 @@ app.use(
   )
 );
 
-// Serve static files untuk uploads
+// Serve static files untuk uploads with caching
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use(
+  "/uploads",
+  express.static(path.join(__dirname, "uploads"), {
+    maxAge: "1y", // Cache static files for 1 year
+    etag: true,
+    lastModified: true,
+  })
+);
+
+// Add cache headers for public GET requests
+app.use((req, res, next) => {
+  // Only cache GET requests that are public
+  if (req.method === "GET" && !req.path.includes("/admin") && !req.path.includes("/auth") && !req.userId) {
+    // Cache public API responses for 5 minutes
+    if (req.path.startsWith("/api/tags") || req.path.startsWith("/api/posts") && !req.query.authorId) {
+      res.set("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=60");
+    }
+  }
+  next();
+});
 
 // Maintenance mode check (before all routes except admin/auth)
 app.use(checkMaintenanceMode);
