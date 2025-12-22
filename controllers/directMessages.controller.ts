@@ -319,25 +319,25 @@ export const getConversations = async (req: AuthRequest, res: Response) => {
             OR: [
               { senderId: userId, receiverId: otherUserId },
               { senderId: otherUserId, receiverId: userId },
-            ],
+        ],
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
           },
-          include: {
-            sender: {
-              select: {
-                id: true,
-                name: true,
-                profilePicture: true,
-              },
-            },
-            receiver: {
-              select: {
-                id: true,
-                name: true,
-                profilePicture: true,
-              },
-            },
+        },
+        receiver: {
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
           },
-          orderBy: { createdAt: "desc" },
+        },
+      },
+      orderBy: { createdAt: "desc" },
           take: 1,
         });
         return { otherUserId, lastMessage };

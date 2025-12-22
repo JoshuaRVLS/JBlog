@@ -45,6 +45,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         github: true,
         linkedin: true,
         instagram: true,
+        customCSS: true,
         isVerified: true,
         createdAt: true,
         customLinks: {
@@ -94,6 +95,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
           github: true,
           linkedin: true,
           instagram: true,
+          customCSS: true,
           isVerified: true,
           createdAt: true,
           customLinks: {
