@@ -115,11 +115,6 @@ const nextConfig: NextConfig = {
       },
     ];
   },
-  
-  turbopack: {
-    // Explicitly set workspace root to silence Next.js warning about multiple lockfiles
-    root: "/home/joshuarvl/Documents/projects/jblog",
-  },
 };
 
 export default nextConfig;
