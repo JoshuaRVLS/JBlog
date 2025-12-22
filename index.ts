@@ -52,14 +52,6 @@ app.use(
   compression({
     level: 6, // Balance between compression and CPU (1-9, 6 is optimal)
     threshold: 1024, // Only compress responses > 1KB
-    filter: (req, res) => {
-      // Don't compress if client doesn't support it
-      if (req.headers["x-no-compression"]) {
-        return false;
-      }
-      // Use compression for all text-based responses
-      return compression.filter(req, res);
-    },
   })
 );
 
