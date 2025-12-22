@@ -454,7 +454,8 @@ export default function EditPost() {
     }
   };
 
-  if (loading) {
+  // Show loading while auth is checking or post is loading
+  if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-24">
@@ -462,7 +463,9 @@ export default function EditPost() {
             <div className="relative">
               <Loader2 className="h-6 w-6 text-primary animate-spin" />
             </div>
-            <span className="text-lg font-medium text-foreground">Memuat post...</span>
+            <span className="text-lg font-medium text-foreground">
+              {authLoading ? "Memeriksa autentikasi..." : "Memuat post..."}
+            </span>
           </div>
         </div>
       </div>
