@@ -1,10 +1,20 @@
 import { NextResponse } from "next/server";
 
-// Helper function to get backend URL without double /api
+// Helper function to get backend base URL (without /api suffix)
 function getBackendUrl(): string {
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
-  // Remove trailing /api if present to avoid double /api/api
-  return apiUrl.replace(/\/api\/?$/, "");
+  // If NEXT_PUBLIC_API_URL is set, use it and remove /api suffix
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, "");
+  }
+  
+  // Fallback: use NEXT_PUBLIC_SITE_URL or construct from current origin
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (siteUrl) {
+    return siteUrl;
+  }
+  
+  // Development fallback
+  return "http://localhost:8000";
 }
 
 export async function GET(request: Request) {
