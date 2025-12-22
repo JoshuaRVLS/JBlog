@@ -43,15 +43,21 @@ export function getSocketUrl(): string {
     // Ensure it has protocol
     if (!baseUrl.startsWith("http://") && !baseUrl.startsWith("https://")) {
       // Determine protocol based on current page or default to https
-      const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https://" : "https://";
+      const protocol = typeof window !== "undefined" && window.location.protocol === "https:" ? "https://" : "http://";
       baseUrl = `${protocol}${baseUrl}`;
     }
     return baseUrl;
   }
 
-  // In browser, use current origin (for same-domain deployments)
+  // In browser, check if we're in development (localhost:3000) and use backend port
   if (typeof window !== "undefined") {
-    return window.location.origin;
+    const origin = window.location.origin;
+    // If frontend is on localhost:3000, backend should be on localhost:8000
+    if (origin.includes("localhost:3000") || origin.includes("127.0.0.1:3000")) {
+      return "http://localhost:8000";
+    }
+    // For production same-domain, use current origin
+    return origin;
   }
 
   // Fallback to localhost for development

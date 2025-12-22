@@ -25,7 +25,10 @@ export interface Message {
   mediaUrl: string | null;
   encryptedMediaUrl?: string | null;
   read: boolean;
+  deliveredAt?: string | null;
+  readAt?: string | null;
   createdAt: string;
+  isDecrypted?: boolean;
   sender: {
     id: string;
     name: string;

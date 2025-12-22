@@ -22,7 +22,7 @@ export default function ShareButton({ postId, title, className = "" }: ShareButt
     try {
       await navigator.clipboard.writeText(postUrl);
       setCopied(true);
-      toast.success("Link berhasil disalin!");
+      toast.success("Link disalin");
       setTimeout(() => setCopied(false), 2000);
       setShowMenu(false);
     } catch (error) {

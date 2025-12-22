@@ -147,7 +147,7 @@ ${fetchCalls}
 });
       `.trim();
 
-      // Store as JSON config for easy editing
+      // Store as JSON config
       const config = {
         apis: validApis.map(api => ({
           apiUrl: api.apiUrl.trim(),
@@ -181,9 +181,6 @@ ${fetchCalls}
           <label className="block text-sm font-semibold text-foreground">
             Custom API (Opsional)
           </label>
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-            Easy
-          </span>
         </div>
         <button
           type="button"
@@ -212,19 +209,11 @@ ${fetchCalls}
               <Info className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
               <div className="space-y-1 text-sm">
                 <p className="font-medium text-foreground">
-                  Custom API - Tanpa Coding!
+                  Custom API
                 </p>
                 <p className="text-muted-foreground">
-                  Masukkan URL API dan mapping placeholder. Sistem akan otomatis fetch data dan replace placeholder di content post Anda.
+                  Masukkan URL API dan mapping placeholder ke field API.
                 </p>
-                <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
-                  <p className="font-medium mb-1">Cara Menggunakan:</p>
-                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
-                    <li>Di content post, tulis: <code className="bg-background px-1 rounded">Harga Bitcoin: {"{bitcoinPrice}"}</code></li>
-                    <li>Di bawah, masukkan URL API dan mapping: <code className="bg-background px-1 rounded">bitcoinPrice → bpi.USD.rate</code></li>
-                    <li>Selesai! Sistem akan otomatis fetch dan replace.</li>
-                  </ol>
-                </div>
               </div>
             </div>
           </div>
@@ -280,7 +269,7 @@ ${fetchCalls}
                     className="w-full px-4 py-3 rounded-lg border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Masukkan URL API yang mengembalikan data JSON
+                    URL API JSON
                   </p>
                 </div>
 
@@ -312,7 +301,7 @@ ${fetchCalls}
                             className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                           />
                           <p className="text-xs text-muted-foreground mt-1">
-                            Placeholder (tanpa {"{"} dan {"}"})
+                            Placeholder
                           </p>
                         </div>
                         <div className="flex items-center text-muted-foreground">
@@ -327,7 +316,7 @@ ${fetchCalls}
                             className="w-full px-3 py-2 rounded-lg border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                           />
                           <p className="text-xs text-muted-foreground mt-1">
-                            Field API (gunakan titik untuk nested, e.g., data.price)
+                            Field API
                           </p>
                         </div>
                         {api.mappings.length > 1 && (
@@ -346,8 +335,7 @@ ${fetchCalls}
 
                   {apiIndex === 0 && (
                     <p className="text-xs text-muted-foreground">
-                      💡 Contoh: Jika API mengembalikan <code className="bg-muted px-1 rounded">{"{bpi: {USD: {rate: '50000'}}}"}</code>, 
-                      masukkan <code className="bg-muted px-1 rounded">bpi.USD.rate</code> di field API
+                      Contoh: <code className="bg-muted px-1 rounded">bpi.USD.rate</code> untuk nested field
                     </p>
                   )}
                 </div>
@@ -357,12 +345,9 @@ ${fetchCalls}
 
           {/* Preview */}
           {value && (
-            <div className="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
-              <p className="text-xs font-medium text-foreground">
-                ✅ Konfigurasi tersimpan
-              </p>
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
               <p className="text-xs text-muted-foreground">
-                Script akan otomatis di-generate dan dijalankan saat post dibuka.
+                Konfigurasi tersimpan
               </p>
             </div>
           )}

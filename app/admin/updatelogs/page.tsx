@@ -153,7 +153,7 @@ export default function AdminUpdateLogs() {
               <div className="flex-1">
                 <h3 className="font-semibold mb-1">Cara Sync dari GitHub</h3>
                 <p className="text-sm text-muted-foreground mb-2">
-                  Sistem akan otomatis fetch commits dari branch <code className="bg-muted px-1 rounded">main</code>, <code className="bg-muted px-1 rounded">backend</code>, dan <code className="bg-muted px-1 rounded">frontend</code>, lalu menggabungkannya. Format commit yang didukung:
+                  Fetch commits dari branch <code className="bg-muted px-1 rounded">main</code>, <code className="bg-muted px-1 rounded">backend</code>, dan <code className="bg-muted px-1 rounded">frontend</code>. Format commit yang didukung:
                 </p>
                 <ul className="text-sm text-muted-foreground mb-3 space-y-1 list-disc list-inside">
                   <li>Conventional Commits: <code className="bg-muted px-1 rounded">feat: add new feature</code></li>

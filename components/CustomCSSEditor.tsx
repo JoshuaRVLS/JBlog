@@ -137,13 +137,13 @@ export default function CustomCSSEditor({ value, onChange }: CustomCSSEditorProp
   const handleUseTemplate = (template: typeof CSS_TEMPLATES[0]) => {
     onChange(template.code);
     setShowTemplates(false);
-    toast.success(`Template "${template.name}" telah diterapkan!`);
+    toast.success("Template diterapkan");
   };
 
   const handleCopy = () => {
     navigator.clipboard.writeText(value);
     setCopied(true);
-    toast.success("CSS telah disalin!");
+    toast.success("Disalin");
     setTimeout(() => setCopied(false), 2000);
   };
 
@@ -186,21 +186,14 @@ export default function CustomCSSEditor({ value, onChange }: CustomCSSEditorProp
               <Info className="h-4 w-4 mt-0.5 text-primary flex-shrink-0" />
               <div className="space-y-1 text-sm">
                 <p className="font-medium text-foreground">
-                  Apa itu Custom CSS?
+                  Custom CSS
                 </p>
                 <p className="text-muted-foreground">
-                  Custom CSS memungkinkan Anda mengubah tampilan halaman profile Anda. 
-                  Gunakan template di bawah untuk memulai, atau tulis CSS Anda sendiri.
-                </p>
-                <p className="text-xs text-muted-foreground mt-2">
-                  💡 Gunakan selector seperti <code className="bg-muted px-1 rounded">.profile-container</code>, 
-                  <code className="bg-muted px-1 rounded">.profile-name</code>, <code className="bg-muted px-1 rounded">.profile-bio</code>, atau <code className="bg-muted px-1 rounded">.profile-description</code>
+                  Gunakan selector: <code className="bg-muted px-1 rounded">.profile-container</code>, 
+                  <code className="bg-muted px-1 rounded">.profile-name</code>, <code className="bg-muted px-1 rounded">.profile-bio</code>, <code className="bg-muted px-1 rounded">.profile-description</code>
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  ⚠️ Gunakan <code className="bg-muted px-1 rounded">!important</code> untuk override Tailwind classes jika perlu
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  📌 Jangan ubah <code className="bg-muted px-1 rounded">margin-top</code> dari <code className="bg-muted px-1 rounded">.profile-container</code> atau <code className="bg-muted px-1 rounded">padding-top</code> dari <code className="bg-muted px-1 rounded">main</code> untuk menjaga spacing yang benar
+                  Gunakan <code className="bg-muted px-1 rounded">!important</code> untuk override Tailwind
                 </p>
               </div>
             </div>
@@ -277,8 +270,7 @@ export default function CustomCSSEditor({ value, onChange }: CustomCSSEditorProp
               spellCheck={false}
             />
             <p className="text-xs text-muted-foreground">
-              💡 Tip: Gunakan template di atas untuk memulai dengan cepat, atau tulis CSS Anda sendiri. 
-              CSS akan diterapkan hanya pada halaman profile Anda.
+              CSS diterapkan pada halaman profile
             </p>
           </div>
         </div>

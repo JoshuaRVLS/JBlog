@@ -8,72 +8,22 @@ import Navbar from "@/components/Navbar/Navbar";
 import AxiosInstance, { getSocketUrl } from "@/utils/api";
 import { AuthContext } from "@/providers/AuthProvider";
 import { io, Socket } from "socket.io-client";
-import { MessageCircle, Plus, Send, Users, ArrowLeft, Loader2, Image as ImageIcon, Video, Mic, VideoIcon, X, Play, Pause, Lock, Globe, Settings, Crown, UserMinus, UserPlus, Search, Compass, Key, Eye } from "lucide-react";
-import MessageSkeleton, { ConversationSkeleton, ChatLoadingSpinner } from "@/components/MessageSkeleton";
+import { MessageCircle, Plus, Users, ArrowLeft, Loader2, X, Lock, Globe, Settings, Crown, UserMinus, UserPlus, Search, Compass, Image as ImageIcon } from "lucide-react";
+import MessageSkeleton, { ConversationSkeleton } from "@/components/MessageSkeleton";
 import toast from "react-hot-toast";
-import { generateAvatarUrl } from "@/utils/avatarGenerator";
 import ImageViewer from "@/components/ImageViewer";
-import ConfirmModal from "@/components/modals/ConfirmModal";
+import { generateAvatarUrl } from "@/utils/avatarGenerator";
+import { GroupChat, Message, HoveredMention } from "./types";
+import MessageList from "./components/MessageList";
+import MessageInput from "./components/MessageInput";
+import SettingsModal from "./components/SettingsModal";
+import MembersModal from "./components/MembersModal";
+import ExploreGroupsModal from "./components/ExploreGroupsModal";
+import CreateGroupModal from "./components/CreateGroupModal";
+import { useGroupChatSocket } from "./hooks/useGroupChatSocket";
+import { useGroupChatMessages } from "./hooks/useGroupChatMessages";
 
-interface GroupChat {
-  id: string;
-  name: string;
-  description: string | null;
-  logo: string | null;
-  banner?: string | null;
-  isPublic: boolean;
-  encryptionEnabled?: boolean;
-  createdBy: string;
-  creator: {
-    id: string;
-    name: string;
-    profilePicture: string | null;
-  };
-  members: Array<{
-    id: string;
-    userId: string;
-    role: string;
-    user: {
-      id: string;
-      name: string;
-      profilePicture: string | null;
-    };
-  }>;
-  _count: {
-    members: number;
-    messages: number;
-  };
-  isMember?: boolean; // For explore groups
-}
-
-interface MessageRead {
-  id: string;
-  userId: string;
-  readAt: string;
-  user: {
-    id: string;
-    name: string;
-    profilePicture: string | null;
-  };
-}
-
-interface Message {
-  id: string;
-  content: string;
-  encryptedContent?: string | null;
-  encryptionKeyId?: string | null;
-  type: string;
-  mediaUrl?: string | null;
-  encryptedMediaUrl?: string | null;
-  mediaThumbnail?: string | null;
-  createdAt: string;
-  reads?: MessageRead[];
-  user: {
-    id: string;
-    name: string;
-    profilePicture: string | null;
-  };
-}
+// Types moved to types.ts
 
 export default function GroupChatPage() {
   const { authenticated, userId, isSuspended, loading: authLoading } = useContext(AuthContext);
@@ -1536,557 +1486,52 @@ export default function GroupChatPage() {
                   </div>
 
                   {/* Messages */}
-                  <div
-                    ref={messagesContainerRef}
-                    className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 overscroll-contain"
-                    data-lenis-prevent="true"
-                    style={{ 
-                      WebkitOverflowScrolling: 'touch',
-                      scrollBehavior: 'smooth'
-                    }}
-                  >
-                    {loadingMessages && messages.length === 0 ? (
-                      <MessageSkeleton count={6} />
-                    ) : messages.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                        <MessageCircle className="h-16 w-16 text-muted-foreground mb-4 opacity-50" />
-                        <p className="text-muted-foreground text-lg font-medium mb-2">Belum ada pesan</p>
-                        <p className="text-muted-foreground/70 text-sm">Mulai percakapan dengan mengirim pesan pertama!</p>
-                      </div>
-                    ) : (
-                      messages.map((message) => {
-                      const isOwnMessage = message.user.id === userId;
-                      return (
-                        <div
-                          key={message.id}
-                          className={`flex gap-3 items-start ${isOwnMessage ? "flex-row-reverse" : ""}`}
-                        >
-                          <div className="w-10 h-10 flex-shrink-0">
-                            <Image
-                              src={
-                                message.user.profilePicture ||
-                                generateAvatarUrl(message.user.name)
-                              }
-                              alt={message.user.name}
-                              width={40}
-                              height={40}
-                              className="rounded-full w-10 h-10 object-cover"
-                            />
-                          </div>
-                          <div className={`flex-1 ${isOwnMessage ? "flex flex-col items-end max-w-[70%]" : ""}`}>
-                            {!isOwnMessage && (
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-semibold text-sm">{message.user.name}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(message.createdAt).toLocaleTimeString("id-ID", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                              </div>
-                            )}
-                            {isOwnMessage && (
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs text-muted-foreground">
-                                  {new Date(message.createdAt).toLocaleTimeString("id-ID", {
-                                    hour: "2-digit",
-                                    minute: "2-digit",
-                                  })}
-                                </span>
-                              </div>
-                            )}
-                            <div
-                              className={`inline-block px-4 py-2 rounded-lg ${
-                                isOwnMessage
-                                  ? "bg-primary/10 border border-primary/20"
-                                  : "bg-muted/50 border border-border/50"
-                              }`}
-                            >
-                              {message.type === "image" && message.mediaUrl && (
-                                <div className="mb-2 cursor-pointer" onClick={() => setViewingImage(message.mediaUrl!)}>
-                                  <Image
-                                    src={message.mediaUrl}
-                                    alt="Shared image"
-                                    width={300}
-                                    height={300}
-                                    className="rounded-lg max-w-full h-auto hover:opacity-90 transition-opacity"
-                                    unoptimized
-                                  />
-                                </div>
-                              )}
-                              {message.type === "video" && message.mediaUrl && (
-                                <div className="mb-2">
-                                  <video
-                                    src={message.mediaUrl}
-                                    controls
-                                    className="rounded-lg max-w-full h-auto max-h-96"
-                                  />
-                                </div>
-                              )}
-                              {message.type === "audio" && message.mediaUrl && (
-                                <div className="mb-2">
-                                  <audio src={message.mediaUrl} controls className="w-full" />
-                                </div>
-                              )}
-                              {message.content && (
-                                <p className="text-foreground">
-                                  {message.content.split(/(@[^\s@]+|@everyone)/g).map((part, idx) => {
-                                    if (part.startsWith("@")) {
-                                      const username = part.substring(1);
-                                      const isEveryone = username.toLowerCase() === "everyone";
-                                      const mentionedUser = isEveryone 
-                                        ? null 
-                                        : selectedGroup.members?.find(
-                                            (m) => m.user?.name?.toLowerCase() === username.toLowerCase()
-                                          );
-                                      
-                                      return (
-                                        <span
-                                          key={idx}
-                                          className="text-primary font-semibold bg-primary/10 px-1 rounded cursor-pointer hover:bg-primary/20 transition-colors relative"
-                                          onMouseEnter={(e) => {
-                                            if (mentionHoverTimeoutRef.current) {
-                                              clearTimeout(mentionHoverTimeoutRef.current);
-                                            }
-                                            
-                                            const target = e.currentTarget;
-                                            const rect = target.getBoundingClientRect();
-                                            
-                                            if (isEveryone) {
-                                              setHoveredMention({
-                                                username: "everyone",
-                                                userId: "everyone",
-                                                x: rect.left,
-                                                y: rect.top,
-                                              });
-                                            } else if (mentionedUser?.user) {
-                                              mentionHoverTimeoutRef.current = setTimeout(() => {
-                                                const freshRect = target.getBoundingClientRect();
-                                                setHoveredMention({
-                                                  username: mentionedUser.user.name,
-                                                  userId: mentionedUser.user.id,
-                                                  x: freshRect.left,
-                                                  y: freshRect.top - 10,
-                                                });
-                                              }, 300); // Delay untuk avoid flicker
-                                            }
-                                          }}
-                                          onMouseLeave={() => {
-                                            if (mentionHoverTimeoutRef.current) {
-                                              clearTimeout(mentionHoverTimeoutRef.current);
-                                            }
-                                            setTimeout(() => setHoveredMention(null), 200);
-                                          }}
-                                          onClick={(e) => {
-                                            e.preventDefault();
-                                            if (mentionedUser?.user && mentionedUser.user.id !== userId) {
-                                              router.push(`/users/${mentionedUser.user.id}`);
-                                            }
-                                          }}
-                                        >
-                                          {part}
-                                        </span>
-                                      );
-                                    }
-                                    return <span key={idx}>{part}</span>;
-                                  })}
-                                </p>
-                              )}
-                              {/* Seen by indicator - only show for own messages */}
-                              {isOwnMessage && message.reads && message.reads.length > 0 && (
-                                <div className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-                                  <Eye className="h-3 w-3" />
-                                  <span>
-                                    Dilihat oleh {message.reads.length} {message.reads.length === 1 ? "orang" : "orang"}
-                                  </span>
-                                  {message.reads.length <= 3 && (
-                                    <span className="text-muted-foreground/70">
-                                      ({message.reads.map((r) => r.user.name || "Unknown").join(", ")})
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    }))}
-                    {/* Typing Indicator */}
-                    {typingUsers.size > 0 && (
-                      <div className="flex gap-3 items-start">
-                        <div className="w-10 h-10 flex-shrink-0 flex items-center justify-center">
-                          <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center">
-                            <Loader2 className="h-4 w-4 text-muted-foreground animate-spin" />
-                          </div>
-                        </div>
-                        <div className="flex-1">
-                          <div className="inline-block px-4 py-2 rounded-lg bg-muted/50 border border-border/50">
-                            <div className="flex items-center gap-1">
-                              <span className="text-sm text-muted-foreground">
-                                {Array.from(typingUsers.values())
-                                  .map((user) => user.name)
-                                  .join(", ")}
-                                {typingUsers.size === 1 ? " sedang mengetik" : " sedang mengetik"}
-                              </span>
-                              <div className="flex gap-1 ml-2">
-                                <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></span>
-                                <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></span>
-                                <span className="w-1 h-1 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    <div ref={messagesEndRef} />
-                  </div>
-
-                  {/* Media Preview */}
-                  {selectedMedia && (
-                    <div className="p-4 border-t border-border/50 bg-muted/30">
-                      <div className="flex items-center gap-4">
-                        {selectedMedia.type === "image" && selectedMedia.preview && (
-                          <div className="relative">
-                            <Image
-                              src={selectedMedia.preview}
-                              alt="Preview"
-                              width={100}
-                              height={100}
-                              className="rounded-lg object-cover"
-                            />
-                            <button
-                              onClick={() => {
-                                if (selectedMedia.preview) URL.revokeObjectURL(selectedMedia.preview);
-                                setSelectedMedia(null);
-                              }}
-                              className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:opacity-90"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        )}
-                        {selectedMedia.type === "video" && selectedMedia.preview && (
-                          <div className="relative">
-                            <video
-                              src={selectedMedia.preview}
-                              className="w-32 h-32 rounded-lg object-cover"
-                              controls={false}
-                            />
-                            <button
-                              onClick={() => {
-                                if (selectedMedia.preview) URL.revokeObjectURL(selectedMedia.preview);
-                                setSelectedMedia(null);
-                              }}
-                              className="absolute -top-2 -right-2 p-1 bg-destructive text-destructive-foreground rounded-full hover:opacity-90"
-                            >
-                              <X className="h-4 w-4" />
-                            </button>
-                          </div>
-                        )}
-                        {selectedMedia.type === "audio" && (
-                          <div className="flex items-center gap-2 flex-1">
-                            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <Mic className="h-6 w-6 text-primary" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium">Audio Recording</p>
-                              <p className="text-xs text-muted-foreground">
-                                {(selectedMedia.file.size / 1024).toFixed(1)} KB
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => setSelectedMedia(null)}
-                              className="p-2 hover:bg-destructive/10 rounded-lg transition-colors"
-                            >
-                              <X className="h-5 w-5 text-destructive" />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Video Recording Preview */}
-                  {recordingVideo && (
-                    <div className="p-4 border-t border-border/50 bg-muted/30">
-                      <div className="relative">
-                        <video
-                          ref={videoPreviewRef}
-                          autoPlay
-                          muted
-                          className="w-full max-h-64 rounded-lg bg-black"
-                        />
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-4">
-                          <div className="flex items-center gap-2 bg-destructive/80 text-white px-4 py-2 rounded-full">
-                            <div className="w-3 h-3 bg-white rounded-full animate-pulse" />
-                            <span className="text-sm font-medium">Recording...</span>
-                          </div>
-                          <button
-                            onClick={stopVideoRecording}
-                            className="p-3 bg-destructive text-destructive-foreground rounded-full hover:opacity-90"
-                          >
-                            <Pause className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
+                  <MessageList
+                    messages={messages}
+                    loadingMessages={loadingMessages}
+                    userId={userId}
+                    selectedGroup={selectedGroup}
+                    hoveredMention={hoveredMention}
+                    onMentionHover={setHoveredMention}
+                    onMentionClick={(userId) => router.push(`/users/${userId}`)}
+                    onImageClick={setViewingImage}
+                    typingUsers={typingUsers}
+                    mentionHoverTimeoutRef={mentionHoverTimeoutRef}
+                  />
 
                   {/* Message Input */}
-                  <form onSubmit={handleSendMessage} className="p-2 sm:p-4 border-t border-border/50">
-                    <div className="flex gap-2">
-                      {/* Media Buttons - Desktop: show all, Mobile: show + button */}
-                      <div className="relative" ref={mediaMenuRef}>
-                        {/* Mobile: Single + button */}
-                        <button
-                          type="button"
-                          onClick={() => setShowMediaMenu(!showMediaMenu)}
-                          disabled={uploadingMedia || recordingAudio || recordingVideo || !isUserMember}
-                          className="md:hidden p-3 rounded-lg hover:bg-accent/50 transition-colors disabled:opacity-50"
-                          title="Media Options"
-                        >
-                          <Plus className="h-5 w-5 text-foreground" />
-                        </button>
-                        
-                        {/* Mobile: Media Menu Dropdown */}
-                        {showMediaMenu && (
-                          <div className="md:hidden absolute bottom-full left-0 mb-2 bg-card border border-border rounded-lg shadow-xl overflow-hidden z-50 min-w-[160px]">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                fileInputRef.current?.click();
-                                setShowMediaMenu(false);
-                              }}
-                              disabled={uploadingMedia || recordingAudio || recordingVideo}
-                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left disabled:opacity-50"
-                            >
-                              <ImageIcon className="h-5 w-5 text-foreground" />
-                              <span className="text-foreground">Photo</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                videoInputRef.current?.click();
-                                setShowMediaMenu(false);
-                              }}
-                              disabled={uploadingMedia || recordingAudio || recordingVideo}
-                              className="w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left disabled:opacity-50"
-                            >
-                              <Video className="h-5 w-5 text-foreground" />
-                              <span className="text-foreground">Video</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (recordingAudio) {
-                                  stopAudioRecording();
-                                } else {
-                                  startAudioRecording();
-                                }
-                                setShowMediaMenu(false);
-                              }}
-                              disabled={uploadingMedia || recordingVideo || !!selectedMedia}
-                              className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left disabled:opacity-50 ${
-                                recordingAudio ? "bg-destructive/10" : ""
-                              }`}
-                            >
-                              <Mic className="h-5 w-5 text-foreground" />
-                              <span className="text-foreground">{recordingAudio ? "Stop Audio" : "Audio"}</span>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                if (recordingVideo) {
-                                  stopVideoRecording();
-                                } else {
-                                  startVideoRecording();
-                                }
-                                setShowMediaMenu(false);
-                              }}
-                              disabled={uploadingMedia || recordingAudio || !!selectedMedia}
-                              className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left disabled:opacity-50 ${
-                                recordingVideo ? "bg-destructive/10" : ""
-                              }`}
-                            >
-                              <VideoIcon className="h-5 w-5 text-foreground" />
-                              <span className="text-foreground">{recordingVideo ? "Stop Video" : "Video Record"}</span>
-                            </button>
-                          </div>
-                        )}
-                        
-                        {/* Desktop: Show all buttons */}
-                        <div className="hidden md:flex items-center gap-1">
-                          <input
-                            ref={fileInputRef}
-                            type="file"
-                            accept="image/*,video/*"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                          />
-                          <input
-                            ref={videoInputRef}
-                            type="file"
-                            accept="video/*"
-                            onChange={handleFileSelect}
-                            className="hidden"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => fileInputRef.current?.click()}
-                            disabled={uploadingMedia || recordingAudio || recordingVideo || !isUserMember}
-                            className="p-2 rounded-lg hover:bg-accent/50 transition-colors disabled:opacity-50"
-                            title="Upload Photo"
-                          >
-                            <ImageIcon className="h-5 w-5 text-foreground" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => videoInputRef.current?.click()}
-                            disabled={uploadingMedia || recordingAudio || recordingVideo || !isUserMember}
-                            className="p-2 rounded-lg hover:bg-accent/50 transition-colors disabled:opacity-50"
-                            title="Upload Video"
-                          >
-                            <Video className="h-5 w-5 text-foreground" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={recordingAudio ? stopAudioRecording : startAudioRecording}
-                            disabled={uploadingMedia || recordingVideo || !!selectedMedia || !isUserMember}
-                            className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
-                              recordingAudio
-                                ? "bg-destructive text-destructive-foreground"
-                                : "hover:bg-accent/50"
-                            }`}
-                            title={recordingAudio ? "Stop Recording" : "Record Audio"}
-                          >
-                            <Mic className="h-5 w-5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={recordingVideo ? stopVideoRecording : startVideoRecording}
-                            disabled={uploadingMedia || recordingAudio || !!selectedMedia || !isUserMember}
-                            className={`p-2 rounded-lg transition-colors disabled:opacity-50 ${
-                              recordingVideo
-                                ? "bg-destructive text-destructive-foreground"
-                                : "hover:bg-accent/50"
-                            }`}
-                            title={recordingVideo ? "Stop Recording" : "Record Video"}
-                          >
-                            <VideoIcon className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </div>
-                      
-                      {/* Hidden file inputs for mobile */}
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/*,video/*"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
-                      <input
-                        ref={videoInputRef}
-                        type="file"
-                        accept="video/*"
-                        onChange={handleFileSelect}
-                        className="hidden"
-                      />
-
-                      <div className="flex-1 relative">
-                        {!isUserMember && (
-                          <div className="absolute inset-0 bg-muted/50 backdrop-blur-sm rounded-lg flex items-center justify-center z-10">
-                            <p className="text-sm text-muted-foreground px-4 text-center">
-                              Bergabung ke grup terlebih dahulu untuk mengirim pesan
-                            </p>
-                          </div>
-                        )}
-                        <input
-                          ref={messageInputRef}
-                          type="text"
-                          value={messageInput}
-                          onChange={handleMessageInputChange}
-                          onKeyDown={handleKeyDown}
-                          placeholder={isUserMember ? "Tulis pesan... (ketik @ untuk mention)" : "Bergabung ke grup untuk mengirim pesan"}
-                          className="w-full px-4 py-4 sm:py-3 text-base rounded-lg border border-border/50 bg-background/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm"
-                          disabled={sending || !socket || uploadingMedia || !isUserMember}
-                        />
-                        
-                        {/* Mention Suggestions */}
-                        {showMentionSuggestions && getMentionSuggestions.length > 0 && (
-                          <div className="absolute bottom-full left-0 mb-2 w-full bg-card border border-border rounded-lg shadow-xl overflow-hidden z-50 max-h-48 overflow-y-auto">
-                            {getMentionSuggestions.map((user, index) => {
-                              const isEveryone = (user as any).isEveryone || false;
-                              return (
-                                <button
-                                  key={user.id}
-                                  type="button"
-                                  onClick={() => insertMention(user.name, isEveryone)}
-                                  className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-accent transition-colors text-left ${
-                                    index === selectedMentionIndex ? "bg-accent" : ""
-                                  } ${isEveryone ? "border-b border-border/50" : ""}`}
-                                >
-                                  {isEveryone ? (
-                                    <>
-                                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0 bg-primary/10 flex items-center justify-center">
-                                        <Users className="h-4 w-4 text-primary" />
-                                      </div>
-                                      <div className="flex-1">
-                                        <span className="text-sm font-bold text-primary">
-                                          @everyone
-                                        </span>
-                                        <p className="text-xs text-muted-foreground">
-                                          Tag semua member
-                                        </p>
-                                      </div>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                                        <Image
-                                          src={
-                                            user.profilePicture ||
-                                            generateAvatarUrl(user.name)
-                                          }
-                                          alt={user.name}
-                                          width={32}
-                                          height={32}
-                                          className="w-full h-full object-cover"
-                                        />
-                                      </div>
-                                      <span className="text-sm font-medium text-foreground">
-                                        {user.name}
-                                      </span>
-                                    </>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        type="submit"
-                        disabled={
-                          sending ||
-                          !socket ||
-                          uploadingMedia ||
-                          (!messageInput.trim() && !selectedMedia) ||
-                          recordingAudio ||
-                          recordingVideo ||
-                          !isUserMember
+                  <MessageInput
+                    messageInput={messageInput}
+                    setMessageInput={setMessageInput}
+                    selectedGroup={selectedGroup}
+                    userId={userId}
+                    currentUserProfile={currentUserProfile}
+                    socket={socket}
+                    sending={sending}
+                    isUserMember={isUserMember}
+                    onSendMessage={handleSendMessage}
+                    onTyping={(groupId) => {
+                      if (socket) {
+                        socket.emit("typing", { groupId });
+                        if (typingTimeoutRef.current) {
+                          clearTimeout(typingTimeoutRef.current);
                         }
-                        className="px-4 sm:px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-md hover:shadow-lg flex items-center justify-center"
-                        title={!isUserMember ? "Bergabung ke grup terlebih dahulu" : "Kirim pesan"}
-                      >
-                        {sending || uploadingMedia ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <Send className="h-5 w-5" />
-                        )}
-                      </button>
-                    </div>
-                  </form>
+                        typingTimeoutRef.current = setTimeout(() => {
+                          if (socket && selectedGroup) {
+                            socket.emit("stop-typing", { groupId: selectedGroup.id });
+                          }
+                        }, 1000);
+                      }
+                    }}
+                    onStopTyping={(groupId) => {
+                      if (socket) {
+                        socket.emit("stop-typing", { groupId });
+                        if (typingTimeoutRef.current) {
+                          clearTimeout(typingTimeoutRef.current);
+                        }
+                      }
+                    }}
+                  />
                 </>
               ) : (
                 <div className="flex-1 flex items-center justify-center text-center p-8">
@@ -2344,413 +1789,54 @@ export default function GroupChatPage() {
       )}
 
       {/* Explore Modal */}
-      {showExplore && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col relative">
-            <button
-              onClick={() => {
-                setShowExplore(false);
-                setSearchQuery("");
-              }}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-accent/50 transition-colors text-muted-foreground"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <h2 className="text-2xl font-bold mb-4 text-gradient">Explore Group Chats</h2>
-            <div className="mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Cari group chat..."
-                  className="w-full pl-10 pr-4 py-2 rounded-lg border border-border/50 bg-background/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all"
-                />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto space-y-4">
-              {loadingExplore ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : exploreGroups.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  Tidak ada group chat ditemukan
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {exploreGroups.map((group) => (
-                    <div
-                      key={group.id}
-                      className="rounded-xl border border-border/60 bg-card/70 hover:bg-accent/40 transition-all shadow-sm hover:shadow-lg overflow-hidden flex flex-col"
-                    >
-                      {/* Banner */}
-                      <div className="relative w-full h-24 bg-gradient-to-r from-primary/20 via-background to-accent/20">
-                        {group.banner ? (
-                          <Image
-                            src={group.banner}
-                            alt={group.name}
-                            fill
-                            className="object-cover"
-                          />
-                        ) : null}
-                        <div className="absolute inset-0 bg-gradient-to-t from-background/80 via-transparent to-transparent" />
-                        {/* Logo bubble */}
-                        <div className="absolute left-4 bottom-[-20px]">
-                          <div className="w-10 h-10 rounded-xl overflow-hidden bg-primary/10 flex items-center justify-center border border-border/80 shadow-md">
-                            {group.logo ? (
-                              <Image
-                                src={group.logo}
-                                alt={group.name}
-                                width={40}
-                                height={40}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <MessageCircle className="h-5 w-5 text-primary" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Content */}
-                      <div className="pt-6 px-4 pb-4 flex-1 flex flex-col">
-                        <div className="flex items-start justify-between gap-2 mb-2">
-                          <div className="pr-2">
-                            <h3 className="font-semibold text-foreground truncate max-w-[150px]">
-                              {group.name}
-                            </h3>
-                            {group.description && (
-                              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-                                {group.description}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex flex-col items-end gap-1">
-                            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                              <div className="flex items-center gap-1">
-                                <Users className="h-3 w-3" />
-                                <span>{group._count?.members || 0}</span>
-                              </div>
-                              {group.isPublic ? (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
-                                  <Globe className="h-3 w-3" />
-                                  Public
-                                </span>
-                              ) : (
-                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
-                                  <Lock className="h-3 w-3" />
-                                  Private
-                                </span>
-                              )}
-                            </div>
-                            <span className="text-[10px] text-muted-foreground/80">
-                              {group._count?.messages || 0} messages
-                            </span>
-                          </div>
-                        </div>
-
-                        <div className="mt-3 flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/5 border border-primary/20">
-                              <Crown className="h-3 w-3 text-primary" />
-                              {group.creator?.name || "Creator"}
-                            </span>
-                          </div>
-                          {group.isMember ? (
-                            <button
-                              onClick={() => {
-                                setSelectedGroup(group);
-                                setShowExplore(false);
-                              }}
-                              className="px-3 py-1.5 bg-muted text-foreground rounded-lg text-xs font-medium hover:bg-accent transition-colors"
-                            >
-                              Buka
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => handleJoinGroup(group.id)}
-                              className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-xs font-medium hover:opacity-90 transition-opacity"
-                            >
-                              Join
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <ExploreGroupsModal
+        show={showExplore}
+        userId={userId}
+        onClose={() => {
+          setShowExplore(false);
+          setSearchQuery("");
+        }}
+        onSelectGroup={(group) => {
+          setSelectedGroup(group);
+          setShowExplore(false);
+        }}
+        onJoinGroup={handleJoinGroup}
+      />
 
       {/* Settings Modal */}
-      {showSettings && selectedGroup && (isAdmin || isCreator) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-lg max-w-md w-full relative">
-            <button
-              onClick={() => setShowSettings(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-accent/50 transition-colors text-muted-foreground"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <h2 className="text-2xl font-bold mb-6 text-gradient">Group Settings</h2>
-            <div className="space-y-6">
-              {/* Banner */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Banner (Explore)
-                </label>
-                <div className="space-y-3">
-                  <div className="relative w-full h-32 rounded-xl overflow-hidden bg-primary/5 border border-border/60 flex items-center justify-center">
-                    {selectedGroup.banner ? (
-                      <Image
-                        src={selectedGroup.banner}
-                        alt={selectedGroup.name}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <span className="text-xs text-muted-foreground">
-                        Banner belum diatur – akan ditampilkan di kartu Explore
-                      </span>
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-3">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleUploadBanner(file);
-                        }
-                      }}
-                      className="hidden"
-                      id="banner-upload"
-                      disabled={uploadingBanner}
-                    />
-                    <label
-                      htmlFor="banner-upload"
-                      className="px-4 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors cursor-pointer inline-block disabled:opacity-50 text-sm"
-                    >
-                      {uploadingBanner ? "Uploading..." : "Upload Banner"}
-                    </label>
-                    <p className="text-[11px] text-muted-foreground">
-                      Disarankan rasio 3:1 (misal 1200x400) untuk tampilan terbaik.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Logo */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Logo Group
-                </label>
-                <div className="flex items-center gap-4">
-                  <div className="w-20 h-20 rounded-lg overflow-hidden flex-shrink-0 bg-primary/10 flex items-center justify-center">
-                    {selectedGroup.logo ? (
-                      <Image
-                        src={selectedGroup.logo}
-                        alt={selectedGroup.name}
-                        width={80}
-                        height={80}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <MessageCircle className="h-8 w-8 text-primary" />
-                    )}
-                  </div>
-                  <div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          handleUploadLogo(file);
-                        }
-                      }}
-                      className="hidden"
-                      id="logo-upload"
-                      disabled={uploadingLogo}
-                    />
-                    <label
-                      htmlFor="logo-upload"
-                      className="px-4 py-2 bg-primary/10 text-primary rounded-lg font-medium hover:bg-primary/20 transition-colors cursor-pointer inline-block disabled:opacity-50 text-sm"
-                    >
-                      {uploadingLogo ? "Uploading..." : "Upload Logo"}
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Nama Group <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={editingName}
-                  onChange={(e) => setEditingName(e.target.value)}
-                  placeholder="Masukkan nama group"
-                  className="w-full px-4 py-3 rounded-lg border border-border/50 bg-background/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all shadow-sm"
-                  required
-                  disabled={savingSettings}
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">Deskripsi</label>
-                <textarea
-                  value={editingDescription}
-                  onChange={(e) => setEditingDescription(e.target.value)}
-                  placeholder="Deskripsi group chat..."
-                  rows={3}
-                  className="w-full px-4 py-3 rounded-lg border border-border/50 bg-background/50 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-all shadow-sm"
-                  disabled={savingSettings}
-                />
-              </div>
-
-
-              <div className="flex gap-4 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowSettings(false)}
-                  disabled={savingSettings}
-                  className="flex-1 px-6 py-3 bg-muted/50 text-foreground rounded-lg font-medium hover:bg-accent/50 transition-colors shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleUpdateGroup}
-                  disabled={savingSettings || !editingName.trim()}
-                  className="flex-1 px-6 py-3 bg-primary text-primary-foreground rounded-lg font-semibold hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-md hover:shadow-lg"
-                >
-                  {savingSettings ? (
-                    <>
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                      <span>Menyimpan...</span>
-                    </>
-                  ) : (
-                    "Simpan"
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <SettingsModal
+        show={showSettings}
+        selectedGroup={selectedGroup}
+        isAdmin={isAdmin}
+        isCreator={isCreator}
+        onClose={() => {
+          setShowSettings(false);
+          setEditingName(selectedGroup?.name || "");
+          setEditingDescription(selectedGroup?.description || "");
+        }}
+        onUpdate={() => {
+          fetchGroupChats();
+          if (selectedGroup) {
+            fetchGroupDetails(selectedGroup.id);
+          }
+        }}
+      />
 
       {/* Members Modal */}
-      {showMembers && selectedGroup && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-card/80 backdrop-blur-sm border border-border/50 rounded-xl p-6 shadow-lg max-w-md w-full max-h-[80vh] flex flex-col relative">
-            <button
-              onClick={() => setShowMembers(false)}
-              className="absolute top-4 right-4 p-2 rounded-full hover:bg-accent/50 transition-colors text-muted-foreground"
-            >
-              <X className="h-5 w-5" />
-            </button>
-            <h2 className="text-2xl font-bold mb-4 text-gradient">Members</h2>
-            <div className="flex-1 overflow-y-auto space-y-2">
-              {loadingMembers ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-                </div>
-              ) : members.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">
-                  Tidak ada members
-                </div>
-              ) : (
-                members.map((member: any) => {
-                  const isCurrentUser = member.userId === userId;
-                  const canManage = (isAdmin || isCreator) && !isCurrentUser && member.userId !== selectedGroup.createdBy;
-                  return (
-                    <div
-                      key={member.id}
-                      className="p-3 rounded-lg border border-border/50 bg-background/50 hover:bg-accent/30 transition-colors"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <div className="w-10 h-10 rounded-full overflow-hidden flex-shrink-0">
-                            <Image
-                              src={
-                                member.user.profilePicture ||
-                                generateAvatarUrl(member.user.name)
-                              }
-                              alt={member.user.name}
-                              width={40}
-                              height={40}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-semibold text-sm text-foreground truncate">
-                                {member.user.name}
-                              </span>
-                              {member.userId === selectedGroup.createdBy && (
-                                <Crown className="h-4 w-4 text-yellow-500" />
-                              )}
-                              {member.role === "admin" && member.userId !== selectedGroup.createdBy && (
-                                <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">
-                                  Admin
-                                </span>
-                              )}
-                            </div>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              Joined {new Date(member.joinedAt).toLocaleDateString("id-ID")}
-                            </p>
-                          </div>
-                        </div>
-                        {canManage && (
-                          <div className="flex items-center gap-1">
-                            {member.role === "admin" && isCreator ? (
-                              <button
-                                onClick={() => handleDemoteMember(member.userId)}
-                                className="p-2 rounded-lg hover:bg-accent/50 transition-colors text-muted-foreground"
-                                title="Demote to Member"
-                              >
-                                <UserMinus className="h-4 w-4" />
-                              </button>
-                            ) : member.role === "member" ? (
-                              <>
-                                <button
-                                  onClick={() => handlePromoteMember(member.userId)}
-                                  className="p-2 rounded-lg hover:bg-accent/50 transition-colors text-muted-foreground"
-                                  title="Promote to Admin"
-                                >
-                                  <UserPlus className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => {
-                                    if (confirm("Yakin ingin menghapus member ini?")) {
-                                      handleRemoveMember(member.userId);
-                                    }
-                                  }}
-                                  className="p-2 rounded-lg hover:bg-destructive/10 transition-colors text-destructive"
-                                  title="Remove Member"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </>
-                            ) : null}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <MembersModal
+        show={showMembers}
+        selectedGroup={selectedGroup}
+        members={members}
+        loadingMembers={loadingMembers}
+        userId={userId}
+        isAdmin={isAdmin}
+        isCreator={isCreator}
+        onClose={() => setShowMembers(false)}
+        onUpdate={() => {
+          fetchMembers();
+          fetchGroupChats();
+        }}
+      />
 
       {/* @everyone Warning Modal */}
       {showEveryoneWarning && (

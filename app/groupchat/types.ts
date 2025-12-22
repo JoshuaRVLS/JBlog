@@ -29,6 +29,17 @@ export interface GroupChat {
   isMember?: boolean; // For explore groups
 }
 
+export interface MessageRead {
+  id: string;
+  userId: string;
+  readAt: string;
+  user: {
+    id: string;
+    name: string;
+    profilePicture: string | null;
+  };
+}
+
 export interface Message {
   id: string;
   content: string;
@@ -39,6 +50,7 @@ export interface Message {
   encryptedMediaUrl?: string | null;
   mediaThumbnail?: string | null;
   createdAt: string;
+  reads?: MessageRead[];
   user: {
     id: string;
     name: string;

@@ -47,7 +47,7 @@ export default function ReportBugButton() {
         pageUrl,
       });
 
-      toast.success("Report berhasil dikirim! Terima kasih atas feedbacknya.");
+      toast.success("Report dikirim");
       setIsOpen(false);
       setFormData({
         title: "",

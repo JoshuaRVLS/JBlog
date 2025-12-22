@@ -154,7 +154,8 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
     if (postId) {
       fetchComments();
     }
-  }, [postId, initialPost]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [postId]); // Hanya depend on postId, initialPost hanya untuk initial render
 
   const fetchPost = async () => {
     try {

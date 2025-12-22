@@ -49,25 +49,32 @@ async function getPost(id: string): Promise<Post | null> {
       apiBaseUrl = process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, "");
     } else {
       // Fallback: construct dari SITE_URL atau default
-      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jblog.space";
-      if (siteUrl.includes(":3000")) {
-        // Development: replace port
-        apiBaseUrl = siteUrl.replace(":3000", ":8000");
-      } else if (siteUrl.includes("jblog.space") && !siteUrl.includes("api.")) {
-        // Production: replace domain
-        apiBaseUrl = siteUrl.replace("jblog.space", "api.jblog.space");
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+      if (siteUrl) {
+        if (siteUrl.includes(":3000")) {
+          // Development: replace port
+          apiBaseUrl = siteUrl.replace(":3000", ":8000");
+        } else {
+          // Production: gunakan SITE_URL langsung (tidak pakai subdomain)
+          apiBaseUrl = siteUrl;
+        }
       } else {
-        // Default fallback
-        apiBaseUrl = "https://api.jblog.space";
-    }
+        // Development fallback
+        apiBaseUrl = "http://localhost:8000";
+      }
     }
     
     // Pastikan URL valid dengan protocol
     if (!apiBaseUrl.startsWith("http://") && !apiBaseUrl.startsWith("https://")) {
-      apiBaseUrl = `https://${apiBaseUrl}`;
+      // Default to http for localhost, https for others
+      apiBaseUrl = apiBaseUrl.includes("localhost") || apiBaseUrl.includes("127.0.0.1") 
+        ? `http://${apiBaseUrl}` 
+        : `https://${apiBaseUrl}`;
     }
     
     const fullUrl = `${apiBaseUrl}/api/posts/${id}/public`;
+    
+    console.log(`[SEO] Fetching post from: ${fullUrl}`);
     
     // Gunakan endpoint public untuk SEO (tidak increment views)
     const response = await fetch(fullUrl, {
@@ -75,6 +82,8 @@ async function getPost(id: string): Promise<Post | null> {
       headers: {
         "Accept": "application/json",
       },
+      // Add timeout untuk prevent hanging
+      signal: AbortSignal.timeout(10000), // 10 seconds timeout
     });
     
     if (!response.ok) {

@@ -62,7 +62,7 @@ export default function TemplateSection({
     const next = [newSnippet, ...savedSnippets].slice(0, 15);
     persistSnippets(next);
     setSnippetName("");
-    toast.success("Blok berhasil disimpan sebagai template.");
+    toast.success("Template disimpan");
   };
 
   const handleInsertSnippet = (snippetId: string) => {
@@ -73,13 +73,13 @@ export default function TemplateSection({
       id: createId(),
     }));
     onAddBlocks(newBlocks);
-    toast.success("Template berhasil dimasukkan ke editor.");
+    toast.success("Template ditambahkan");
   };
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-dashed border-border/70 bg-muted/40 p-3 text-xs sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="font-medium text-muted-foreground">Template cepat:</span>
+        <span className="font-medium text-muted-foreground">Template:</span>
         <button
           type="button"
           onClick={() => {

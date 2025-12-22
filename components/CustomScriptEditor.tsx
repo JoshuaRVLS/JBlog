@@ -307,10 +307,7 @@ export default function CustomScriptEditor({ value, onChange }: CustomScriptEdit
             />
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground">
-                💡 <strong>Tip:</strong> Gunakan template di atas untuk memulai dengan cepat.
-              </p>
-              <p className="text-xs text-muted-foreground">
-                📝 <strong>Format Placeholder:</strong> Gunakan <code className="bg-muted px-1 rounded">{"{customId}"}</code> di content post, lalu replace dengan data dari API.
+                Gunakan <code className="bg-muted px-1 rounded">{"{customId}"}</code> di content post sebagai placeholder.
               </p>
               <p className="text-xs text-muted-foreground">
                 🎯 <strong>Format ID:</strong> Atau gunakan <code className="bg-muted px-1 rounded">{"<div id='my-id'>Loading...</div>"}</code> di content, lalu inject data ke elemen tersebut.
