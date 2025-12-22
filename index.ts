@@ -48,12 +48,13 @@ const app = express();
 app.set("trust proxy", 1);
 
 // Enable HTTP compression (gzip/brotli) - CRITICAL for performance
-app.use(
-  compression({
-    level: 6, // Balance between compression and CPU (1-9, 6 is optimal)
-    threshold: 1024, // Only compress responses > 1KB
-  })
-);
+// TEMPORARILY DISABLED: Testing if this causes crash loops
+// app.use(
+//   compression({
+//     level: 6, // Balance between compression and CPU (1-9, 6 is optimal)
+//     threshold: 1024, // Only compress responses > 1KB
+//   })
+// );
 
 app.use(
   cors({
@@ -68,9 +69,9 @@ app.use(
   })
 );
 
-// Optimize JSON parsing - reduce limit for better performance
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+// JSON parsing with reasonable limit
+app.use(express.json({ limit: "50mb" })); // Increased back to handle large uploads
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 app.use(cookieParser(process.env.COOKIE_SECRET));
 // Custom morgan format dengan bahasa Indonesia
 morgan.token("status-indo", (req: any, res: any) => {
