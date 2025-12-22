@@ -1,11 +1,16 @@
 import { NextResponse } from "next/server";
 
-// NEXT_PUBLIC_API_URL already includes /api, so we don't need to add it again
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+// Helper function to get backend URL without double /api
+function getBackendUrl(): string {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+  // Remove trailing /api if present to avoid double /api/api
+  return apiUrl.replace(/\/api\/?$/, "");
+}
 
 export async function GET() {
   try {
-    const response = await fetch(`${BACKEND_URL}/posts/total-views`, {
+    const backendUrl = getBackendUrl();
+    const response = await fetch(`${backendUrl}/api/posts/total-views`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

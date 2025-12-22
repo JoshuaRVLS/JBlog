@@ -1,12 +1,18 @@
 import { NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+// Helper function to get backend URL without double /api
+function getBackendUrl(): string {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+  // Remove trailing /api if present to avoid double /api/api
+  return apiUrl.replace(/\/api\/?$/, "");
+}
 
 export async function GET(request: Request) {
   try {
     const cookieHeader = request.headers.get("cookie");
+    const backendUrl = getBackendUrl();
     
-    const response = await fetch(`${BACKEND_URL}/jplus/status`, {
+    const response = await fetch(`${backendUrl}/api/jplus/status`, {
       method: "GET",
       headers: {
         "Content-Type": "application/json",

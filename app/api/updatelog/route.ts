@@ -1,14 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+// Helper function to get backend URL without double /api
+function getBackendUrl(): string {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
+  // Remove trailing /api if present to avoid double /api/api
+  return apiUrl.replace(/\/api\/?$/, "");
+}
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const limit = searchParams.get("limit") || "10";
     const cursor = searchParams.get("cursor") || undefined;
+    const backendUrl = getBackendUrl();
     
-    const url = new URL(`${BACKEND_URL}/updatelog/`);
+    const url = new URL(`${backendUrl}/api/updatelog/`);
     url.searchParams.set("limit", limit);
     if (cursor) {
       url.searchParams.set("cursor", cursor);
