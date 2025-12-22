@@ -25,10 +25,11 @@ import { FormTextarea } from "@/components/ui/FormInput";
 import DragDropPostEditor from "@/components/editor/DragDropPostEditor";
 
 export default function EditPost() {
-  const { userId, authenticated } = useContext(AuthContext);
+  const { userId, authenticated, loading: authLoading } = useContext(AuthContext);
   const params = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
+  const hasFetchedRef = useRef(false);
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [excerpt, setExcerpt] = useState("");
@@ -109,17 +110,28 @@ export default function EditPost() {
   }, []);
 
   useEffect(() => {
+    // Wait for auth check to complete
+    if (authLoading) {
+      return;
+    }
+
+    // Redirect if not authenticated
     if (!authenticated) {
       router.push("/login");
       return;
     }
-    if (params.id) {
+
+    // Only fetch once when params.id is available and auth is ready
+    if (params.id && !hasFetchedRef.current) {
+      hasFetchedRef.current = true;
       fetchPost();
       fetchVersions();
     }
-  }, [params.id, authenticated]);
+  }, [params.id, authenticated, authLoading, router]);
 
   const fetchPost = async () => {
+    if (!params.id) return;
+    
     try {
       setLoading(true);
       const response = await AxiosInstance.get(`/posts/${params.id}`);

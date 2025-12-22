@@ -94,23 +94,23 @@ AxiosInstance.interceptors.response.use(
     if (!error.response) {
       // Only show network errors for actual API requests, not for static assets
       if (originalRequest.baseURL && url.startsWith(originalRequest.baseURL)) {
-        if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
+      if (error.code === "ECONNABORTED" || error.message.includes("timeout")) {
           // Only show timeout error if not intentionally aborted
           if (!originalRequest?.signal?.aborted) {
-            toast.error("Request timeout. Pastikan backend server sedang berjalan.", {
-              duration: 5000,
-            });
+        toast.error("Request timeout. Pastikan backend server sedang berjalan.", {
+          duration: 5000,
+        });
           }
-        } else if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
+      } else if (error.code === "ERR_NETWORK" || error.message === "Network Error") {
           // Only show network error if it's actually an API request
-          toast.error("Tidak dapat terhubung ke server. Pastikan backend server sedang berjalan di http://localhost:8000", {
-            duration: 5000,
-          });
-        } else {
+        toast.error("Tidak dapat terhubung ke server. Pastikan backend server sedang berjalan di http://localhost:8000", {
+          duration: 5000,
+        });
+      } else {
           // Only show generic error if it's an API request
-          toast.error("Terjadi kesalahan jaringan. Silakan coba lagi.", {
-            duration: 5000,
-          });
+        toast.error("Terjadi kesalahan jaringan. Silakan coba lagi.", {
+          duration: 5000,
+        });
         }
       }
       
