@@ -81,79 +81,159 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
     // Get IO instance first
     const io = getIO();
     
-    // Save to database first, then emit with real message ID
-    // Frontend akan handle optimistic update sendiri untuk pesan yang dikirim sendiri
-    const [message] = await Promise.all([
-      db.directMessage.create({
-        data: {
+    // OPTIMIZATION: Emit optimistic message immediately to receiver (before DB save)
+    // This reduces perceived latency significantly
+    const tempMessageId = `temp-${Date.now()}-${Math.random()}`;
+    const optimisticMessage = {
+      id: tempMessageId,
+      content: encryptedContent ? "" : messageContent,
+      encryptedContent: encryptedContent || null,
+      encryptedMediaUrl: encryptedMediaUrl || null,
+      encryptionKeyId: encryptionKeyId || null,
+      type,
+      mediaUrl: mediaUrl || null,
+      senderId,
+      receiverId,
+      read: false,
+      createdAt: new Date().toISOString(),
+      sender: {
+        id: sender.id,
+        name: sender.name,
+        profilePicture: sender.profilePicture,
+      },
+      receiver: {
+        id: receiver.id,
+        name: receiver.name,
+        profilePicture: receiver.profilePicture,
+      },
+    };
+
+    // Emit optimistic message to receiver immediately (non-blocking)
+    if (io) {
+      io.to(`user:${receiverId}`).emit("newDirectMessage", optimisticMessage);
+      
+      // Emit conversation update to BOTH sender and receiver so list updates immediately (like WhatsApp)
+      const conversationUpdate = {
+        userId: senderId === req.userId ? receiverId : senderId, // The other user in conversation
+        lastMessage: {
+          id: tempMessageId,
+          content: encryptedContent ? "" : messageContent,
           senderId,
           receiverId,
-          content: messageContent,
-          encryptedContent: encryptedContent || null,
-          encryptedMediaUrl: encryptedMediaUrl || null,
-          encryptionKeyId: encryptionKeyId || null,
-          type,
-          mediaUrl,
+          createdAt: optimisticMessage.createdAt,
         },
-        include: {
-          sender: {
-            select: {
-              id: true,
-              name: true,
-              profilePicture: true,
-            },
-          },
-          receiver: {
-            select: {
-              id: true,
-              name: true,
-              profilePicture: true,
-            },
-          },
-        },
-      }),
-      // Create notification async (don't block)
-      createNotification({
-        type: "direct_message",
-        userId: receiverId,
-        actorId: senderId,
-      }).then((notification) => {
-        // Emit notification after creation (async)
-        if (notification && io) {
-          io.to(`user:${receiverId}`).emit("new-notification", notification);
-        }
-        return notification;
-      }).catch((err) => {
-        console.error("Error creating notification:", err);
-        return null;
-      }),
-    ]);
+        unreadCount: 0, // Sender has no unread, receiver will have 1
+      };
+      
+      // Update receiver's conversation list (new message from sender)
+      io.to(`user:${receiverId}`).emit("conversationUpdated", {
+        ...conversationUpdate,
+        unreadCount: 1, // Receiver has 1 unread
+      });
+      
+      // Update sender's conversation list (they sent a message)
+      io.to(`user:${senderId}`).emit("conversationUpdated", {
+        ...conversationUpdate,
+        unreadCount: 0, // Sender has no unread
+      });
+    }
 
-    // Emit real message to receiver (sender sudah punya optimistic message dari frontend)
-    if (io) {
-      // Emit ke receiver dengan real message
-      io.to(`user:${receiverId}`).emit("newDirectMessage", {
-        ...message,
+    // Save to database (non-blocking, don't wait for notification)
+    const messagePromise = db.directMessage.create({
+      data: {
+        senderId,
+        receiverId,
+        content: messageContent,
+        encryptedContent: encryptedContent || null,
+        encryptedMediaUrl: encryptedMediaUrl || null,
+        encryptionKeyId: encryptionKeyId || null,
+        type,
+        mediaUrl,
+      },
+      include: {
         sender: {
-          id: sender.id,
-          name: sender.name,
-          profilePicture: sender.profilePicture,
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+          },
         },
         receiver: {
-          id: receiver.id,
-          name: receiver.name,
-          profilePicture: receiver.profilePicture,
+          select: {
+            id: true,
+            name: true,
+            profilePicture: true,
+          },
+        },
+      },
+    });
+
+    // Create notification async (don't block response)
+    createNotification({
+      type: "direct_message",
+      userId: receiverId,
+      actorId: senderId,
+    }).then((notification) => {
+      if (notification && io) {
+        io.to(`user:${receiverId}`).emit("new-notification", notification);
+      }
+    }).catch((err) => {
+      console.error("Error creating notification:", err);
+    });
+
+    // Wait for message to be saved, then update with real ID
+    const message = await messagePromise;
+
+    // Update receiver with real message ID (replace temp message)
+    if (io) {
+      io.to(`user:${receiverId}`).emit("messageUpdated", {
+        tempId: tempMessageId,
+        realId: message.id,
+        message: {
+          ...message,
+          sender: {
+            id: sender.id,
+            name: sender.name,
+            profilePicture: sender.profilePicture,
+          },
+          receiver: {
+            id: receiver.id,
+            name: receiver.name,
+            profilePicture: receiver.profilePicture,
+          },
         },
       });
       
       // Emit messageDelivered dengan real message ID untuk update optimistic message di sender
       io.to(`user:${senderId}`).emit("messageDelivered", { 
         messageId: message.id,
-        tempMessageId: null, // Frontend akan handle replacement berdasarkan response
+        tempMessageId: null,
+      });
+      
+      // Update conversation with real message ID (replace temp in both lists)
+      const realConversationUpdate = {
+        userId: receiverId,
+        lastMessage: {
+          id: message.id,
+          content: encryptedContent ? "" : messageContent,
+          senderId,
+          receiverId,
+          createdAt: message.createdAt.toISOString(),
+        },
+        unreadCount: 0, // Sender has no unread
+      };
+      
+      // Update sender's conversation list with real message
+      io.to(`user:${senderId}`).emit("conversationUpdated", realConversationUpdate);
+      
+      // Update receiver's conversation list with real message
+      io.to(`user:${receiverId}`).emit("conversationUpdated", {
+        ...realConversationUpdate,
+        unreadCount: 1, // Receiver still has 1 unread
       });
     }
 
-    // Return response immediately
+    // Return response immediately (don't wait for notification)
     res.status(StatusCodes.CREATED).json({
       message: "Pesan berhasil dikirim",
       directMessage: message,

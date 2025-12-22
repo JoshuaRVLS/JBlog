@@ -245,17 +245,19 @@ const io = new Server(httpServer, {
       : ["http://localhost:3000", "http://127.0.0.1:3000"],
     credentials: true,
   },
-  // Optimize for real-time messaging (like WhatsApp)
+  // Optimize for real-time messaging (like WhatsApp) - ULTRA LOW LATENCY
   transports: ["websocket"], // Force websocket only (lowest latency)
-  upgradeTimeout: 10000, // 10s timeout for upgrade
-  pingTimeout: 60000, // 60s ping timeout
-  pingInterval: 25000, // 25s ping interval
+  upgradeTimeout: 3000, // Reduced to 3s for faster connection
+  pingTimeout: 15000, // Reduced to 15s for faster detection of disconnects
+  pingInterval: 5000, // Reduced to 5s for more frequent health checks (more realtime)
   maxHttpBufferSize: 1e8, // 100MB for media
   allowEIO3: false, // Disable old engine.io versions
-  // Enable compression for faster transfers
+  allowUpgrades: false, // Disable upgrades since we force websocket
+  connectTimeout: 3000, // 3s connection timeout
+  // Enable compression for faster transfers (optimized for speed)
   perMessageDeflate: {
     zlibDeflateOptions: {
-      level: 3, // Balance between speed and compression
+      level: 1, // Reduced from 3 to 1 for faster compression (speed > size)
     },
     zlibInflateOptions: {
       chunkSize: 10 * 1024,
@@ -550,7 +552,7 @@ io.on("connection", (socket) => {
         }
       }
 
-      // Kirim pesan langsung ke semua user sebelum save ke database (biar lebih cepat)
+      // EMIT IMMEDIATELY - Don't wait for database (ultra-low latency)
       const tempMessageId = `temp-${Date.now()}-${Math.random()}`;
       const optimisticMessage = {
         id: tempMessageId,
@@ -571,11 +573,11 @@ io.on("connection", (socket) => {
         reads: [],
       };
 
-      // Broadcast pesan ke semua member group
+      // Broadcast pesan ke semua member group IMMEDIATELY (non-blocking)
       io.to(`group:${groupId}`).emit("new-message", optimisticMessage);
 
-      // Save ke database
-      const message = await db.message.create({
+      // Save ke database ASYNC (non-blocking) - don't wait
+      db.message.create({
         data: {
           content: encryptedContent ? "" : (content?.trim() || ""),
           encryptedContent: encryptedContent ?? null,
@@ -600,17 +602,16 @@ io.on("connection", (socket) => {
             },
           },
         },
-      });
+      }).then((message) => {
+        // Update pesan dengan ID yang beneran dari database
+        io.to(`group:${groupId}`).emit("message-updated", {
+          tempId: tempMessageId,
+          realId: message.id,
+          message,
+        });
 
-      // Update pesan dengan ID yang beneran dari database
-      io.to(`group:${groupId}`).emit("message-updated", {
-        tempId: tempMessageId,
-        realId: message.id,
-        message,
-      });
-
-      // Buat notifikasi untuk user yang di-mention
-      Promise.all(
+        // Buat notifikasi untuk user yang di-mention (async, non-blocking)
+        Promise.all(
         mentionedUserIds.map(async (mentionedUserId) => {
           try {
             const notification = await createNotification({
@@ -627,13 +628,18 @@ io.on("connection", (socket) => {
             console.error("Error creating mention notification:", err);
           }
         })
-      ).catch((err) => console.error("Error in notification creation:", err));
+        ).catch((err) => console.error("Error in notification creation:", err));
 
-      // Update timestamp group chat
-      db.groupChat.update({
-        where: { id: groupId },
-        data: { updatedAt: new Date() },
-      }).catch((err) => console.error("Error updating group chat:", err));
+        // Update timestamp group chat (async, non-blocking)
+        db.groupChat.update({
+          where: { id: groupId },
+          data: { updatedAt: new Date() },
+        }).catch((err) => console.error("Error updating group chat:", err));
+      }).catch((error) => {
+        console.error("Error saving message:", error);
+        // Emit error to sender only
+        socket.emit("error", { msg: "Gagal menyimpan pesan" });
+      });
 
       console.log(`Message sent in group ${groupId} by ${socket.data.user.name} (type: ${type})`);
     } catch (error: any) {

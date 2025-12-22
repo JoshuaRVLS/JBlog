@@ -5,7 +5,7 @@ module.exports = {
       script: "npx",
       args: "tsx index.ts",
       interpreter: "none",
-      instances: 4, // Use 4 instances (adjust based on CPU cores)
+      instances: "max", // Use 4 instances (adjust based on CPU cores)
       exec_mode: "cluster", // Cluster mode untuk load balancing
       autorestart: true,
       watch: false,
