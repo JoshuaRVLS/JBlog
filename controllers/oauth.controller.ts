@@ -336,45 +336,67 @@ export const githubCallback = async (req: Request, res: Response) => {
 /**
  * Get OAuth authorization URL
  */
-export const getGoogleAuthUrl = (req: Request, res: Response) => {
-  const clientId = process.env.GOOGLE_CLIENT_ID;
-  if (!clientId) {
-    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      error: "Google OAuth not configured. Please set GOOGLE_CLIENT_ID in environment variables.",
+export const getGoogleAuthUrl = async (req: Request, res: Response) => {
+  try {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      console.error("[OAuth] Google OAuth not configured - missing GOOGLE_CLIENT_ID");
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        error: "Google OAuth not configured. Please set GOOGLE_CLIENT_ID in environment variables.",
+      });
+    }
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+    const redirectUri = `${siteUrl}/api/auth/google/callback`;
+    const scope = "openid email profile";
+    const responseType = "code";
+
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: responseType,
+      scope,
+      access_type: "offline",
+      prompt: "consent",
+    })}`;
+
+    res.json({ url: authUrl });
+  } catch (error: any) {
+    console.error("[OAuth] Error generating Google auth URL:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Failed to generate Google OAuth URL",
+      details: error.message,
     });
   }
-  const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/auth/google/callback`;
-  const scope = "openid email profile";
-  const responseType = "code";
-
-  const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
-    client_id: clientId || "",
-    redirect_uri: redirectUri,
-    response_type: responseType,
-    scope,
-    access_type: "offline",
-    prompt: "consent",
-  })}`;
-
-  res.json({ url: authUrl });
 };
 
-export const getGithubAuthUrl = (req: Request, res: Response) => {
-  const clientId = process.env.GITHUB_CLIENT_ID;
-  if (!clientId) {
-    return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
-      error: "GitHub OAuth not configured. Please set GITHUB_CLIENT_ID in environment variables.",
+export const getGithubAuthUrl = async (req: Request, res: Response) => {
+  try {
+    const clientId = process.env.GITHUB_CLIENT_ID;
+    if (!clientId) {
+      console.error("[OAuth] GitHub OAuth not configured - missing GITHUB_CLIENT_ID");
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        error: "GitHub OAuth not configured. Please set GITHUB_CLIENT_ID in environment variables.",
+      });
+    }
+
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.FRONTEND_URL || "http://localhost:3000";
+    const redirectUri = `${siteUrl}/api/auth/github/callback`;
+    const scope = "user:email";
+
+    const authUrl = `https://github.com/login/oauth/authorize?${new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      scope,
+    })}`;
+
+    res.json({ url: authUrl });
+  } catch (error: any) {
+    console.error("[OAuth] Error generating GitHub auth URL:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Failed to generate GitHub OAuth URL",
+      details: error.message,
     });
   }
-  const redirectUri = `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/api/auth/github/callback`;
-  const scope = "user:email";
-
-  const authUrl = `https://github.com/login/oauth/authorize?${new URLSearchParams({
-    client_id: clientId || "",
-    redirect_uri: redirectUri,
-    scope,
-  })}`;
-
-  res.json({ url: authUrl });
 };
 
