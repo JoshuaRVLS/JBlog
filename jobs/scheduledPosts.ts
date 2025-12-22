@@ -1,9 +1,7 @@
 import db from "../lib/db";
 
-/**
- * Publish scheduled posts that have reached their scheduled time
- */
-export async function publishScheduledPosts(): Promise<void> {
+// Function to publish scheduled posts
+export const publishScheduledPosts = async () => {
   try {
     const now = new Date();
     const scheduledPosts = await db.post.findMany({
@@ -32,18 +30,14 @@ export async function publishScheduledPosts(): Promise<void> {
   } catch (error) {
     console.error("Error publishing scheduled posts:", error);
   }
-}
+};
 
-/**
- * Start the scheduled posts job
- * Checks every minute for posts to publish
- */
+// Start scheduled posts job
 export function startScheduledPostsJob(): void {
   // Check for scheduled posts every minute
   setInterval(publishScheduledPosts, 60 * 1000);
 
   // Publish scheduled posts on server start (non-blocking)
-  // Jangan block startup, jalankan di background
   setImmediate(() => {
     publishScheduledPosts().catch((err) => {
       console.error("Error publishing scheduled posts on startup:", err);

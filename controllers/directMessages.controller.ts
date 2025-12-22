@@ -113,8 +113,14 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
       io.to(`user:${receiverId}`).emit("newDirectMessage", optimisticMessage);
       
       // Emit conversation update to BOTH sender and receiver so list updates immediately (like WhatsApp)
-      const conversationUpdate = {
-        userId: senderId === req.userId ? receiverId : senderId, // The other user in conversation
+      // Include user info to avoid async fetch on frontend (faster!)
+      const conversationUpdateForReceiver = {
+        userId: senderId, // The sender (other user in conversation for receiver)
+        user: {
+          id: sender.id,
+          name: sender.name,
+          profilePicture: sender.profilePicture,
+        },
         lastMessage: {
           id: tempMessageId,
           content: encryptedContent ? "" : messageContent,
@@ -122,20 +128,31 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
           receiverId,
           createdAt: optimisticMessage.createdAt,
         },
-        unreadCount: 0, // Sender has no unread, receiver will have 1
+        unreadCount: 1, // Receiver has 1 unread
       };
       
-      // Update receiver's conversation list (new message from sender)
-      io.to(`user:${receiverId}`).emit("conversationUpdated", {
-        ...conversationUpdate,
-        unreadCount: 1, // Receiver has 1 unread
-      });
-      
-      // Update sender's conversation list (they sent a message)
-      io.to(`user:${senderId}`).emit("conversationUpdated", {
-        ...conversationUpdate,
+      const conversationUpdateForSender = {
+        userId: receiverId, // The receiver (other user in conversation for sender)
+        user: {
+          id: receiver.id,
+          name: receiver.name,
+          profilePicture: receiver.profilePicture,
+        },
+        lastMessage: {
+          id: tempMessageId,
+          content: encryptedContent ? "" : messageContent,
+          senderId,
+          receiverId,
+          createdAt: optimisticMessage.createdAt,
+        },
         unreadCount: 0, // Sender has no unread
-      });
+      };
+      
+      // Update receiver's conversation list (new message from sender) - IMMEDIATE
+      io.to(`user:${receiverId}`).emit("conversationUpdated", conversationUpdateForReceiver);
+      
+      // Update sender's conversation list (they sent a message) - IMMEDIATE
+      io.to(`user:${senderId}`).emit("conversationUpdated", conversationUpdateForSender);
     }
 
     // Save to database (non-blocking, don't wait for notification)
@@ -209,27 +226,28 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
         messageId: message.id,
         tempMessageId: null,
       });
-      
-      // Update conversation with real message ID (replace temp in both lists)
-      const realConversationUpdate = {
-        userId: receiverId,
-        lastMessage: {
-          id: message.id,
-          content: encryptedContent ? "" : messageContent,
-          senderId,
-          receiverId,
-          createdAt: message.createdAt.toISOString(),
-        },
-        unreadCount: 0, // Sender has no unread
+
+      // Update conversation list with real message ID (replace temp ID)
+      const realLastMessage = {
+        id: message.id,
+        content: message.content,
+        senderId: message.senderId,
+        receiverId: message.receiverId,
+        createdAt: message.createdAt,
       };
-      
-      // Update sender's conversation list with real message
-      io.to(`user:${senderId}`).emit("conversationUpdated", realConversationUpdate);
-      
-      // Update receiver's conversation list with real message
+
+      // Update receiver's conversation list with real message ID
       io.to(`user:${receiverId}`).emit("conversationUpdated", {
-        ...realConversationUpdate,
-        unreadCount: 1, // Receiver still has 1 unread
+        userId: senderId,
+        lastMessage: realLastMessage,
+        unreadCount: 1,
+      });
+      
+      // Update sender's conversation list with real message ID
+      io.to(`user:${senderId}`).emit("conversationUpdated", {
+        userId: receiverId,
+        lastMessage: realLastMessage,
+        unreadCount: 0,
       });
     }
 

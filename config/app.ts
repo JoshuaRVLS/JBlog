@@ -6,12 +6,32 @@ import cookieParser from "cookie-parser";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import os from "os";
-import { checkMaintenanceMode } from "./middleware/maintenance.middleware";
-import { setupRoutes } from "./routes";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+import { checkMaintenanceMode } from "../middleware/maintenance.middleware";
+import UsersRoutes from "../routes/users.route";
+import AuthRoutes from "../routes/auth.route";
+import EmailRoutes from "../routes/email.route";
+import PostsRoutes from "../routes/posts.route";
+import ClapsRoutes from "../routes/claps.route";
+import CommentsRoutes from "../routes/comments.route";
+import TagsRoutes from "../routes/tags.route";
+import AdminRoutes from "../routes/admin.route";
+import UploadRoutes from "../routes/upload.route";
+import ProfileRoutes from "../routes/profile.route";
+import ReportRoutes from "../routes/report.route";
+import SearchRoutes from "../routes/search.route";
+import GroupChatRoutes from "../routes/groupchat.route";
+import NotificationsRoutes from "../routes/notifications.route";
+import BookmarksRoutes from "../routes/bookmarks.route";
+import RepostsRoutes from "../routes/reposts.route";
+import DirectMessagesRoutes from "../routes/directMessages.route";
+import FeedRoutes from "../routes/feed.route";
+import BroadcastRoutes from "../routes/broadcast.route";
+import UpdateLogRoutes from "../routes/updatelog.route";
+import EncryptionRoutes from "../routes/encryption.route";
+import JPlusRoutes from "../routes/jplus.route";
+import ReactionsRoutes from "../routes/reactions.route";
+import CollectionsRoutes from "../routes/collections.route";
+import AnalyticsRoutes from "../routes/analytics.route";
 
 export function createApp(): express.Application {
   const app = express();
@@ -63,9 +83,11 @@ export function createApp(): express.Application {
   );
 
   // Serve static files untuk uploads with caching
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
   app.use(
     "/uploads",
-    express.static(path.join(__dirname, "uploads"), {
+    express.static(path.join(__dirname, "../uploads"), {
       maxAge: "1y", // Cache static files for 1 year
       etag: true,
       lastModified: true,
@@ -89,54 +111,32 @@ export function createApp(): express.Application {
   // Maintenance mode check (before all routes except admin/auth)
   app.use(checkMaintenanceMode);
 
-  // Setup routes
-  setupRoutes(app);
-
-  // Health check endpoint
-  app.get("/api/health", (req, res) => {
-    try {
-      res.json({
-        status: "ok",
-        instanceId: process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single",
-        pid: process.pid,
-        timestamp: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("Error in health endpoint:", error);
-      res.status(500).json({ error: "Failed to get health status" });
-    }
-  });
-
-  // Cluster info endpoint (for verification)
-  app.get("/api/cluster-info", (req, res) => {
-    try {
-      const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
-      const memUsage = process.memoryUsage();
-      
-      res.json({
-        clusterMode: process.env.ENABLE_CLUSTER === "true",
-        instanceId: instanceId,
-        pid: process.pid,
-        cpuCount: os.cpus().length,
-        nodeVersion: process.version,
-        redisEnabled: process.env.ENABLE_CLUSTER === "true",
-        memory: {
-          rss: `${Math.round(memUsage.rss / 1024 / 1024)}MB`,
-          heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)}MB`,
-          heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)}MB`,
-          external: `${Math.round(memUsage.external / 1024 / 1024)}MB`,
-        },
-        uptime: `${Math.round(process.uptime())}s`,
-        timestamp: new Date().toISOString(),
-      });
-      
-      // Log untuk tracking
-      console.log(`[Instance ${instanceId}] Cluster info requested - Memory: ${Math.round(memUsage.rss / 1024 / 1024)}MB`);
-    } catch (error) {
-      console.error("Error in cluster-info endpoint:", error);
-      res.status(500).json({ error: "Failed to get cluster info" });
-    }
-  });
+  // Register all routes
+  app.use("/api/users/", UsersRoutes);
+  app.use("/api/auth/", AuthRoutes);
+  app.use("/api/email/", EmailRoutes);
+  app.use("/api/posts/", PostsRoutes);
+  app.use("/api/claps/", ClapsRoutes);
+  app.use("/api/comments/", CommentsRoutes);
+  app.use("/api/tags/", TagsRoutes);
+  app.use("/api/admin/", AdminRoutes);
+  app.use("/api/upload/", UploadRoutes);
+  app.use("/api/reports/", ReportRoutes);
+  app.use("/api/profile/", ProfileRoutes);
+  app.use("/api/search/", SearchRoutes);
+  app.use("/api/groupchat/", GroupChatRoutes);
+  app.use("/api/notifications/", NotificationsRoutes);
+  app.use("/api/bookmarks/", BookmarksRoutes);
+  app.use("/api/reposts/", RepostsRoutes);
+  app.use("/api/direct-messages/", DirectMessagesRoutes);
+  app.use("/api/feed/", FeedRoutes);
+  app.use("/api/broadcast/", BroadcastRoutes);
+  app.use("/api/updatelog/", UpdateLogRoutes);
+  app.use("/api/encryption/", EncryptionRoutes);
+  app.use("/api/jplus/", JPlusRoutes);
+  app.use("/api/", ReactionsRoutes);
+  app.use("/api/", CollectionsRoutes);
+  app.use("/api/", AnalyticsRoutes);
 
   return app;
 }
