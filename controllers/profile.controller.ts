@@ -30,7 +30,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         ...(github !== undefined && { github }),
         ...(linkedin !== undefined && { linkedin }),
         ...(instagram !== undefined && { instagram }),
-        ...(customCSS !== undefined && { customCSS }),
+        ...(customCSS !== undefined && { customCSS: customCSS && customCSS.trim() ? customCSS.trim() : null }),
       },
       select: {
         id: true,
