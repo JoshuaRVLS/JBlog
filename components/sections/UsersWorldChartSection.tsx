@@ -1,9 +1,19 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import TextReveal from "@/components/TextReveal";
 import SectionTitle from "@/components/SectionTitle";
-import UsersWorldChart from "@/components/UsersWorldChart";
 import { Globe } from "lucide-react";
+
+// Lazy load heavy chart component
+const UsersWorldChart = dynamic(() => import("@/components/UsersWorldChart"), {
+  loading: () => (
+    <div className="w-full h-96 bg-muted/30 rounded-lg flex items-center justify-center">
+      <div className="text-muted-foreground text-sm">Loading chart...</div>
+    </div>
+  ),
+  ssr: false,
+});
 
 export default function UsersWorldChartSection() {
   return (

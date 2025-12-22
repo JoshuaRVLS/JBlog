@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const protectedRoutes = ["/dashboard", "/profile", "/feed", "/bookmarks", "/messages", "/admin", "/groupchat"]; // Add your protected routes
+const protectedRoutes = ["/dashboard", "/profile", "/feed", "/bookmarks", "/messages", "/admin", "/groupchat"];
 const publicRoutes = ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email"];
 
 export default async function middleware(req: NextRequest) {
@@ -8,35 +8,48 @@ export default async function middleware(req: NextRequest) {
   const refreshToken = req.cookies.get("refreshToken");
   const path = req.nextUrl.pathname;
 
-  // Always allow access to public routes (login, register, etc)
-  // Don't redirect if user has token - let them access login page if they want to switch account
+  // Create response
+  const response = NextResponse.next();
+
+  // Add performance headers for all requests
+  response.headers.set("X-DNS-Prefetch-Control", "on");
+  response.headers.set("X-Frame-Options", "SAMEORIGIN");
+  response.headers.set("X-Content-Type-Options", "nosniff");
+  response.headers.set("Referrer-Policy", "origin-when-cross-origin");
+
+  // Cache static assets aggressively
+  if (path.startsWith("/_next/static")) {
+    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  }
+
+  // Cache optimized images
+  if (path.startsWith("/_next/image")) {
+    response.headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  }
+
+  // Always allow access to public routes
   if (publicRoutes.some(route => path.startsWith(route))) {
-    return NextResponse.next();
+    return response;
   }
 
   // For protected routes, check if user has valid token
   if (protectedRoutes.some(route => path.startsWith(route))) {
-    // If no tokens at all, redirect to login
     if (!accessToken && !refreshToken) {
       const loginUrl = new URL("/login", req.url);
       loginUrl.searchParams.set("redirect", path);
       return NextResponse.redirect(loginUrl);
     }
 
-    // If has refresh token but no access token, allow through
-    // The frontend will handle token refresh
     if (!accessToken && refreshToken) {
-      return NextResponse.next();
+      return response;
     }
 
-    // If has access token, allow through (validation will happen on backend)
     if (accessToken) {
-      return NextResponse.next();
+      return response;
     }
   }
 
-  // Allow the request to continue
-  return NextResponse.next();
+  return response;
 }
 
 // Configure which routes this middleware runs on

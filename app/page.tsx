@@ -4,13 +4,30 @@ import { useState, useEffect, useRef } from "react";
 import { useQuery, useInfiniteQuery } from "@tanstack/react-query";
 import { OrganizationJsonLd } from "next-seo";
 import Navbar from "@/components/Navbar/Navbar";
-import HeroSection from "@/components/sections/HeroSection";
-import ProjectsSection from "@/components/sections/ProjectsSection";
-import OrganizationsSection from "@/components/sections/OrganizationsSection";
-import HobbiesSection from "@/components/sections/HobbiesSection";
-import SkillsSection from "@/components/sections/SkillsSection";
-import UsersWorldChartSection from "@/components/sections/UsersWorldChartSection";
-import CTASection from "@/components/sections/CTASection";
+import dynamic from "next/dynamic";
+
+// Lazy load heavy sections for better initial load performance
+const HeroSection = dynamic(() => import("@/components/sections/HeroSection"), {
+  loading: () => <div className="h-screen" />,
+});
+const ProjectsSection = dynamic(() => import("@/components/sections/ProjectsSection"), {
+  loading: () => <div className="min-h-screen" />,
+});
+const OrganizationsSection = dynamic(() => import("@/components/sections/OrganizationsSection"), {
+  loading: () => <div className="min-h-screen" />,
+});
+const HobbiesSection = dynamic(() => import("@/components/sections/HobbiesSection"), {
+  loading: () => <div className="min-h-screen" />,
+});
+const SkillsSection = dynamic(() => import("@/components/sections/SkillsSection"), {
+  loading: () => <div className="min-h-screen" />,
+});
+const UsersWorldChartSection = dynamic(() => import("@/components/sections/UsersWorldChartSection"), {
+  loading: () => <div className="min-h-screen" />,
+});
+const CTASection = dynamic(() => import("@/components/sections/CTASection"), {
+  loading: () => <div className="min-h-64" />,
+});
 import {
   Home as HomeIcon,
   Briefcase,

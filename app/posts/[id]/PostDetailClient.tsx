@@ -369,8 +369,8 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
               fill
               className="object-cover"
               priority
-              quality={100}
-              unoptimized
+              quality={90}
+              sizes="100vw"
             />
             <div className="absolute bottom-0 left-0 right-0 z-20 container mx-auto px-4 sm:px-6 lg:px-8 pb-12">
               <div className="max-w-4xl mx-auto">

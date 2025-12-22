@@ -57,8 +57,9 @@ export default function ImageViewer({ imageUrl, onClose, alt = "Image" }: ImageV
           width={1920}
           height={1080}
           className="max-w-full max-h-[95vh] w-auto h-auto object-contain rounded-lg"
-          unoptimized
           priority
+          quality={90}
+          sizes="95vw"
         />
       </div>
     </div>
