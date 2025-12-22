@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-// Compression disabled - may cause crashes, removed import
+import compression from "compression";
 import UsersRoutes from "./routes/users.route";
 import AuthRoutes from "./routes/auth.route";
 import EmailRoutes from "./routes/email.route";
@@ -48,13 +48,12 @@ const app = express();
 app.set("trust proxy", 1);
 
 // Enable HTTP compression (gzip/brotli) - CRITICAL for performance
-// TEMPORARILY DISABLED: Testing if this causes crash loops
-// app.use(
-//   compression({
-//     level: 6, // Balance between compression and CPU (1-9, 6 is optimal)
-//     threshold: 1024, // Only compress responses > 1KB
-//   })
-// );
+app.use(
+  compression({
+    level: 6, // Balance between compression and CPU (1-9, 6 is optimal)
+    threshold: 1024, // Only compress responses > 1KB
+  })
+);
 
 app.use(
   cors({

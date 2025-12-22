@@ -5,8 +5,8 @@ module.exports = {
       script: "npx",
       args: "tsx index.ts",
       interpreter: "none",
-      instances: 1, // Single instance for debugging
-      exec_mode: "fork", // Fork mode instead of cluster for debugging
+      instances: 4, // Use 4 instances (adjust based on CPU cores)
+      exec_mode: "cluster", // Cluster mode untuk load balancing
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",
@@ -18,7 +18,7 @@ module.exports = {
       restart_delay: 5000, // Increased delay antar restart
       env: {
         NODE_ENV: "production",
-        ENABLE_CLUSTER: "false", // Disabled for single instance debugging
+        ENABLE_CLUSTER: "true", // Enable Redis adapter untuk Socket.IO di cluster mode
       },
     },
   ],
