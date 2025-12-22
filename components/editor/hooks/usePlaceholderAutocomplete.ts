@@ -28,7 +28,8 @@ export function usePlaceholderAutocomplete(customScript?: string) {
 
   const filteredPlaceholders = useMemo(() => {
     if (!placeholderMenu.query) return availablePlaceholders;
-    const q = placeholderMenu.query.toLowerCase();
+    const q = placeholderMenu.query.toLowerCase().trim();
+    if (!q) return availablePlaceholders;
     return availablePlaceholders.filter((p: { placeholder: string }) =>
       p.placeholder.toLowerCase().includes(q)
     );
@@ -41,4 +42,5 @@ export function usePlaceholderAutocomplete(customScript?: string) {
     availablePlaceholders,
   };
 }
+
 

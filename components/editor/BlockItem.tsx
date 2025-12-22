@@ -34,6 +34,10 @@ interface BlockItemProps {
     placeholder: string;
     apiField: string;
   }>;
+  availablePlaceholders: Array<{
+    placeholder: string;
+    apiField: string;
+  }>;
   onDragStart: (id: string) => void;
   onDragOver: (e: React.DragEvent<HTMLDivElement>, overId: string) => void;
   onDrop: () => void;
@@ -65,6 +69,7 @@ export default function BlockItem({
   filteredSlashCommands,
   placeholderMenu,
   filteredPlaceholders,
+  availablePlaceholders,
   onDragStart,
   onDragOver,
   onDrop,
@@ -102,6 +107,7 @@ export default function BlockItem({
           filteredSlashCommands={filteredSlashCommands}
           placeholderMenu={placeholderMenu}
           filteredPlaceholders={filteredPlaceholders}
+          availablePlaceholders={availablePlaceholders}
           onUpdate={onUpdate}
           onSelectionChange={onSelectionChange}
           onSlashMenuChange={onSlashMenuChange}

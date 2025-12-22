@@ -39,6 +39,10 @@ interface BlockRendererProps {
     placeholder: string;
     apiField: string;
   }>;
+  availablePlaceholders: Array<{
+    placeholder: string;
+    apiField: string;
+  }>;
   onUpdate: (id: string, updater: (block: Block) => Block) => void;
   onSelectionChange: (selection: {
     blockId: string | null;
@@ -65,6 +69,7 @@ export default function BlockRenderer({
   filteredSlashCommands,
   placeholderMenu,
   filteredPlaceholders,
+  availablePlaceholders,
   onUpdate,
   onSelectionChange,
   onSlashMenuChange,
@@ -107,61 +112,52 @@ export default function BlockRenderer({
     e: React.ChangeEvent<HTMLTextAreaElement | HTMLInputElement>,
     getValue: () => string
   ) => {
+    // Only show menu if we have placeholders available
+    if (availablePlaceholders.length === 0) {
+      if (placeholderMenu.blockId === block.id) {
+        onPlaceholderMenuChange({ blockId: null, query: "", position: null });
+      }
+      return;
+    }
+    
     const target = e.currentTarget;
     const cursorPos = target.selectionStart ?? 0;
     const value = getValue();
     
-    // Check if we should show placeholder autocomplete
-    if (filteredPlaceholders.length > 0) {
-      const beforeCursor = value.slice(0, cursorPos);
-      const lastBraceIndex = beforeCursor.lastIndexOf('{');
+    const beforeCursor = value.slice(0, cursorPos);
+    const lastBraceIndex = beforeCursor.lastIndexOf('{');
+    
+    if (lastBraceIndex !== -1) {
+      // Check if there's a closing brace after the last opening brace
+      const afterBrace = beforeCursor.slice(lastBraceIndex + 1);
+      const closingBraceIndex = afterBrace.indexOf('}');
       
-      if (lastBraceIndex !== -1) {
-        // Check if there's a closing brace after the last opening brace
-        const afterBrace = beforeCursor.slice(lastBraceIndex + 1);
-        const closingBraceIndex = afterBrace.indexOf('}');
+      // Only show menu if there's no closing brace yet
+      if (closingBraceIndex === -1) {
+        const query = afterBrace;
         
-        // Only show menu if there's no closing brace yet
-        if (closingBraceIndex === -1) {
-          const query = afterBrace;
-          
-          // Calculate position for menu
-          const rect = target.getBoundingClientRect();
-          const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
-          const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
-          
-          // Create a temporary span to measure text position
-          const tempSpan = document.createElement('span');
-          tempSpan.style.visibility = 'hidden';
-          tempSpan.style.position = 'absolute';
-          tempSpan.style.whiteSpace = 'pre-wrap';
-          tempSpan.style.font = window.getComputedStyle(target).font;
-          tempSpan.textContent = value.slice(0, lastBraceIndex);
-          document.body.appendChild(tempSpan);
-          
-          const textRect = tempSpan.getBoundingClientRect();
-          document.body.removeChild(tempSpan);
-          
-          // Calculate position
-          const top = rect.top + scrollTop + (target.scrollTop || 0) + 20;
-          const left = rect.left + scrollLeft + (textRect.width || 0);
-          
-          onPlaceholderMenuChange({
-            blockId: block.id,
-            query,
-            position: { top, left },
-          });
-        } else {
-          // Close menu if closing brace exists
-          if (placeholderMenu.blockId === block.id) {
-            onPlaceholderMenuChange({ blockId: null, query: "", position: null });
-          }
-        }
+        // Calculate position for menu - simpler approach
+        const rect = target.getBoundingClientRect();
+        
+        // Use a simpler positioning: below the input, aligned to left
+        const top = rect.bottom + window.scrollY + 5;
+        const left = rect.left + window.scrollX;
+        
+        onPlaceholderMenuChange({
+          blockId: block.id,
+          query,
+          position: { top, left },
+        });
       } else {
-        // Close menu if no opening brace
+        // Close menu if closing brace exists
         if (placeholderMenu.blockId === block.id) {
           onPlaceholderMenuChange({ blockId: null, query: "", position: null });
         }
+      }
+    } else {
+      // Close menu if no opening brace
+      if (placeholderMenu.blockId === block.id) {
+        onPlaceholderMenuChange({ blockId: null, query: "", position: null });
       }
     }
   };

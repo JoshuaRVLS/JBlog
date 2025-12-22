@@ -136,12 +136,12 @@ export default function BroadcastBanner({
                 <p
                   className="text-xs sm:text-sm leading-relaxed text-muted-foreground line-clamp-2 sm:line-clamp-3"
                   style={{
-                    color: broadcast.textColor 
+                    color: broadcast.textColor
                       ? `${broadcast.textColor}DD`
                       : undefined,
                   }}
-                >
-                  {broadcast.message}
+                    >
+                      {broadcast.message}
                 </p>
               )}
             </div>
@@ -157,14 +157,14 @@ export default function BroadcastBanner({
                 }}
               >
                 {countdown.days > 0 && (
-                  <span 
+                    <span
                     className="px-2.5 py-1 rounded-lg font-bold text-xs sm:text-sm"
                     style={{
                       backgroundColor: `${colors.bg}25`,
                       color: colors.text,
                     }}
-                  >
-                    {countdown.days}d
+                    >
+                      {countdown.days}d
                   </span>
                 )}
                 <span

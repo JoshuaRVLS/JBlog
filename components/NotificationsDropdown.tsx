@@ -106,7 +106,7 @@ export default function NotificationsDropdown() {
       
       // Only update state if component is still mounted
       if (isMountedRef.current) {
-        setNotifications(response.data.notifications || []);
+      setNotifications(response.data.notifications || []);
       }
     } catch (error: any) {
       // Don't log error if request was intentionally aborted
@@ -118,19 +118,19 @@ export default function NotificationsDropdown() {
       // Kalau token sudah expired / belum valid, jangan spam error, cukup kosongkan data
       if (status === 401) {
         if (isMountedRef.current) {
-          setNotifications([]);
-          setUnreadCount(0);
+        setNotifications([]);
+        setUnreadCount(0);
         }
         return;
       }
       
       // Only log actual errors (not aborted requests)
       if (isMountedRef.current) {
-        console.error("Error fetching notifications:", error);
+      console.error("Error fetching notifications:", error);
       }
     } finally {
       if (isMountedRef.current) {
-        setLoading(false);
+      setLoading(false);
       }
       // Clear abort controller reference if it was for this request
       if (abortControllerRef.current === abortController) {
@@ -143,7 +143,7 @@ export default function NotificationsDropdown() {
     try {
       const response = await AxiosInstance.get("/notifications/unread-count");
       if (isMountedRef.current) {
-        setUnreadCount(response.data.count || 0);
+      setUnreadCount(response.data.count || 0);
       }
     } catch (error: any) {
       // Don't log error if request was intentionally aborted
@@ -155,14 +155,14 @@ export default function NotificationsDropdown() {
       if (status === 401) {
         // Kalau belum login / token invalid, anggap tidak ada unread
         if (isMountedRef.current) {
-          setUnreadCount(0);
+        setUnreadCount(0);
         }
         return;
       }
       
       // Only log actual errors
       if (isMountedRef.current) {
-        console.error("Error fetching unread count:", error);
+      console.error("Error fetching unread count:", error);
       }
     }
   };

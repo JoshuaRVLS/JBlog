@@ -45,6 +45,7 @@ export default function DragDropPostEditor({
     placeholderMenu,
     setPlaceholderMenu,
     filteredPlaceholders,
+    availablePlaceholders,
   } = usePlaceholderAutocomplete(customScript);
   const { selection, setSelection } = useTextSelection();
 
@@ -210,6 +211,7 @@ export default function DragDropPostEditor({
             filteredSlashCommands={filteredSlashCommands}
             placeholderMenu={placeholderMenu}
             filteredPlaceholders={filteredPlaceholders}
+            availablePlaceholders={availablePlaceholders}
             onDragStart={onDragStart}
             onDragOver={onDragOver}
             onDrop={onDrop}

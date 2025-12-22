@@ -12,7 +12,7 @@ export default function PlaceholderAutocompleteMenu({
   onSelect,
   position,
 }: PlaceholderAutocompleteMenuProps) {
-  if (placeholders.length === 0 || !position) {
+  if (!position || placeholders.length === 0) {
     return null;
   }
 
@@ -22,6 +22,8 @@ export default function PlaceholderAutocompleteMenu({
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
+        maxHeight: '300px',
+        overflowY: 'auto',
       }}
     >
       <div className="mb-1 px-2 py-1 text-[10px] font-medium text-muted-foreground">
@@ -47,4 +49,5 @@ export default function PlaceholderAutocompleteMenu({
     </div>
   );
 }
+
 
