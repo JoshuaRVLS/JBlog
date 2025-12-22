@@ -260,24 +260,29 @@ export default function UserProfile() {
       {/* Custom CSS */}
       {user?.customCSS && (
         <style dangerouslySetInnerHTML={{ __html: `
-          /* Prevent custom CSS from removing main padding */
-          main.user-profile-main {
-            padding-top: 5rem !important;
-            padding-bottom: 4rem !important;
-          }
           ${user.customCSS}
         ` }} />
       )}
-      {!user?.customCSS && (
-        <style dangerouslySetInnerHTML={{ __html: `
-          main.user-profile-main {
-            padding-top: 5rem !important;
-            padding-bottom: 4rem !important;
-          }
-        ` }} />
-      )}
+      {/* Always add protective CSS after custom CSS */}
+      <style dangerouslySetInnerHTML={{ __html: `
+        /* Force main padding - must override any custom CSS */
+        main.user-profile-main {
+          padding-top: 5rem !important;
+          padding-bottom: 4rem !important;
+          margin-top: 0 !important;
+        }
+        /* Force container spacing */
+        main.user-profile-main > .container {
+          margin-top: 1.25rem !important;
+          padding-top: 1.25rem !important;
+        }
+        /* Extra protection for profile container */
+        main.user-profile-main .profile-container {
+          margin-top: 0 !important;
+        }
+      ` }} />
       <main className="user-profile-main pt-20 pb-16">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl" style={{ marginTop: '1.25rem', paddingTop: '1.25rem' }}>
           {/* Profile Header */}
           <div className="profile-container bg-card border border-border/50 rounded-xl p-6 md:p-8 mb-8 shadow-sm" style={{ marginTop: 0, marginBottom: '2rem' }}>
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
