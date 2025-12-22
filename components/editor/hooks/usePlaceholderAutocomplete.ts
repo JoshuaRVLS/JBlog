@@ -9,17 +9,27 @@ export function usePlaceholderAutocomplete(customScript?: string) {
 
   // Parse customScript to extract placeholder names
   const availablePlaceholders = useMemo(() => {
-    if (!customScript) return [];
+    if (!customScript || !customScript.trim()) {
+      console.log('[PlaceholderAutocomplete] No customScript provided');
+      return [];
+    }
 
     try {
       const config = JSON.parse(customScript);
+      console.log('[PlaceholderAutocomplete] Parsed config:', config);
+      
       if (config.mappings && Array.isArray(config.mappings)) {
-        return config.mappings.map((m: { placeholder: string; apiField: string }) => ({
-          placeholder: m.placeholder,
-          apiField: m.apiField,
-        }));
+        const placeholders = config.mappings
+          .filter((m: { placeholder: string; apiField: string }) => m.placeholder && m.apiField)
+          .map((m: { placeholder: string; apiField: string }) => ({
+            placeholder: m.placeholder.trim(),
+            apiField: m.apiField.trim(),
+          }));
+        console.log('[PlaceholderAutocomplete] Extracted placeholders:', placeholders);
+        return placeholders;
       }
-    } catch {
+    } catch (error) {
+      console.error('[PlaceholderAutocomplete] Error parsing customScript:', error);
       // If not JSON, it's old format - ignore
     }
 

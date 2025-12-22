@@ -127,6 +127,14 @@ export default function BlockRenderer({
     const beforeCursor = value.slice(0, cursorPos);
     const lastBraceIndex = beforeCursor.lastIndexOf('{');
     
+    console.log('[BlockRenderer] Input change:', {
+      blockId: block.id,
+      cursorPos,
+      beforeCursor,
+      lastBraceIndex,
+      availablePlaceholders: availablePlaceholders.length,
+    });
+    
     if (lastBraceIndex !== -1) {
       // Check if there's a closing brace after the last opening brace
       const afterBrace = beforeCursor.slice(lastBraceIndex + 1);
@@ -142,6 +150,13 @@ export default function BlockRenderer({
         // Use a simpler positioning: below the input, aligned to left
         const top = rect.bottom + window.scrollY + 5;
         const left = rect.left + window.scrollX;
+        
+        console.log('[BlockRenderer] Showing placeholder menu:', {
+          blockId: block.id,
+          query,
+          position: { top, left },
+          filteredCount: filteredPlaceholders.length,
+        });
         
         onPlaceholderMenuChange({
           blockId: block.id,
