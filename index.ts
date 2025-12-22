@@ -240,27 +240,37 @@ if (process.env.ENABLE_CLUSTER === "true") {
       const pubClient = getRedisClient();
       const subClient = getRedisSubscriber();
       
+      // Skip jika Redis tidak enabled
+      if (!pubClient || !subClient) {
+        console.log("ℹ️  Socket.IO running tanpa Redis adapter (ENABLE_CLUSTER=false atau Redis tidak tersedia)");
+        return;
+      }
+      
       // Coba ping Redis dengan timeout (lazyConnect akan auto-connect saat ping)
       await Promise.race([
         Promise.all([
-        pubClient.ping().catch(() => {}),
-        subClient.ping().catch(() => {}),
+          pubClient.ping().catch(() => {
+            throw new Error("Redis pub client connection failed");
+          }),
+          subClient.ping().catch(() => {
+            throw new Error("Redis sub client connection failed");
+          }),
         ]),
         new Promise((_, reject) => setTimeout(() => reject(new Error("Redis timeout")), 5000))
       ]);
       
       io.adapter(createAdapter(pubClient, subClient));
-      console.log("Socket.IO Redis Adapter enabled - semua instance bisa share state");
+      console.log("✅ Socket.IO Redis Adapter enabled - semua instance bisa share state");
     } catch (error) {
-      console.error("Failed to setup Redis adapter:", error);
-      console.warn("WARNING: Socket.IO tidak akan share state antar instance!");
-      console.warn("Pesan real-time hanya akan work untuk user di instance yang sama");
-      console.warn("Server tetap akan start, tapi install Redis untuk full functionality");
+      // Silently fail - Redis is optional for local development
+      console.log("ℹ️  Socket.IO running tanpa Redis adapter");
+      console.log("   (Redis tidak tersedia atau connection timeout)");
+      console.log("   Untuk development lokal, ini normal. Install Redis jika diperlukan untuk production.");
     }
   });
 } else {
-  console.log("Socket.IO running tanpa Redis adapter");
-  console.log("NOTE: Di cluster mode, Socket.IO hanya work dalam instance yang sama");
+  console.log("ℹ️  Socket.IO running tanpa Redis adapter");
+  console.log("   (ENABLE_CLUSTER tidak di-set ke 'true')");
 }
 
 // Make Socket.IO instance accessible from other modules
