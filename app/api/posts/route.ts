@@ -2,12 +2,20 @@ import { NextRequest, NextResponse } from "next/server";
 
 // Helper function to get backend base URL (without /api suffix)
 function getBackendUrl(): string {
-  // If NEXT_PUBLIC_API_URL is set, use it and remove /api suffix
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    return process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, "");
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  
+  // If NEXT_PUBLIC_API_URL is a relative path like "/api", use SITE_URL as base
+  if (apiUrl && apiUrl.startsWith("/")) {
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jblog.space";
+    return siteUrl;
   }
   
-  // Fallback: use NEXT_PUBLIC_SITE_URL or construct from current origin
+  // If NEXT_PUBLIC_API_URL is a full URL, remove /api suffix
+  if (apiUrl && (apiUrl.startsWith("http://") || apiUrl.startsWith("https://"))) {
+    return apiUrl.replace(/\/api\/?$/, "");
+  }
+  
+  // Fallback: use NEXT_PUBLIC_SITE_URL
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
   if (siteUrl) {
     return siteUrl;
