@@ -28,7 +28,8 @@ export default function PlaceholderAutocompleteMenu({
 
   return (
     <div
-      className="fixed z-[9999] w-64 rounded-lg border-2 border-primary bg-card p-2 text-xs shadow-2xl"
+      data-placeholder-menu="true"
+      className="fixed z-[9999] w-64 rounded-lg border-2 border-primary bg-card p-2 text-xs shadow-2xl pointer-events-auto"
       style={{
         top: `${position.top}px`,
         left: `${position.left}px`,
@@ -36,6 +37,15 @@ export default function PlaceholderAutocompleteMenu({
         overflowY: 'auto',
         backgroundColor: 'hsl(var(--card))',
         position: 'fixed',
+        pointerEvents: 'auto',
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        console.log('[PlaceholderAutocompleteMenu] Container clicked');
+      }}
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        console.log('[PlaceholderAutocompleteMenu] Container mousedown');
       }}
     >
       <div className="mb-2 px-2 py-1.5 text-[10px] font-semibold text-primary border-b border-border/50">
@@ -45,11 +55,19 @@ export default function PlaceholderAutocompleteMenu({
         <button
           key={p.placeholder}
           type="button"
-          onClick={() => {
-            console.log('[PlaceholderAutocompleteMenu] Selected:', p.placeholder);
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[PlaceholderAutocompleteMenu] Button clicked:', p.placeholder);
             onSelect(p.placeholder);
           }}
-          className="flex w-full flex-col items-start rounded-md px-3 py-2 text-left hover:bg-primary/10 hover:border-primary/30 border border-transparent transition-all cursor-pointer mb-1"
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('[PlaceholderAutocompleteMenu] Button mousedown:', p.placeholder);
+          }}
+          className="flex w-full flex-col items-start rounded-md px-3 py-2 text-left hover:bg-primary/10 hover:border-primary/30 border border-transparent transition-all cursor-pointer mb-1 pointer-events-auto"
+          style={{ pointerEvents: 'auto' }}
         >
           <span className="font-semibold text-foreground text-sm">
             {"{"}

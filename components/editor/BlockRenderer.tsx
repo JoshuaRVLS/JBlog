@@ -98,14 +98,23 @@ export default function BlockRenderer({
     }
   };
 
-  const handleBlur = () => {
+  const handleBlur = (e: React.FocusEvent<HTMLTextAreaElement | HTMLInputElement>) => {
+    // Don't close if clicking on the autocomplete menu
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (relatedTarget && relatedTarget.closest('[data-placeholder-menu]')) {
+      console.log('[BlockRenderer] Blur ignored - clicking on menu');
+      return;
+    }
+    
     if (selection.blockId === block.id) {
       onSelectionChange({ blockId: null, start: 0, end: 0 });
     }
-    // Close placeholder menu on blur
-    if (placeholderMenu.blockId === block.id) {
-      onPlaceholderMenuChange({ blockId: null, query: "", position: null });
-    }
+    // Close placeholder menu on blur (with delay to allow click)
+    setTimeout(() => {
+      if (placeholderMenu.blockId === block.id) {
+        onPlaceholderMenuChange({ blockId: null, query: "", position: null });
+      }
+    }, 200);
   };
 
   const handleInputChange = (
