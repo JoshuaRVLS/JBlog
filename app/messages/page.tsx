@@ -243,19 +243,7 @@ function MessagesPageContent() {
     refetchInterval: 60 * 1000, // Auto refetch setiap 1 menit
   });
 
-  // Sort conversations by last message time (newest first - like WhatsApp)
-  const conversations = useMemo(() => {
-    if (!conversationsData) return [];
-    return [...conversationsData].sort((a, b) => {
-      if (!a.lastMessage && !b.lastMessage) return 0;
-      if (!a.lastMessage) return 1; // No message = bottom
-      if (!b.lastMessage) return -1; // No message = bottom
-      return (
-        new Date(b.lastMessage.createdAt).getTime() -
-        new Date(a.lastMessage.createdAt).getTime()
-      );
-    });
-  }, [conversationsData]);
+  const conversations = conversationsData || [];
 
   // Fetch messages dengan infinite query untuk pagination
   const {
@@ -692,49 +680,6 @@ function MessagesPageContent() {
 
     const handleNewDirectMessage = async (message: Message) => {
       console.log("📨 Received newDirectMessage event", message);
-      
-      // IMMEDIATELY update conversation list (WhatsApp-like behavior)
-      // Move conversation to top and update lastMessage
-      queryClient.setQueryData<Conversation[]>(["conversations", userId], (old = []) => {
-        const otherUserId = message.senderId === userId ? message.receiverId : message.senderId;
-        const existingIndex = old.findIndex((conv) => conv.user.id === otherUserId);
-        
-        // Create or update conversation
-        const updatedConversation: Conversation = existingIndex >= 0
-          ? {
-              ...old[existingIndex],
-              lastMessage: {
-                id: message.id,
-                content: message.content || (message.encryptedContent ? "[Encrypted]" : ""),
-                senderId: message.senderId,
-                receiverId: message.receiverId,
-                createdAt: message.createdAt,
-              },
-              unreadCount: message.senderId !== userId && message.senderId !== selectedUserId
-                ? (old[existingIndex].unreadCount || 0) + 1
-                : old[existingIndex].unreadCount,
-            }
-          : {
-              user: message.senderId === userId ? message.receiver : message.sender,
-              lastMessage: {
-                id: message.id,
-                content: message.content || (message.encryptedContent ? "[Encrypted]" : ""),
-                senderId: message.senderId,
-                receiverId: message.receiverId,
-                createdAt: message.createdAt,
-              },
-              unreadCount: message.senderId !== userId ? 1 : 0,
-            };
-        
-        // Remove existing conversation if it exists
-        const filtered = existingIndex >= 0 
-          ? old.filter((_, idx) => idx !== existingIndex)
-          : old;
-        
-        // Add updated conversation to top (like WhatsApp)
-        return [updatedConversation, ...filtered];
-      });
-      
       // If there's an active conversation, only update when message belongs to it
       if (
         selectedUserId &&
@@ -930,147 +875,6 @@ function MessagesPageContent() {
       refreshConversationsThrottled();
     };
 
-    // Handle conversation update (real-time list update - like WhatsApp)
-    const handleConversationUpdated = (data: {
-      userId: string;
-      user?: {
-        id: string;
-        name: string;
-        profilePicture: string | null;
-      };
-      lastMessage: {
-        id: string;
-        content: string;
-        senderId: string;
-        receiverId: string;
-        createdAt: string;
-      };
-      unreadCount: number;
-    }) => {
-      if (!userId) return;
-
-      // Update conversations list immediately (optimistic update)
-      queryClient.setQueryData<Conversation[]>(["conversations", userId], (old = []) => {
-        // Find if conversation already exists
-        const existingIndex = old.findIndex((conv) => conv.user.id === data.userId);
-        
-        let updated: Conversation[];
-        
-        if (existingIndex >= 0) {
-          // Update existing conversation and move to top (like WhatsApp)
-          updated = [...old];
-          const [conversation] = updated.splice(existingIndex, 1);
-          updated.unshift({
-            ...conversation,
-            lastMessage: data.lastMessage,
-            unreadCount: data.unreadCount,
-          });
-        } else {
-          // New conversation - fetch user info and add to top
-          // We'll fetch user info async, but add placeholder immediately
-          AxiosInstance.get(`/users/${data.userId}`)
-            .then((response) => {
-              const user = response.data.user;
-              queryClient.setQueryData<Conversation[]>(["conversations", userId], (old = []) => {
-                // Check if already added (avoid duplicates)
-                if (old.some((conv) => conv.user.id === data.userId)) {
-                  // Re-sort to ensure new message is at top
-                  return old.sort((a, b) => {
-                    if (!a.lastMessage || !b.lastMessage) return 0;
-                    return (
-                      new Date(b.lastMessage.createdAt).getTime() -
-                      new Date(a.lastMessage.createdAt).getTime()
-                    );
-                  });
-                }
-                const newConv: Conversation = {
-                  user: {
-                    id: user.id,
-                    name: user.name,
-                    profilePicture: user.profilePicture,
-                  },
-                  lastMessage: data.lastMessage,
-                  unreadCount: data.unreadCount,
-                };
-                // Add to top and sort by last message time (newest first - like WhatsApp)
-                const sorted = [newConv, ...old].sort((a, b) => {
-                  if (!a.lastMessage && !b.lastMessage) return 0;
-                  if (!a.lastMessage) return 1;
-                  if (!b.lastMessage) return -1;
-                  return (
-                    new Date(b.lastMessage.createdAt).getTime() -
-                    new Date(a.lastMessage.createdAt).getTime()
-                  );
-                });
-                return sorted;
-              });
-            })
-            .catch((err) => {
-              console.error("Error fetching user info for new conversation:", err);
-            });
-          
-          // If user info is provided in data, use it immediately (from socket)
-          if (data.user) {
-            const newConv: Conversation = {
-              user: {
-                id: data.user.id,
-                name: data.user.name,
-                profilePicture: data.user.profilePicture,
-              },
-              lastMessage: data.lastMessage,
-              unreadCount: data.unreadCount,
-            };
-            // Add to top and sort by last message time (newest first - like WhatsApp)
-            const sorted = [newConv, ...old].sort((a, b) => {
-              if (!a.lastMessage && !b.lastMessage) return 0;
-              if (!a.lastMessage) return 1;
-              if (!b.lastMessage) return -1;
-              return (
-                new Date(b.lastMessage.createdAt).getTime() -
-                new Date(a.lastMessage.createdAt).getTime()
-              );
-            });
-            return sorted;
-          }
-          
-          // Return old data for now (will be updated when user info is fetched)
-          return old;
-        }
-        
-        // Ensure conversations are sorted by last message time (like WhatsApp)
-        return updated.sort((a, b) => {
-          if (!a.lastMessage || !b.lastMessage) return 0;
-          return (
-            new Date(b.lastMessage.createdAt).getTime() -
-            new Date(a.lastMessage.createdAt).getTime()
-          );
-        });
-      });
-    };
-
-    // Handle message updated (replace temp message with real one)
-    const handleMessageUpdated = (data: {
-      tempId: string;
-      realId: string;
-      message: Message;
-    }) => {
-      if (data.message.receiverId === userId || data.message.senderId === userId) {
-        setMessages((prev) => {
-          const updated = prev.map((msg) => {
-            if (msg.id === data.tempId) {
-              return { ...data.message, isDecrypted: msg.isDecrypted };
-            }
-            return msg;
-          });
-          // Update cache
-          if (selectedUserId) {
-            messagesCacheRef.current.set(selectedUserId, updated);
-          }
-          return updated;
-        });
-      }
-    };
-
     // Log when socket connects/disconnects
     const handleConnect = () => {
       console.log("✅ Socket connected in messages page", socket.id);
@@ -1082,8 +886,6 @@ function MessagesPageContent() {
     socket.on("newDirectMessage", handleNewDirectMessage);
     socket.on("messageDelivered", handleMessageDelivered);
     socket.on("messagesRead", handleMessagesRead);
-    socket.on("conversation-updated", handleConversationUpdated);
-    socket.on("message-updated", handleMessageUpdated);
     socket.on("connect", handleConnect);
     socket.on("disconnect", handleDisconnect);
 
@@ -1091,12 +893,10 @@ function MessagesPageContent() {
       socket.off("newDirectMessage", handleNewDirectMessage);
       socket.off("messageDelivered", handleMessageDelivered);
       socket.off("messagesRead", handleMessagesRead);
-      socket.off("conversation-updated", handleConversationUpdated);
-      socket.off("message-updated", handleMessageUpdated);
       socket.off("connect", handleConnect);
       socket.off("disconnect", handleDisconnect);
     };
-  }, [socket, userId, selectedUserId, encryption, refreshConversationsThrottled, queryClient]);
+  }, [socket, userId, selectedUserId, encryption, refreshConversationsThrottled]);
 
   // Handle file selection (image/video)
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
