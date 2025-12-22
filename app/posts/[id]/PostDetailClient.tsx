@@ -95,6 +95,24 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
     }
   }, [post, loading]);
 
+  // Execute custom script after content is rendered
+  useEffect(() => {
+    if (post?.customScript) {
+      // Wait for content to be rendered
+      const timer = setTimeout(() => {
+        try {
+          // Execute the custom script
+          const scriptFunction = new Function(post.customScript || "");
+          scriptFunction();
+        } catch (error) {
+          console.error("Error executing custom script:", error);
+        }
+      }, 100); // Small delay to ensure DOM is ready
+
+      return () => clearTimeout(timer);
+    }
+  }, [post?.customScript, post?.content]);
+
   useEffect(() => {
     if (!initialPost && postId) {
       fetchPost();
@@ -446,17 +464,9 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
         {/* Content */}
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 mb-16">
           <div className="max-w-4xl mx-auto">
-            <div className="prose prose-lg dark:prose-invert max-w-none">
+            <div className="prose prose-lg dark:prose-invert max-w-none" id="post-content">
               <MarkdownRenderer content={post.content} />
             </div>
-
-            {/* Custom Script */}
-            {post.customScript && (
-              <div 
-                className="mt-8"
-                dangerouslySetInnerHTML={{ __html: post.customScript }}
-              />
-            )}
 
             {/* Action Buttons */}
             <div className="flex items-center gap-4 mt-12 pt-8 border-t border-border">

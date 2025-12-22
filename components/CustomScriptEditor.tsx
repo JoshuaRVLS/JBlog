@@ -11,6 +11,56 @@ interface CustomScriptEditorProps {
 
 const SCRIPT_TEMPLATES = [
   {
+    name: "API Fetch dengan Placeholder",
+    description: "Fetch API dan replace {placeholder} di content",
+    code: `// Di content post, gunakan: Harga Bitcoin: {bitcoinPrice}
+// Script ini akan replace {bitcoinPrice} dengan data dari API
+
+fetch('https://api.coindesk.com/v1/bpi/currentprice.json')
+  .then(res => res.json())
+  .then(data => {
+    const price = data.bpi.USD.rate;
+    // Replace {bitcoinPrice} di seluruh post content
+    const postContent = document.querySelector('.prose');
+    if (postContent) {
+      postContent.innerHTML = postContent.innerHTML.replace(/{bitcoinPrice}/g, price);
+    }
+  })
+  .catch(err => {
+    console.error('Error fetching data:', err);
+  });`,
+  },
+  {
+    name: "Multiple Placeholders",
+    description: "Fetch API dan replace multiple {placeholder}",
+    code: `// Di content: Suhu: {temperature}°C, Kondisi: {condition}
+fetch('https://api.openweathermap.org/data/2.5/weather?q=Jakarta&appid=YOUR_API_KEY&units=metric')
+  .then(res => res.json())
+  .then(data => {
+    const postContent = document.querySelector('.prose');
+    if (postContent) {
+      postContent.innerHTML = postContent.innerHTML
+        .replace(/{temperature}/g, data.main.temp)
+        .replace(/{condition}/g, data.weather[0].description);
+    }
+  })
+  .catch(err => console.error('Error:', err));`,
+  },
+  {
+    name: "Inject ke Element dengan ID",
+    description: "Inject data ke elemen dengan custom ID",
+    code: `// Di content: <div id="my-api-data">Loading...</div>
+fetch('https://api.example.com/data')
+  .then(res => res.json())
+  .then(data => {
+    const element = document.getElementById('my-api-data');
+    if (element) {
+      element.textContent = JSON.stringify(data, null, 2);
+    }
+  })
+  .catch(err => console.error('Error:', err));`,
+  },
+  {
     name: "API Data Display",
     description: "Ambil data dari API dan tampilkan di post",
     code: `<div id="api-data-container"></div>
@@ -169,9 +219,18 @@ export default function CustomScriptEditor({ value, onChange }: CustomScriptEdit
                   Apa itu Custom Script?
                 </p>
                 <p className="text-muted-foreground">
-                  Custom Script memungkinkan Anda menambahkan JavaScript atau HTML untuk membuat post lebih interaktif. 
-                  Anda bisa menampilkan data dari API, widget, atau elemen interaktif lainnya.
+                  Custom Script memungkinkan Anda fetch data dari API dan menampilkannya di post Anda. 
+                  Gunakan format <code className="bg-muted px-1 rounded">{"{customId}"}</code> di content post sebagai placeholder, 
+                  lalu script akan menggantinya dengan data dari API.
                 </p>
+                <div className="mt-2 p-2 bg-muted/50 rounded text-xs">
+                  <p className="font-medium mb-1">Cara Menggunakan:</p>
+                  <ol className="list-decimal list-inside space-y-1 text-muted-foreground">
+                    <li>Tulis di content post: <code className="bg-background px-1 rounded">Harga Bitcoin: {"{bitcoinPrice}"}</code></li>
+                    <li>Di Custom Script, fetch API dan replace: <code className="bg-background px-1 rounded">.replace(/{'{bitcoinPrice}'}/g, data.price)</code></li>
+                    <li>Atau gunakan ID: <code className="bg-background px-1 rounded">{"<div id='my-data'>Loading...</div>"}</code></li>
+                  </ol>
+                </div>
               </div>
             </div>
           </div>
@@ -242,13 +301,21 @@ export default function CustomScriptEditor({ value, onChange }: CustomScriptEdit
             <textarea
               value={value}
               onChange={(e) => onChange(e.target.value)}
-              placeholder="Masukkan JavaScript atau HTML Anda di sini...&#10;&#10;Contoh sederhana:&#10;&lt;div id='my-widget'&gt;Loading...&lt;/div&gt;&#10;&lt;script&gt;&#10;  document.getElementById('my-widget').innerHTML = 'Halo dari JavaScript!';&#10;&lt;/script&gt;"
+              placeholder="Masukkan JavaScript untuk fetch API...&#10;&#10;Contoh sederhana (Placeholder):&#10;// Di content: Harga: {price}&#10;fetch('https://api.example.com/data')&#10;  .then(res => res.json())&#10;  .then(data => {&#10;    const postContent = document.querySelector('.prose');&#10;    if (postContent) {&#10;      postContent.innerHTML = postContent.innerHTML.replace(/{price}/g, data.price);&#10;    }&#10;  });&#10;&#10;Contoh dengan ID:&#10;// Di content: &lt;div id='my-data'&gt;Loading...&lt;/div&gt;&#10;fetch('https://api.example.com/data')&#10;  .then(res => res.json())&#10;  .then(data => {&#10;    document.getElementById('my-data').textContent = data.value;&#10;  });"
               className="w-full min-h-[300px] px-4 py-3 rounded-lg border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary font-mono text-sm resize-y"
               spellCheck={false}
             />
-            <p className="text-xs text-muted-foreground">
-              💡 Tip: Gunakan template di atas untuk memulai dengan cepat, atau tulis kode Anda sendiri.
-            </p>
+            <div className="space-y-1">
+              <p className="text-xs text-muted-foreground">
+                💡 <strong>Tip:</strong> Gunakan template di atas untuk memulai dengan cepat.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                📝 <strong>Format Placeholder:</strong> Gunakan <code className="bg-muted px-1 rounded">{"{customId}"}</code> di content post, lalu replace dengan data dari API.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                🎯 <strong>Format ID:</strong> Atau gunakan <code className="bg-muted px-1 rounded">{"<div id='my-id'>Loading...</div>"}</code> di content, lalu inject data ke elemen tersebut.
+              </p>
+            </div>
           </div>
         </div>
       )}
