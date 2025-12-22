@@ -18,6 +18,26 @@ export function usePlaceholderAutocomplete(customScript?: string) {
       const config = JSON.parse(customScript);
       console.log('[PlaceholderAutocomplete] Parsed config:', config);
       
+      // Support new format: multiple APIs
+      if (config.apis && Array.isArray(config.apis)) {
+        const allPlaceholders: Array<{ placeholder: string; apiField: string }> = [];
+        config.apis.forEach((api: { apiUrl: string; mappings: Array<{ placeholder: string; apiField: string }> }) => {
+          if (api.mappings && Array.isArray(api.mappings)) {
+            api.mappings.forEach((m: { placeholder: string; apiField: string }) => {
+              if (m.placeholder && m.apiField) {
+                allPlaceholders.push({
+                  placeholder: m.placeholder.trim(),
+                  apiField: m.apiField.trim(),
+                });
+              }
+            });
+          }
+        });
+        console.log('[PlaceholderAutocomplete] Extracted placeholders from multiple APIs:', allPlaceholders);
+        return allPlaceholders;
+      }
+      
+      // Support old format: single API
       if (config.mappings && Array.isArray(config.mappings)) {
         const placeholders = config.mappings
           .filter((m: { placeholder: string; apiField: string }) => m.placeholder && m.apiField)
@@ -25,7 +45,7 @@ export function usePlaceholderAutocomplete(customScript?: string) {
             placeholder: m.placeholder.trim(),
             apiField: m.apiField.trim(),
           }));
-        console.log('[PlaceholderAutocomplete] Extracted placeholders:', placeholders);
+        console.log('[PlaceholderAutocomplete] Extracted placeholders from single API:', placeholders);
         return placeholders;
       }
     } catch (error) {

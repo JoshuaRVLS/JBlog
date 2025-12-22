@@ -107,8 +107,11 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
           try {
             const config = JSON.parse(post.customScript || "{}");
             if (config.script) {
-              // New format: use the generated script
+              // New format: use the generated script (supports multiple APIs)
               scriptToExecute = config.script;
+            } else if (config.apiUrl) {
+              // Old single API format - still supported
+              scriptToExecute = config.script || "";
             }
           } catch {
             // Old format: use as-is
