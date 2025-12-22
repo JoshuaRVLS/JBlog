@@ -259,9 +259,24 @@ export default function UserProfile() {
       <Navbar />
       {/* Custom CSS */}
       {user?.customCSS && (
-        <style dangerouslySetInnerHTML={{ __html: user.customCSS }} />
+        <style dangerouslySetInnerHTML={{ __html: `
+          /* Prevent custom CSS from removing main padding */
+          main.user-profile-main {
+            padding-top: 5rem !important;
+            padding-bottom: 4rem !important;
+          }
+          ${user.customCSS}
+        ` }} />
       )}
-      <main className="pt-20 pb-16" style={{ paddingTop: '5rem', paddingBottom: '4rem' }}>
+      {!user?.customCSS && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          main.user-profile-main {
+            padding-top: 5rem !important;
+            padding-bottom: 4rem !important;
+          }
+        ` }} />
+      )}
+      <main className="user-profile-main pt-20 pb-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
           {/* Profile Header */}
           <div className="profile-container bg-card border border-border/50 rounded-xl p-6 md:p-8 mb-8 shadow-sm" style={{ marginTop: 0, marginBottom: '2rem' }}>

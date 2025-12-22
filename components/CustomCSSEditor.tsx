@@ -200,7 +200,7 @@ export default function CustomCSSEditor({ value, onChange }: CustomCSSEditorProp
                   ⚠️ Gunakan <code className="bg-muted px-1 rounded">!important</code> untuk override Tailwind classes jika perlu
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  📌 Jangan ubah <code className="bg-muted px-1 rounded">margin-top</code> dari <code className="bg-muted px-1 rounded">.profile-container</code> untuk menjaga spacing yang benar
+                  📌 Jangan ubah <code className="bg-muted px-1 rounded">margin-top</code> dari <code className="bg-muted px-1 rounded">.profile-container</code> atau <code className="bg-muted px-1 rounded">padding-top</code> dari <code className="bg-muted px-1 rounded">main</code> untuk menjaga spacing yang benar
                 </p>
               </div>
             </div>
