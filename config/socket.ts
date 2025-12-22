@@ -15,17 +15,19 @@ export function setupSocketIO(httpServer: HTTPServer): Server {
         : ["http://localhost:3000", "http://127.0.0.1:3000"],
       credentials: true,
     },
-    // Optimize for real-time messaging (like WhatsApp)
+    // Optimize for real-time messaging (like WhatsApp) - ULTRA LOW LATENCY
     transports: ["websocket"], // Force websocket only (lowest latency)
-    upgradeTimeout: 10000, // 10s timeout for upgrade
-    pingTimeout: 20000, // Reduced from 60s to 20s for faster detection
-    pingInterval: 5000, // Reduced from 25s to 5s for more responsive connection
+    upgradeTimeout: 5000, // Reduced from 10s to 5s for faster connection
+    pingTimeout: 20000, // Reduced from 60s to 20s for faster detection of disconnects
+    pingInterval: 10000, // Reduced from 25s to 10s for more frequent health checks
     maxHttpBufferSize: 1e8, // 100MB for media
     allowEIO3: false, // Disable old engine.io versions
-    // Enable compression for faster transfers
+    allowUpgrades: false, // Disable upgrades since we force websocket
+    connectTimeout: 5000, // 5s connection timeout
+    // Enable compression for faster transfers (optimized for speed)
     perMessageDeflate: {
       zlibDeflateOptions: {
-        level: 3, // Balance between speed and compression
+        level: 1, // Reduced from 3 to 1 for faster compression (speed > size)
       },
       zlibInflateOptions: {
         chunkSize: 10 * 1024,

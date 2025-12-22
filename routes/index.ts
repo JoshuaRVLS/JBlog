@@ -1,0 +1,55 @@
+import type { Application } from "express";
+import UsersRoutes from "./users.route";
+import AuthRoutes from "./auth.route";
+import EmailRoutes from "./email.route";
+import PostsRoutes from "./posts.route";
+import ClapsRoutes from "./claps.route";
+import CommentsRoutes from "./comments.route";
+import TagsRoutes from "./tags.route";
+import AdminRoutes from "./admin.route";
+import UploadRoutes from "./upload.route";
+import ProfileRoutes from "./profile.route";
+import ReportRoutes from "./report.route";
+import SearchRoutes from "./search.route";
+import GroupChatRoutes from "./groupchat.route";
+import NotificationsRoutes from "./notifications.route";
+import BookmarksRoutes from "./bookmarks.route";
+import RepostsRoutes from "./reposts.route";
+import DirectMessagesRoutes from "./directMessages.route";
+import FeedRoutes from "./feed.route";
+import BroadcastRoutes from "./broadcast.route";
+import UpdateLogRoutes from "./updatelog.route";
+import EncryptionRoutes from "./encryption.route";
+import JPlusRoutes from "./jplus.route";
+import ReactionsRoutes from "./reactions.route";
+import CollectionsRoutes from "./collections.route";
+import AnalyticsRoutes from "./analytics.route";
+
+export function setupRoutes(app: Application): void {
+  app.use("/api/users/", UsersRoutes);
+  app.use("/api/auth/", AuthRoutes);
+  app.use("/api/email/", EmailRoutes);
+  app.use("/api/posts/", PostsRoutes);
+  app.use("/api/claps/", ClapsRoutes);
+  app.use("/api/comments/", CommentsRoutes);
+  app.use("/api/tags/", TagsRoutes);
+  app.use("/api/admin/", AdminRoutes);
+  app.use("/api/upload/", UploadRoutes);
+  app.use("/api/reports/", ReportRoutes);
+  app.use("/api/profile/", ProfileRoutes);
+  app.use("/api/search/", SearchRoutes);
+  app.use("/api/groupchat/", GroupChatRoutes);
+  app.use("/api/notifications/", NotificationsRoutes);
+  app.use("/api/bookmarks/", BookmarksRoutes);
+  app.use("/api/reposts/", RepostsRoutes);
+  app.use("/api/direct-messages/", DirectMessagesRoutes);
+  app.use("/api/feed/", FeedRoutes);
+  app.use("/api/broadcast/", BroadcastRoutes);
+  app.use("/api/updatelog/", UpdateLogRoutes);
+  app.use("/api/encryption/", EncryptionRoutes);
+  app.use("/api/jplus/", JPlusRoutes);
+  app.use("/api/", ReactionsRoutes);
+  app.use("/api/", CollectionsRoutes);
+  app.use("/api/", AnalyticsRoutes);
+}
+

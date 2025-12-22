@@ -185,6 +185,63 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
       },
     });
 
+    // Emit real message to receiver (sender sudah punya optimistic message dari frontend)
+    messagePromise.then((message) => {
+      if (io) {
+        // Emit ke receiver dengan real message
+        io.to(`user:${receiverId}`).emit("newDirectMessage", {
+          ...message,
+          sender: {
+            id: sender.id,
+            name: sender.name,
+            profilePicture: sender.profilePicture,
+          },
+          receiver: {
+            id: receiver.id,
+            name: receiver.name,
+            profilePicture: receiver.profilePicture,
+          },
+        });
+        
+        // Emit messageDelivered dengan real message ID untuk update optimistic message di sender
+        io.to(`user:${senderId}`).emit("messageDelivered", { 
+          messageId: message.id,
+          tempMessageId: null,
+        });
+
+        // Emit conversation update to BOTH users for real-time list update (like WhatsApp)
+        // This ensures conversation list updates immediately when new message arrives
+        const conversationUpdate = {
+          userId: receiverId, // The other user in conversation
+          lastMessage: {
+            id: message.id,
+            content: encryptedContent ? "" : messageContent,
+            senderId,
+            receiverId,
+            createdAt: message.createdAt.toISOString(),
+          },
+          unreadCount: 1, // Receiver has 1 unread
+          sender: {
+            id: sender.id,
+            name: sender.name,
+            profilePicture: sender.profilePicture,
+          },
+        };
+        
+        // Update receiver's conversation list (new message from sender - move to top)
+        io.to(`user:${receiverId}`).emit("conversationUpdated", conversationUpdate);
+        
+        // Update sender's conversation list (they sent a message - move to top)
+        io.to(`user:${senderId}`).emit("conversationUpdated", {
+          ...conversationUpdate,
+          userId: senderId,
+          unreadCount: 0, // Sender has no unread
+        });
+      }
+    }).catch((err) => {
+      console.error("Error in message promise:", err);
+    });
+
     // Create notification async (don't block response)
     createNotification({
       type: "direct_message",
@@ -225,29 +282,6 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
       io.to(`user:${senderId}`).emit("messageDelivered", { 
         messageId: message.id,
         tempMessageId: null,
-      });
-
-      // Update conversation list with real message ID (replace temp ID)
-      const realLastMessage = {
-        id: message.id,
-        content: message.content,
-        senderId: message.senderId,
-        receiverId: message.receiverId,
-        createdAt: message.createdAt,
-      };
-
-      // Update receiver's conversation list with real message ID
-      io.to(`user:${receiverId}`).emit("conversationUpdated", {
-        userId: senderId,
-        lastMessage: realLastMessage,
-        unreadCount: 1,
-      });
-      
-      // Update sender's conversation list with real message ID
-      io.to(`user:${senderId}`).emit("conversationUpdated", {
-        userId: receiverId,
-        lastMessage: realLastMessage,
-        unreadCount: 0,
       });
     }
 
