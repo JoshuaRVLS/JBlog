@@ -116,7 +116,7 @@ export default function ProfileEdit() {
         description,
         profilePicture: profilePicture || generateAvatarUrl(name),
         customLinks: customLinks.filter(link => link.label.trim() && link.url.trim()),
-        customCSS: customCSS.trim() || null,
+        customCSS: customCSS.trim() || "",
       });
 
       toast.success("Profile berhasil diupdate");
