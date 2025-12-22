@@ -1,12 +1,13 @@
 import { NextResponse } from "next/server";
 
 // Helper function to get backend base URL (without /api suffix)
+// In server-side Next.js, we need absolute URLs, not relative paths
 function getBackendUrl(): string {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jblog.space";
   
   // If NEXT_PUBLIC_API_URL is a relative path like "/api", use SITE_URL as base
   if (apiUrl && apiUrl.startsWith("/")) {
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jblog.space";
     return siteUrl;
   }
   
@@ -16,13 +17,7 @@ function getBackendUrl(): string {
   }
   
   // Fallback: use NEXT_PUBLIC_SITE_URL
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  if (siteUrl) {
-    return siteUrl;
-  }
-  
-  // Development fallback
-  return "http://localhost:8000";
+  return siteUrl;
 }
 
 export async function POST(request: Request) {
