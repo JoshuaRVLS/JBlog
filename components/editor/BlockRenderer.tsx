@@ -144,18 +144,20 @@ export default function BlockRenderer({
       if (closingBraceIndex === -1) {
         const query = afterBrace;
         
-        // Calculate position for menu - simpler approach
+        // Calculate position for menu - use getBoundingClientRect for accurate positioning
         const rect = target.getBoundingClientRect();
         
-        // Use a simpler positioning: below the input, aligned to left
-        const top = rect.bottom + window.scrollY + 5;
-        const left = rect.left + window.scrollX;
+        // Position below the input, aligned to left
+        // Use getBoundingClientRect which gives viewport-relative coordinates
+        const top = rect.bottom + 8; // 8px below input
+        const left = rect.left; // Aligned to left of input
         
         console.log('[BlockRenderer] Showing placeholder menu:', {
           blockId: block.id,
           query,
           position: { top, left },
           filteredCount: filteredPlaceholders.length,
+          rect: { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right },
         });
         
         onPlaceholderMenuChange({
