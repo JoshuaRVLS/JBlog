@@ -261,10 +261,10 @@ export default function UserProfile() {
       {user?.customCSS && (
         <style dangerouslySetInnerHTML={{ __html: user.customCSS }} />
       )}
-      <main className="pt-20 pb-16">
+      <main className="pt-20 pb-16" style={{ paddingTop: '5rem', paddingBottom: '4rem' }}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
           {/* Profile Header */}
-          <div className="profile-container bg-card border border-border/50 rounded-xl p-6 md:p-8 mb-8 shadow-sm">
+          <div className="profile-container bg-card border border-border/50 rounded-xl p-6 md:p-8 mb-8 shadow-sm" style={{ marginTop: 0, marginBottom: '2rem' }}>
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
               {user.profilePicture ? (
                 <Image

@@ -19,6 +19,8 @@ const CSS_TEMPLATES = [
   border-radius: 1rem !important;
   color: white !important;
   border: none !important;
+  margin-top: 0 !important;
+  margin-bottom: 2rem !important;
 }
 
 .profile-name {
@@ -42,6 +44,8 @@ const CSS_TEMPLATES = [
   border-radius: 1rem !important;
   padding: 2rem !important;
   box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
+  margin-top: 0 !important;
+  margin-bottom: 2rem !important;
 }`,
   },
   {
@@ -53,6 +57,8 @@ const CSS_TEMPLATES = [
   padding: 2rem !important;
   border-radius: 1rem !important;
   border: 2px solid #333 !important;
+  margin-top: 0 !important;
+  margin-bottom: 2rem !important;
 }
 
 .profile-name {
@@ -79,6 +85,8 @@ const CSS_TEMPLATES = [
   box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
   color: white !important;
   border: none !important;
+  margin-top: 0 !important;
+  margin-bottom: 2rem !important;
   transform: translateY(0);
   transition: transform 0.3s ease;
 }
@@ -103,6 +111,8 @@ const CSS_TEMPLATES = [
   border: 2px solid #e5e7eb !important;
   border-radius: 0.5rem !important;
   padding: 2rem !important;
+  margin-top: 0 !important;
+  margin-bottom: 2rem !important;
 }
 
 .profile-name {
@@ -188,6 +198,9 @@ export default function CustomCSSEditor({ value, onChange }: CustomCSSEditorProp
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   ⚠️ Gunakan <code className="bg-muted px-1 rounded">!important</code> untuk override Tailwind classes jika perlu
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  📌 Jangan ubah <code className="bg-muted px-1 rounded">margin-top</code> dari <code className="bg-muted px-1 rounded">.profile-container</code> untuk menjaga spacing yang benar
                 </p>
               </div>
             </div>
