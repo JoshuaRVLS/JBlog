@@ -14,89 +14,107 @@ const CSS_TEMPLATES = [
     name: "Gradient Background",
     description: "Background gradient yang menarik",
     code: `.profile-container {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
-  border-radius: 1rem;
-  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  padding: 2rem !important;
+  border-radius: 1rem !important;
+  color: white !important;
+  border: none !important;
 }
 
 .profile-name {
-  color: white;
-  font-size: 2rem;
-  font-weight: bold;
-  text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+  color: white !important;
+  font-size: 2rem !important;
+  font-weight: bold !important;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.2) !important;
+}
+
+.profile-bio {
+  color: rgba(255, 255, 255, 0.9) !important;
 }`,
   },
   {
     name: "Glassmorphism",
     description: "Efek kaca modern",
     code: `.profile-container {
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 1rem;
-  padding: 2rem;
-  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37);
+  background: rgba(255, 255, 255, 0.1) !important;
+  backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 1rem !important;
+  padding: 2rem !important;
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
 }`,
   },
   {
     name: "Dark Theme",
     description: "Tema gelap dengan aksen warna",
     code: `.profile-container {
-  background: #1a1a1a;
-  color: #ffffff;
-  padding: 2rem;
-  border-radius: 1rem;
-  border: 2px solid #333;
+  background: #1a1a1a !important;
+  color: #ffffff !important;
+  padding: 2rem !important;
+  border-radius: 1rem !important;
+  border: 2px solid #333 !important;
 }
 
 .profile-name {
-  color: #4ade80;
-  font-size: 2rem;
-  font-weight: bold;
+  color: #4ade80 !important;
+  font-size: 2rem !important;
+  font-weight: bold !important;
 }
 
 .profile-bio {
-  color: #a1a1aa;
+  color: #a1a1aa !important;
+}
+
+.profile-description {
+  color: #d1d5db !important;
 }`,
   },
   {
     name: "Colorful Card",
     description: "Kartu berwarna dengan shadow",
     code: `.profile-container {
-  background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
-  padding: 2rem;
-  border-radius: 1rem;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-  color: white;
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4) !important;
+  padding: 2rem !important;
+  border-radius: 1rem !important;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3) !important;
+  color: white !important;
+  border: none !important;
   transform: translateY(0);
   transition: transform 0.3s ease;
 }
 
 .profile-container:hover {
-  transform: translateY(-5px);
+  transform: translateY(-5px) !important;
+}
+
+.profile-name {
+  color: white !important;
+}
+
+.profile-bio {
+  color: rgba(255, 255, 255, 0.95) !important;
 }`,
   },
   {
     name: "Minimalist",
     description: "Desain minimalis dan bersih",
     code: `.profile-container {
-  background: #ffffff;
-  border: 2px solid #e5e7eb;
-  border-radius: 0.5rem;
-  padding: 2rem;
+  background: #ffffff !important;
+  border: 2px solid #e5e7eb !important;
+  border-radius: 0.5rem !important;
+  padding: 2rem !important;
 }
 
 .profile-name {
-  color: #111827;
-  font-size: 1.75rem;
-  font-weight: 600;
-  margin-bottom: 0.5rem;
+  color: #111827 !important;
+  font-size: 1.75rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.5rem !important;
 }
 
 .profile-bio {
-  color: #6b7280;
-  line-height: 1.6;
+  color: #6b7280 !important;
+  line-height: 1.6 !important;
 }`,
   },
 ];
@@ -166,7 +184,10 @@ export default function CustomCSSEditor({ value, onChange }: CustomCSSEditorProp
                 </p>
                 <p className="text-xs text-muted-foreground mt-2">
                   💡 Gunakan selector seperti <code className="bg-muted px-1 rounded">.profile-container</code>, 
-                  <code className="bg-muted px-1 rounded">.profile-name</code>, atau <code className="bg-muted px-1 rounded">.profile-bio</code>
+                  <code className="bg-muted px-1 rounded">.profile-name</code>, <code className="bg-muted px-1 rounded">.profile-bio</code>, atau <code className="bg-muted px-1 rounded">.profile-description</code>
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  ⚠️ Gunakan <code className="bg-muted px-1 rounded">!important</code> untuk override Tailwind classes jika perlu
                 </p>
               </div>
             </div>

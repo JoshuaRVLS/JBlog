@@ -264,7 +264,7 @@ export default function UserProfile() {
       <main className="pt-20 pb-16">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-6xl">
           {/* Profile Header */}
-          <div className="bg-card border border-border/50 rounded-xl p-6 md:p-8 mb-8 shadow-sm">
+          <div className="profile-container bg-card border border-border/50 rounded-xl p-6 md:p-8 mb-8 shadow-sm">
             <div className="flex flex-col md:flex-row items-center md:items-start gap-6">
               {user.profilePicture ? (
                 <Image
@@ -281,7 +281,7 @@ export default function UserProfile() {
               )}
               <div className="flex-1 w-full text-center md:text-left">
                 <div className="flex flex-col sm:flex-row items-center md:items-start justify-center md:justify-start gap-3 mb-3">
-                  <h1 className="text-2xl md:text-3xl font-bold">{user.name}</h1>
+                  <h1 className="profile-name text-2xl md:text-3xl font-bold">{user.name}</h1>
                   <div className="flex items-center gap-2">
                     {isOwnProfile && (
                       <Link
@@ -331,10 +331,10 @@ export default function UserProfile() {
                   </div>
                 </div>
                 {user.bio && (
-                  <p className="text-muted-foreground mb-2 text-sm md:text-base">{user.bio}</p>
+                  <p className="profile-bio text-muted-foreground mb-2 text-sm md:text-base">{user.bio}</p>
                 )}
                 {user.description && (
-                  <p className="text-foreground mb-4 text-sm md:text-base leading-relaxed">{user.description}</p>
+                  <p className="profile-description text-foreground mb-4 text-sm md:text-base leading-relaxed">{user.description}</p>
                 )}
                 {/* Custom Links */}
                 {user.customLinks && user.customLinks.length > 0 && (
