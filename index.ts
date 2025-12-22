@@ -1,7 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import compression from "compression";
+// Compression disabled - may cause crashes, removed import
 import UsersRoutes from "./routes/users.route";
 import AuthRoutes from "./routes/auth.route";
 import EmailRoutes from "./routes/email.route";
