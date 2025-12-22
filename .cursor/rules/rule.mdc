@@ -1,5 +1,0 @@
----
-alwaysApply: true
----
-
-- Dan ini kan banyak file page ada component yang hanya satu file saja, line nya bisa sampai ribuan. Tolong SELALU PISAH PISAH KODE jadi bagian bagian yang lebih KECIL agar mudah di maintain, DAN SELALU CODING DENGAN BEST PRACTICE. dan pastikan GAADA ERROR. 
