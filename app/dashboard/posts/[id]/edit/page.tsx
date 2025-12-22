@@ -21,7 +21,7 @@ import toast from "react-hot-toast";
 import MarkdownRenderer from "@/components/MarkdownRenderer";
 import { FormTextarea } from "@/components/ui/FormInput";
 import DragDropPostEditor from "@/components/editor/DragDropPostEditor";
-import CustomScriptEditor from "@/components/CustomScriptEditor";
+import CustomAPIEditor from "@/components/CustomAPIEditor";
 
 export default function EditPost() {
   const { userId, authenticated, loading: authLoading } = useContext(AuthContext);
@@ -800,8 +800,8 @@ export default function EditPost() {
               )}
             </div>
 
-            {/* Custom Script Section */}
-            <CustomScriptEditor
+            {/* Custom API Section */}
+            <CustomAPIEditor
               value={customScript}
               onChange={setCustomScript}
             />

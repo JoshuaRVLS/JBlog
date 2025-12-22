@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import toast from "react-hot-toast";
 import DragDropPostEditor from "@/components/editor/DragDropPostEditor";
-import CustomScriptEditor from "@/components/CustomScriptEditor";
+import CustomAPIEditor from "@/components/CustomAPIEditor";
 
 interface InlineImage {
   id: string;
@@ -463,8 +463,8 @@ export default function NewPost() {
               <DragDropPostEditor value={content} onChange={setContent} />
             </div>
 
-            {/* Custom Script Section */}
-            <CustomScriptEditor
+            {/* Custom API Section */}
+            <CustomAPIEditor
               value={customScript}
               onChange={setCustomScript}
             />

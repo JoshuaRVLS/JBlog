@@ -101,6 +101,19 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
       // Wait for content to be rendered in DOM
       const timer = setTimeout(() => {
         try {
+          // Check if it's JSON config (new format) or plain script (old format)
+          let scriptToExecute = post.customScript || "";
+          
+          try {
+            const config = JSON.parse(post.customScript || "{}");
+            if (config.script) {
+              // New format: use the generated script
+              scriptToExecute = config.script;
+            }
+          } catch {
+            // Old format: use as-is
+          }
+
           // Create and inject script element
           const scriptId = `custom-script-${post.id}`;
           // Remove existing script if any
@@ -112,7 +125,7 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
           // Create new script element
           const script = document.createElement("script");
           script.id = scriptId;
-          script.textContent = post.customScript || "";
+          script.textContent = scriptToExecute;
           document.body.appendChild(script);
         } catch (error) {
           console.error("Error executing custom script:", error);
