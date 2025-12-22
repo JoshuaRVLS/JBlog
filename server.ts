@@ -1,29 +1,23 @@
+import "dotenv/config";
 import { createServer } from "http";
-import { createApp } from "./config/app";
-import { setupRoutes } from "./config/routes";
-import { setupSocketIO } from "./config/socket";
-import { initScheduledPostsJob } from "./jobs/scheduledPosts";
+import { createApp } from "./app";
+import { setupSocketIO } from "./socket/socket";
 import { getIO } from "./lib/socket";
 import { closeRedisConnections } from "./lib/redis";
 import db from "./lib/db";
+import { startScheduledPostsJob } from "./jobs/scheduledPosts";
 
-const PORT = process.env.PORT || 8000;
-const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
-
-// Create Express app
 const app = createApp();
-
-// Setup routes (health, cluster-info)
-setupRoutes(app);
-
-// Create HTTP server
 const httpServer = createServer(app);
 
 // Setup Socket.IO
-const io = setupSocketIO(httpServer);
+setupSocketIO(httpServer);
 
-// Initialize scheduled posts job
-initScheduledPostsJob();
+// Start scheduled posts job
+startScheduledPostsJob();
+
+const PORT = process.env.PORT || 8000;
+const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
 
 // Log startup info
 console.log(`[Instance ${instanceId}] Starting server on port ${PORT}...`);
@@ -40,6 +34,7 @@ try {
     console.log(`[Instance ${instanceId}] Socket.IO ready ${isCluster ? "(Cluster Mode)" : "(Single Instance)"}`);
   
     // Kirim signal ke PM2 kalau app sudah ready (untuk wait_ready)
+    // IMPORTANT: Kirim signal segera setelah server listen, jangan tunggu apapun
     if (typeof process.send === "function") {
       try {
         process.send("ready");
@@ -75,9 +70,9 @@ const gracefulShutdown = async (signal: string) => {
     
     try {
       // Tutup Socket.IO
-      const ioInstance = getIO();
-      if (ioInstance) {
-        ioInstance.close();
+      const io = getIO();
+      if (io) {
+        io.close();
         console.log("Socket.IO closed");
       }
       
@@ -85,7 +80,7 @@ const gracefulShutdown = async (signal: string) => {
       await closeRedisConnections();
       console.log("Redis connections closed");
       
-      // Tutup database connections
+      // Tutup database connections (sudah di-handle di db.ts tapi kita pastikan)
       await db.$disconnect();
       console.log("Database connections closed");
       

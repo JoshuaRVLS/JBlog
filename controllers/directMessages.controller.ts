@@ -211,8 +211,15 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
 
         // Emit conversation update to BOTH users for real-time list update (like WhatsApp)
         // This ensures conversation list updates immediately when new message arrives
-        const conversationUpdate = {
-          userId: receiverId, // The other user in conversation
+        
+        // Receiver's conversation update (new message from sender)
+        const receiverConversationUpdate = {
+          userId: senderId, // The sender (other user in conversation)
+          user: {
+            id: sender.id,
+            name: sender.name,
+            profilePicture: sender.profilePicture,
+          },
           lastMessage: {
             id: message.id,
             content: encryptedContent ? "" : messageContent,
@@ -221,22 +228,31 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
             createdAt: message.createdAt.toISOString(),
           },
           unreadCount: 1, // Receiver has 1 unread
-          sender: {
-            id: sender.id,
-            name: sender.name,
-            profilePicture: sender.profilePicture,
+        };
+        
+        // Sender's conversation update (they sent a message)
+        const senderConversationUpdate = {
+          userId: receiverId, // The receiver (other user in conversation)
+          user: {
+            id: receiver.id,
+            name: receiver.name,
+            profilePicture: receiver.profilePicture,
           },
+          lastMessage: {
+            id: message.id,
+            content: encryptedContent ? "" : messageContent,
+            senderId,
+            receiverId,
+            createdAt: message.createdAt.toISOString(),
+          },
+          unreadCount: 0, // Sender has no unread
         };
         
         // Update receiver's conversation list (new message from sender - move to top)
-        io.to(`user:${receiverId}`).emit("conversationUpdated", conversationUpdate);
+        io.to(`user:${receiverId}`).emit("conversationUpdated", receiverConversationUpdate);
         
         // Update sender's conversation list (they sent a message - move to top)
-        io.to(`user:${senderId}`).emit("conversationUpdated", {
-          ...conversationUpdate,
-          userId: senderId,
-          unreadCount: 0, // Sender has no unread
-        });
+        io.to(`user:${senderId}`).emit("conversationUpdated", senderConversationUpdate);
       }
     }).catch((err) => {
       console.error("Error in message promise:", err);
