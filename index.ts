@@ -105,7 +105,9 @@ app.use(
 // Add cache headers for public GET requests
 app.use((req, res, next) => {
   // Only cache GET requests that are public
-  if (req.method === "GET" && !req.path.includes("/admin") && !req.path.includes("/auth") && !req.userId) {
+  // Use type assertion to access userId (may be set by auth middleware)
+  const authReq = req as typeof req & { userId?: string };
+  if (req.method === "GET" && !req.path.includes("/admin") && !req.path.includes("/auth") && !authReq.userId) {
     // Cache public API responses for 5 minutes
     if (req.path.startsWith("/api/tags") || req.path.startsWith("/api/posts") && !req.query.authorId) {
       res.set("Cache-Control", "public, max-age=300, s-maxage=300, stale-while-revalidate=60");
