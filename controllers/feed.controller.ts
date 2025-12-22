@@ -17,7 +17,7 @@ export const getUserFeed = async (req: AuthRequest, res: Response) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
-    
+
     // Advanced filters
     const sortBy = (req.query.sortBy as string) || "newest";
     const timeRange = (req.query.timeRange as string) || "all";
