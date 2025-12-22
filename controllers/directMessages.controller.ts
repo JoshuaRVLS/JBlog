@@ -149,10 +149,10 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
       };
       
       // Update receiver's conversation list (new message from sender) - IMMEDIATE
-      io.to(`user:${receiverId}`).emit("conversationUpdated", conversationUpdateForReceiver);
+      io.to(`user:${receiverId}`).emit("conversation-updated", conversationUpdateForReceiver);
       
       // Update sender's conversation list (they sent a message) - IMMEDIATE
-      io.to(`user:${senderId}`).emit("conversationUpdated", conversationUpdateForSender);
+      io.to(`user:${senderId}`).emit("conversation-updated", conversationUpdateForSender);
     }
 
     // Save to database (non-blocking, don't wait for notification)
@@ -249,10 +249,10 @@ export const sendDirectMessage = async (req: AuthRequest, res: Response) => {
         };
         
         // Update receiver's conversation list (new message from sender - move to top)
-        io.to(`user:${receiverId}`).emit("conversationUpdated", receiverConversationUpdate);
+        io.to(`user:${receiverId}`).emit("conversation-updated", receiverConversationUpdate);
         
         // Update sender's conversation list (they sent a message - move to top)
-        io.to(`user:${senderId}`).emit("conversationUpdated", senderConversationUpdate);
+        io.to(`user:${senderId}`).emit("conversation-updated", senderConversationUpdate);
       }
     }).catch((err) => {
       console.error("Error in message promise:", err);

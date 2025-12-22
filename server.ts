@@ -1,20 +1,27 @@
 import "dotenv/config";
 import { createServer } from "http";
-import { createApp } from "./app";
-import { setupSocketIO } from "./socket/socket";
+import { createApp } from "./config/app";
+import { setupRoutes } from "./config/routes";
+import { setupSocketIO } from "./config/socket";
+import { initScheduledPostsJob } from "./jobs/scheduledPosts";
 import { getIO } from "./lib/socket";
 import { closeRedisConnections } from "./lib/redis";
 import db from "./lib/db";
-import { startScheduledPostsJob } from "./jobs/scheduledPosts";
 
+// Create Express app
 const app = createApp();
+
+// Setup routes (health, cluster-info)
+setupRoutes(app);
+
+// Create HTTP server
 const httpServer = createServer(app);
 
 // Setup Socket.IO
-setupSocketIO(httpServer);
+const io = setupSocketIO(httpServer);
 
-// Start scheduled posts job
-startScheduledPostsJob();
+// Initialize scheduled posts job
+initScheduledPostsJob();
 
 const PORT = process.env.PORT || 8000;
 const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";

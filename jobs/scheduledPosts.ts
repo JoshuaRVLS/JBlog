@@ -32,8 +32,8 @@ export const publishScheduledPosts = async () => {
   }
 };
 
-// Start scheduled posts job
-export function startScheduledPostsJob(): void {
+// Initialize scheduled posts job
+export function initScheduledPostsJob(): void {
   // Check for scheduled posts every minute
   setInterval(publishScheduledPosts, 60 * 1000);
 

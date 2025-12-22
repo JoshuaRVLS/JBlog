@@ -3,9 +3,9 @@ module.exports = {
     {
       name: "jblog-backend",
       script: "npx",
-      args: "tsx index.ts",
+      args: "tsx server.ts",
       interpreter: "none",
-      instances: "max", // Use 4 instances (adjust based on CPU cores)
+      instances: 4, // Use 4 instances (adjust based on CPU cores)
       exec_mode: "cluster", // Cluster mode untuk load balancing
       autorestart: true,
       watch: false,
