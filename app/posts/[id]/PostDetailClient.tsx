@@ -97,21 +97,39 @@ export default function PostDetailClient({ initialPost, postId }: PostDetailClie
 
   // Execute custom script after content is rendered
   useEffect(() => {
-    if (post?.customScript) {
-      // Wait for content to be rendered
+    if (post?.customScript && post?.content) {
+      // Wait for content to be rendered in DOM
       const timer = setTimeout(() => {
         try {
-          // Execute the custom script
-          const scriptFunction = new Function(post.customScript || "");
-          scriptFunction();
+          // Create and inject script element
+          const scriptId = `custom-script-${post.id}`;
+          // Remove existing script if any
+          const existingScript = document.getElementById(scriptId);
+          if (existingScript) {
+            existingScript.remove();
+          }
+
+          // Create new script element
+          const script = document.createElement("script");
+          script.id = scriptId;
+          script.textContent = post.customScript || "";
+          document.body.appendChild(script);
         } catch (error) {
           console.error("Error executing custom script:", error);
         }
-      }, 100); // Small delay to ensure DOM is ready
+      }, 200); // Delay to ensure DOM is ready
 
-      return () => clearTimeout(timer);
+      return () => {
+        clearTimeout(timer);
+        // Cleanup: remove script on unmount
+        const scriptId = `custom-script-${post.id}`;
+        const script = document.getElementById(scriptId);
+        if (script) {
+          script.remove();
+        }
+      };
     }
-  }, [post?.customScript, post?.content]);
+  }, [post?.customScript, post?.content, post?.id]);
 
   useEffect(() => {
     if (!initialPost && postId) {
