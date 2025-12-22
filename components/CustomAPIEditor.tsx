@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Info, ChevronDown, ChevronUp, Plus, X, Link as LinkIcon } from "lucide-react";
 
 interface CustomAPIEditorProps {
@@ -23,9 +23,17 @@ export default function CustomAPIEditor({ value, onChange }: CustomAPIEditorProp
   const [apis, setApis] = useState<APIConfig[]>([
     { apiUrl: "", mappings: [{ placeholder: "", apiField: "" }] }
   ]);
+  const isInternalUpdateRef = useRef(false);
+  const lastGeneratedValueRef = useRef<string>("");
 
   // Parse existing value to populate form
   useEffect(() => {
+    // Skip if this is an internal update (from generateScript)
+    if (isInternalUpdateRef.current) {
+      isInternalUpdateRef.current = false;
+      return;
+    }
+
     if (value) {
       try {
         const config = JSON.parse(value);
@@ -93,17 +101,14 @@ export default function CustomAPIEditor({ value, onChange }: CustomAPIEditorProp
       api.mappings.some(m => m.placeholder.trim() && m.apiField.trim())
     );
 
-    if (validApis.length === 0) {
-      onChange("");
-      return;
-    }
-
-    // Generate JavaScript code that will fetch from all APIs and replace placeholders
-    // We'll fetch all APIs sequentially to avoid race conditions when replacing content
-    const fetchCalls = validApis.map((api, apiIndex) => {
-      const validMappings = api.mappings.filter(m => m.placeholder.trim() && m.apiField.trim());
-      
-      return `
+    let newValue = "";
+    if (validApis.length > 0) {
+      // Generate JavaScript code that will fetch from all APIs and replace placeholders
+      // We'll fetch all APIs sequentially to avoid race conditions when replacing content
+      const fetchCalls = validApis.map((api, apiIndex) => {
+        const validMappings = api.mappings.filter(m => m.placeholder.trim() && m.apiField.trim());
+        
+        return `
   fetch('${api.apiUrl.trim()}')
     .then(res => res.json())
     .then(data${apiIndex} => {
@@ -129,9 +134,9 @@ export default function CustomAPIEditor({ value, onChange }: CustomAPIEditorProp
       console.error('Error fetching API data from ${api.apiUrl.trim()}:', err);
       return null;
     })`;
-    }).join(',\n');
+      }).join(',\n');
 
-    const script = `
+      const script = `
 Promise.all([
 ${fetchCalls}
 ]).then(() => {
@@ -140,18 +145,26 @@ ${fetchCalls}
 }).catch(err => {
   console.error('Error loading API data:', err);
 });
-    `.trim();
+      `.trim();
 
-    // Store as JSON config for easy editing
-    const config = {
-      apis: validApis.map(api => ({
-        apiUrl: api.apiUrl.trim(),
-        mappings: api.mappings.filter(m => m.placeholder.trim() && m.apiField.trim())
-      })),
-      script: script
-    };
+      // Store as JSON config for easy editing
+      const config = {
+        apis: validApis.map(api => ({
+          apiUrl: api.apiUrl.trim(),
+          mappings: api.mappings.filter(m => m.placeholder.trim() && m.apiField.trim())
+        })),
+        script: script
+      };
 
-    onChange(JSON.stringify(config, null, 2));
+      newValue = JSON.stringify(config, null, 2);
+    }
+
+    // Only call onChange if the value actually changed
+    if (newValue !== lastGeneratedValueRef.current) {
+      lastGeneratedValueRef.current = newValue;
+      isInternalUpdateRef.current = true;
+      onChange(newValue);
+    }
   };
 
   // Auto-generate script when apis change
