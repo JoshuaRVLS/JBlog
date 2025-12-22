@@ -276,10 +276,10 @@ export default function FeedPage() {
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h1 className="text-4xl font-bold mb-2 text-gradient">Your Feed</h1>
-                <p className="text-muted-foreground">
-                  Posts from users you follow
-                </p>
-              </div>
+            <p className="text-muted-foreground">
+              Posts from users you follow
+            </p>
+          </div>
               <div className="flex items-center gap-3">
                 <button
                   onClick={() => setViewMode(viewMode === "grid" ? "list" : "grid")}
@@ -507,12 +507,12 @@ export default function FeedPage() {
                   Clear Filters
                 </button>
               ) : (
-                <Link
-                  href="/blog"
-                  className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
-                >
-                  Explore Posts
-                </Link>
+              <Link
+                href="/blog"
+                className="inline-block px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+              >
+                Explore Posts
+              </Link>
               )}
             </div>
           ) : (
@@ -522,10 +522,10 @@ export default function FeedPage() {
                   {posts.map((post) => (
                     <PostCard key={post.id} post={post} onClap={handleClap} />
                   ))}
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {posts.map((post) => (
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {posts.map((post) => (
                     <PostCard key={post.id} post={post} onClap={handleClap} />
                   ))}
                 </div>
@@ -550,103 +550,103 @@ export default function FeedPage() {
 function PostCard({ post, onClap }: { post: Post; onClap: (postId: string) => void }) {
   return (
     <article className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
-      {post.coverImage && (
-        <Link href={`/posts/${post.id}`}>
-          <div className="relative w-full h-64">
-            <Image
-              src={post.coverImage}
-              alt={post.title}
-              fill
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 800px"
-            />
-          </div>
-        </Link>
-      )}
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Link href={`/users/${post.author.id}`}>
-            <div className="relative w-10 h-10 rounded-full overflow-hidden">
-              {post.author.profilePicture ? (
-                <Image
-                  src={post.author.profilePicture}
-                  alt={post.author.name}
-                  fill
-                  className="object-cover"
-                  sizes="40px"
-                />
-              ) : (
-                <div className="w-full h-full bg-primary/20 flex items-center justify-center">
-                  <User className="h-5 w-5 text-primary" />
-                </div>
-              )}
-            </div>
-          </Link>
-          <div>
-            <Link
-              href={`/users/${post.author.id}`}
-              className="font-semibold hover:underline"
-            >
-              {post.author.name}
-            </Link>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Clock className="h-3 w-3" />
-              <span>{post.readingTime} min read</span>
-            </div>
-          </div>
-        </div>
+                  {post.coverImage && (
+                    <Link href={`/posts/${post.id}`}>
+                      <div className="relative w-full h-64">
+                        <Image
+                          src={post.coverImage}
+                          alt={post.title}
+                          fill
+                          className="object-cover"
+                          sizes="(max-width: 768px) 100vw, 800px"
+                        />
+                      </div>
+                    </Link>
+                  )}
+                  <div className="p-6">
+                    <div className="flex items-center gap-3 mb-4">
+                      <Link href={`/users/${post.author.id}`}>
+                        <div className="relative w-10 h-10 rounded-full overflow-hidden">
+                          {post.author.profilePicture ? (
+                            <Image
+                              src={post.author.profilePicture}
+                              alt={post.author.name}
+                              fill
+                              className="object-cover"
+                              sizes="40px"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-primary/20 flex items-center justify-center">
+                              <User className="h-5 w-5 text-primary" />
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                      <div>
+                        <Link
+                          href={`/users/${post.author.id}`}
+                          className="font-semibold hover:underline"
+                        >
+                          {post.author.name}
+                        </Link>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-3 w-3" />
+                          <span>{post.readingTime} min read</span>
+                        </div>
+                      </div>
+                    </div>
 
-        <Link href={`/posts/${post.id}`}>
-          <h2 className="text-2xl font-bold mb-2 hover:text-primary transition-colors">
-            {post.title}
-          </h2>
-          {post.excerpt && (
-            <p className="text-muted-foreground mb-4 line-clamp-3">
-              {post.excerpt}
-            </p>
-          )}
-        </Link>
+                    <Link href={`/posts/${post.id}`}>
+                      <h2 className="text-2xl font-bold mb-2 hover:text-primary transition-colors">
+                        {post.title}
+                      </h2>
+                      {post.excerpt && (
+                        <p className="text-muted-foreground mb-4 line-clamp-3">
+                          {post.excerpt}
+                        </p>
+                      )}
+                    </Link>
 
-        {post.tags.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-4">
-            {post.tags.map(({ tag }) => (
-              <Link
-                key={tag.id}
-                href={`/blog?tag=${tag.slug}`}
-                className="px-3 py-1 bg-muted rounded-full text-sm hover:bg-accent transition-colors"
-              >
-                #{tag.name}
-              </Link>
-            ))}
-          </div>
-        )}
+                    {post.tags.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {post.tags.map(({ tag }) => (
+                          <Link
+                            key={tag.id}
+                            href={`/blog?tag=${tag.slug}`}
+                            className="px-3 py-1 bg-muted rounded-full text-sm hover:bg-accent transition-colors"
+                          >
+                            #{tag.name}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
 
-        <div className="flex items-center gap-4 pt-4 border-t border-border">
-          <ClapButton
-            postId={post.id}
-            hasClapped={post.hasClapped}
-            clapCount={post._count.claps}
+                    <div className="flex items-center gap-4 pt-4 border-t border-border">
+                      <ClapButton
+                        postId={post.id}
+                        hasClapped={post.hasClapped}
+                        clapCount={post._count.claps}
             onClap={onClap}
-          />
-          <Link
-            href={`/posts/${post.id}#comments`}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-accent transition-colors"
-          >
-            <MessageCircle className="h-4 w-4" />
-            <span>{post._count.comments}</span>
-          </Link>
-          <RepostButton
-            postId={post.id}
-            initialReposted={post.isReposted}
-            repostCount={post._count.reposts}
-          />
-          <BookmarkButton
-            postId={post.id}
-            initialBookmarked={post.isBookmarked}
-          />
-          <ShareButton postId={post.id} title={post.title} />
-        </div>
-      </div>
-    </article>
+                      />
+                      <Link
+                        href={`/posts/${post.id}#comments`}
+                        className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-accent transition-colors"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        <span>{post._count.comments}</span>
+                      </Link>
+                      <RepostButton
+                        postId={post.id}
+                        initialReposted={post.isReposted}
+                        repostCount={post._count.reposts}
+                      />
+                      <BookmarkButton
+                        postId={post.id}
+                        initialBookmarked={post.isBookmarked}
+                      />
+                      <ShareButton postId={post.id} title={post.title} />
+                    </div>
+                  </div>
+                </article>
   );
 }
