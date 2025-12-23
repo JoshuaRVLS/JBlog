@@ -536,7 +536,7 @@ model DirectMessage {
   content           String
   encryptedContent  String? // Encrypted content untuk E2EE
   encryptionKeyId   String? // Reference to encryption key used
-  type              String    @default("text") // text, image, video, audio
+  type              String    @default("text") // text, image, video, audio, document
   mediaUrl          String? // URL untuk photo, video, audio
   encryptedMediaUrl String? // Encrypted media URL untuk E2EE
   read              Boolean   @default(false)

@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
+import { filterContent } from "../utils/contentFilter";
 
 // Hitung waktu baca berdasarkan jumlah kata
 const calculateReadingTime = (content: string): number => {
@@ -38,7 +39,17 @@ export const createPost = async (req: AuthRequest, res: Response) => {
         .json({ msg: "Authentication required" });
     }
 
-    // Semua authenticated user bisa membuat post
+    const combinedText = `${title} ${content} ${excerpt || ""}`.trim();
+    const contentFilter = filterContent(combinedText);
+
+    if (!contentFilter.isClean) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        msg: "Konten tidak sesuai dengan kebijakan kami",
+        reason: contentFilter.violations.join(", "),
+        code: "CONTENT_VIOLATION",
+      });
+    }
+
     const readingTime = calculateReadingTime(content);
     const tagIds = await processTags(tags);
 

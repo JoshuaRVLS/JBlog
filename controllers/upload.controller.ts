@@ -70,6 +70,38 @@ const mediaFilter = (req: any, file: MulterFile, cb: (error: Error | null, accep
   cb(null, true);
 };
 
+const directMessageMediaFilter = (req: any, file: MulterFile, cb: (error: Error | null, acceptFile?: boolean) => void) => {
+  const allowedMimes = [
+    "image/",
+    "video/",
+    "audio/",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    "text/",
+    "application/zip",
+    "application/x-zip-compressed",
+    "application/x-rar-compressed",
+  ];
+  
+  const isValidMime = validateFileType(file.mimetype, allowedMimes) || 
+    allowedMimes.some(mime => file.mimetype.startsWith(mime));
+  
+  if (!isValidMime) {
+    return cb(new Error("Hanya file image, video, audio, atau dokumen yang diizinkan"));
+  }
+  
+  if (file.originalname.includes("..") || file.originalname.includes("/") || file.originalname.includes("\\")) {
+    return cb(new Error("Nama file tidak valid"));
+  }
+
+  cb(null, true);
+};
+
 // Dynamic file size limit - will be checked in controller based on J+ status
 export const upload = multer({
   storage,
@@ -81,6 +113,12 @@ export const uploadMedia = multer({
   storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB untuk video/audio
   fileFilter: mediaFilter,
+});
+
+export const uploadDirectMessageMedia = multer({
+  storage,
+  limits: { fileSize: 100 * 1024 * 1024 }, // 100MB untuk direct message media (includes documents)
+  fileFilter: directMessageMediaFilter,
 });
 
 // Upload image handler untuk post images
@@ -321,6 +359,87 @@ export const uploadChatMedia = async (req: AuthRequest, res: Response) => {
     console.error("Error upload media:", error);
     res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
       error: "Gagal upload media",
+      details: error.message,
+    });
+  }
+};
+
+export const uploadDirectMessageFile = async (req: AuthRequest, res: Response) => {
+  try {
+    if (!req.file) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "Tidak ada file yang diupload" });
+    }
+
+    if (!req.userId) {
+      return res.status(StatusCodes.UNAUTHORIZED).json({ msg: "Harus login dulu" });
+    }
+
+    const file = req.file;
+    const fileExt = file.originalname.split(".").pop()?.toLowerCase() || "bin";
+    const sanitizedExt = sanitizeFilename(fileExt);
+    const sanitizedUserId = sanitizeFilename(req.userId);
+    const timestamp = Date.now();
+    const random = Math.round(Math.random() * 1e9);
+    const fileName = `${sanitizedUserId}/${timestamp}-${random}.${sanitizedExt}`;
+    
+    let bucketName = BUCKETS.IMAGES;
+    let folderName = "direct-messages";
+    let mediaType = "document";
+    
+    if (file.mimetype.startsWith("image/")) {
+      folderName = "direct-messages/images";
+      mediaType = "image";
+    } else if (file.mimetype.startsWith("video/")) {
+      folderName = "direct-messages/videos";
+      mediaType = "video";
+    } else if (file.mimetype.startsWith("audio/")) {
+      folderName = "direct-messages/audio";
+      mediaType = "audio";
+    } else {
+      folderName = "direct-messages/documents";
+      mediaType = "document";
+    }
+
+    const filePath = `${folderName}/${fileName}`;
+
+    const fileBuffer = file.buffer;
+    if (!fileBuffer) {
+      return res.status(StatusCodes.BAD_REQUEST).json({ msg: "File buffer tidak tersedia" });
+    }
+
+    const { data, error } = await supabase.storage
+      .from(bucketName)
+      .upload(filePath, fileBuffer, {
+        contentType: file.mimetype,
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Error upload direct message file ke Supabase:", error);
+      return res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+        error: "Gagal upload file ke storage",
+        details: error.message,
+      });
+    }
+
+    const { data: urlData } = supabase.storage
+      .from(bucketName)
+      .getPublicUrl(filePath);
+
+    console.log(`Direct message file berhasil diupload ke Supabase - ${filePath} (${mediaType})`);
+    res.status(StatusCodes.OK).json({
+      msg: "File berhasil diupload",
+      url: urlData.publicUrl,
+      path: filePath,
+      type: mediaType,
+      mimetype: file.mimetype,
+      originalName: file.originalname,
+      size: file.size,
+    });
+  } catch (error: any) {
+    console.error("Error upload direct message file:", error);
+    res.status(StatusCodes.INTERNAL_SERVER_ERROR).json({
+      error: "Gagal upload file",
       details: error.message,
     });
   }

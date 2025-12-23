@@ -3,6 +3,7 @@ import type { AuthRequest } from "../middleware/auth.middleware";
 import db from "../lib/db";
 import { StatusCodes } from "http-status-codes";
 import { createNotification } from "./notifications.controller";
+import { filterContent } from "../utils/contentFilter";
 
 export const createComment = async (req: AuthRequest, res: Response) => {
   try {
@@ -15,6 +16,16 @@ export const createComment = async (req: AuthRequest, res: Response) => {
       return res
         .status(StatusCodes.UNAUTHORIZED)
         .json({ msg: "Harus login dulu" });
+    }
+
+    const contentFilter = filterContent(content);
+
+    if (!contentFilter.isClean) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        msg: "Komentar tidak sesuai dengan kebijakan kami",
+        reason: contentFilter.violations.join(", "),
+        code: "CONTENT_VIOLATION",
+      });
     }
 
     const comment = await db.comment.create({
