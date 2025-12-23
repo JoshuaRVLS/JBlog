@@ -4,6 +4,7 @@ import { createApp } from "./config/app";
 import { setupRoutes } from "./config/routes";
 import { setupSocketIO } from "./config/socket";
 import { initScheduledPostsJob } from "./jobs/scheduledPosts";
+import { initCleanupUnverifiedAccountsJob } from "./jobs/cleanupUnverifiedAccounts";
 import { getIO } from "./lib/socket";
 import { closeRedisConnections } from "./lib/redis";
 import db from "./lib/db";
@@ -22,6 +23,9 @@ const io = setupSocketIO(httpServer);
 
 // Initialize scheduled posts job
 initScheduledPostsJob();
+
+// Initialize cleanup job for unverified accounts
+initCleanupUnverifiedAccountsJob();
 
 const PORT = process.env.PORT || 8000;
 const instanceId = process.env.NODE_APP_INSTANCE || process.env.INSTANCE_ID || "single";
