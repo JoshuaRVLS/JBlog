@@ -1,7 +1,8 @@
 "use client";
 
+import DOMPurify from "dompurify";
+
 export default function MarkdownRenderer({ content }: { content: string }) {
-  // Simple markdown parser
   const parseMarkdown = (text: string) => {
     let html = text;
     
@@ -160,10 +161,30 @@ export default function MarkdownRenderer({ content }: { content: string }) {
     return html;
   };
 
+  const sanitizeHtml = (html: string): string => {
+    return DOMPurify.sanitize(html, {
+      ALLOWED_TAGS: [
+        "p", "br", "strong", "em", "h1", "h2", "h3", "h4", "h5", "h6",
+        "ul", "ol", "li", "blockquote", "hr", "a", "img", "pre", "code",
+        "div", "iframe",
+      ],
+      ALLOWED_ATTR: [
+        "class", "href", "src", "alt", "title", "target", "rel",
+        "loading", "frameborder", "allow", "allowfullscreen",
+        "referrerpolicy", "style",
+      ],
+      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+      ALLOW_DATA_ATTR: false,
+    });
+  };
+
+  const parsedContent = parseMarkdown(content);
+  const sanitizedContent = sanitizeHtml(parsedContent);
+
   return (
     <div
       className="markdown-content"
-      dangerouslySetInnerHTML={{ __html: parseMarkdown(content) }}
+      dangerouslySetInnerHTML={{ __html: sanitizedContent }}
     />
   );
 }

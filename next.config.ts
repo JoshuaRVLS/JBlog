@@ -1,17 +1,14 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Enable compression
   compress: true,
   
-  // Optimize images in production
   images: {
-    // Disable image optimization in development to avoid private IP issues
     unoptimized: process.env.NODE_ENV === "development",
     formats: ["image/avif", "image/webp"],
     deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
-    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days
+    minimumCacheTTL: 60 * 60 * 24 * 30,
     remotePatterns: [
       {
         protocol: "https",
@@ -46,7 +43,6 @@ const nextConfig: NextConfig = {
     ],
   },
   
-  // Optimize bundle size - tree-shake unused exports
   experimental: {
     optimizePackageImports: [
       "lucide-react",
@@ -58,21 +54,75 @@ const nextConfig: NextConfig = {
       "motion",
       "recharts",
       "@tanstack/react-query",
+      "@react-three/fiber",
+      "@react-three/drei",
+      "three",
     ],
+    turbo: {
+      rules: {
+        "*.svg": {
+          loaders: ["@svgr/webpack"],
+          as: "*.js",
+        },
+      },
+    },
   },
   
-  // Optimize production builds
+  webpack: (config, { dev }) => {
+    if (dev) {
+      config.cache = {
+        type: "filesystem",
+        buildDependencies: {
+          config: [__filename],
+        },
+      };
+    }
+    
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      "@": require("path").resolve(__dirname),
+    };
+    
+    return config;
+  },
+  
   compiler: {
     removeConsole: process.env.NODE_ENV === "production" ? {
       exclude: ["error", "warn"],
     } : false,
   },
   
-  // Optimize production builds
   productionBrowserSourceMaps: false,
   
+  poweredByHeader: false,
+  
+  reactStrictMode: true,
+  
+  // Proxy API requests to backend server
+  async rewrites() {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL 
+      ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, "")
+      : "http://localhost:8000";
+    
+    return [
+      {
+        source: "/api/:path*",
+        destination: `${backendUrl}/api/:path*`,
+      },
+    ];
+  },
+
   // Headers for caching and security
   async headers() {
+    const isDevelopment = process.env.NODE_ENV === "development";
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL 
+      ? process.env.NEXT_PUBLIC_API_URL.replace(/\/api\/?$/, "")
+      : "http://localhost:8000";
+    
+    const connectSrc = isDevelopment
+      ? `'self' http://localhost:8000 http://127.0.0.1:8000 https://*.supabase.co https://api.github.com ws: wss:`
+      : `'self' ${backendUrl} https://*.supabase.co https://api.github.com ws: wss:`;
+    
     return [
       {
         source: "/:path*",
@@ -92,6 +142,18 @@ const nextConfig: NextConfig = {
           {
             key: "Referrer-Policy",
             value: "origin-when-cross-origin",
+          },
+          {
+            key: "Content-Security-Policy",
+            value: `default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: http: https://*.supabase.co https://ui-avatars.com; connect-src ${connectSrc}; frame-src 'self' https://www.youtube.com;`,
+          },
+          {
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
+          },
+          {
+            key: "Permissions-Policy",
+            value: "camera=(), microphone=(), geolocation=()",
           },
         ],
       },
