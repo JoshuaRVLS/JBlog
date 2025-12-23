@@ -58,14 +58,6 @@ const nextConfig: NextConfig = {
       "@react-three/drei",
       "three",
     ],
-    turbo: {
-      rules: {
-        "*.svg": {
-          loaders: ["@svgr/webpack"],
-          as: "*.js",
-        },
-      },
-    },
   },
   
   webpack: (config, { dev }) => {
@@ -85,6 +77,8 @@ const nextConfig: NextConfig = {
     
     return config;
   },
+  
+  turbopack: {},
   
   compiler: {
     removeConsole: process.env.NODE_ENV === "production" ? {
