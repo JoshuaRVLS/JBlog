@@ -18,10 +18,11 @@ import {
   getGithubAuthUrl,
 } from "../controllers/oauth.controller";
 import { authenticate } from "../middleware/auth.middleware";
+import { authRateLimiter, strictRateLimiter } from "../middleware/rateLimit.middleware";
 
 const router = Router();
 
-router.post("/login", loginUser);
+router.post("/login", authRateLimiter, loginUser);
 router.delete("/logout", logout);
 
 // OAuth routes
@@ -32,8 +33,8 @@ router.get("/github/callback", githubCallback);
 router.post("/validate", validate);
 router.post("/refresh", refreshToken);
 router.get("/socket-token", authenticate, getSocketToken);
-router.post("/forgot-password", forgotPassword);
-router.post("/reset-password", resetPassword);
+router.post("/forgot-password", strictRateLimiter, forgotPassword);
+router.post("/reset-password", strictRateLimiter, resetPassword);
 router.get("/verify-reset-token/:token", verifyResetToken);
 
 export default router;

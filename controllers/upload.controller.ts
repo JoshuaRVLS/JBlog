@@ -20,30 +20,54 @@ type MulterFile = {
 // Setup multer untuk memory storage (karena kita upload ke Supabase)
 const storage = multer.memoryStorage();
 
-// Filter untuk hanya menerima gambar
-const imageFilter = (req: any, file: MulterFile, cb: (error: Error | null, acceptFile?: boolean) => void) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp/;
-  const extname = /\.(jpeg|jpg|png|gif|webp)$/i.test(file.originalname);
-  const mimetype = file.mimetype.startsWith("image/");
-
-  if (mimetype && extname) {
-    return cb(null, true);
-  } else {
-    cb(new Error("Hanya file gambar yang diizinkan (jpeg, jpg, png, gif, webp)"));
-  }
+const sanitizeFilename = (filename: string): string => {
+  return filename
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/\.\./g, "_")
+    .replace(/^\.+/, "")
+    .substring(0, 255);
 };
 
-// Filter untuk media (image, video, audio)
-const mediaFilter = (req: any, file: MulterFile, cb: (error: Error | null, acceptFile?: boolean) => void) => {
-  const isImage = file.mimetype.startsWith("image/");
-  const isVideo = file.mimetype.startsWith("video/");
-  const isAudio = file.mimetype.startsWith("audio/");
+const validateFileType = (mimetype: string, allowedMimes: string[]): boolean => {
+  return allowedMimes.some((allowed) => mimetype.startsWith(allowed));
+};
 
-  if (isImage || isVideo || isAudio) {
-    return cb(null, true);
-  } else {
-    cb(new Error("Hanya file image, video, atau audio yang diizinkan"));
+const imageFilter = (req: any, file: MulterFile, cb: (error: Error | null, acceptFile?: boolean) => void) => {
+  const allowedMimes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+  const allowedExtensions = /\.(jpeg|jpg|png|gif|webp)$/i;
+  
+  const extname = allowedExtensions.test(file.originalname);
+  const isValidMime = validateFileType(file.mimetype, allowedMimes);
+  
+  if (!extname || !isValidMime) {
+    return cb(new Error("Hanya file gambar yang diizinkan (jpeg, jpg, png, gif, webp)"));
   }
+  
+  if (file.originalname.includes("..") || file.originalname.includes("/") || file.originalname.includes("\\")) {
+    return cb(new Error("Nama file tidak valid"));
+  }
+
+  cb(null, true);
+};
+
+const mediaFilter = (req: any, file: MulterFile, cb: (error: Error | null, acceptFile?: boolean) => void) => {
+  const allowedMimes = [
+    "image/",
+    "video/",
+    "audio/",
+  ];
+  
+  const isValidMime = validateFileType(file.mimetype, allowedMimes);
+  
+  if (!isValidMime) {
+    return cb(new Error("Hanya file image, video, atau audio yang diizinkan"));
+  }
+  
+  if (file.originalname.includes("..") || file.originalname.includes("/") || file.originalname.includes("\\")) {
+    return cb(new Error("Nama file tidak valid"));
+  }
+
+  cb(null, true);
 };
 
 // Dynamic file size limit - will be checked in controller based on J+ status
@@ -71,8 +95,10 @@ export const uploadImage = async (req: AuthRequest, res: Response) => {
     }
 
     const file = req.file;
-    const fileExt = file.originalname.split(".").pop();
-    const fileName = `${req.userId}/${Date.now()}-${Math.round(Math.random() * 1e9)}.${fileExt}`;
+    const sanitizedExt = file.originalname.split(".").pop()?.toLowerCase() || "jpg";
+    const sanitizedExtSafe = /^(jpeg|jpg|png|gif|webp)$/i.test(sanitizedExt) ? sanitizedExt : "jpg";
+    const sanitizedUserId = sanitizeFilename(req.userId);
+    const fileName = `${sanitizedUserId}/${Date.now()}-${Math.round(Math.random() * 1e9)}.${sanitizedExtSafe}`;
     const filePath = `posts/${fileName}`;
 
     // Upload ke Supabase Storage
@@ -128,8 +154,9 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
     }
 
     const file = req.file;
-    const fileExt = file.originalname.split(".").pop()?.toLowerCase();
-    const isGif = fileExt === "gif" || file.mimetype === "image/gif";
+    const fileExt = file.originalname.split(".").pop()?.toLowerCase() || "jpg";
+    const sanitizedExt = /^(jpeg|jpg|png|gif|webp)$/i.test(fileExt) ? fileExt : "jpg";
+    const isGif = sanitizedExt === "gif" || file.mimetype === "image/gif";
 
     // Get user J+ status
     const user = await db.user.findUnique({
@@ -167,7 +194,8 @@ export const uploadAvatar = async (req: AuthRequest, res: Response) => {
       });
     }
 
-    const fileName = `${req.userId}-${Date.now()}.${fileExt}`;
+    const sanitizedUserId = sanitizeFilename(req.userId);
+    const fileName = `${sanitizedUserId}-${Date.now()}.${sanitizedExt}`;
     const filePath = fileName;
 
     // Upload ke Supabase Storage (replace existing jika ada)
@@ -223,10 +251,12 @@ export const uploadChatMedia = async (req: AuthRequest, res: Response) => {
     }
 
     const file = req.file;
-    const fileExt = file.originalname.split(".").pop();
+    const fileExt = file.originalname.split(".").pop()?.toLowerCase() || "jpg";
+    const sanitizedExt = sanitizeFilename(fileExt);
+    const sanitizedUserId = sanitizeFilename(req.userId);
     const timestamp = Date.now();
     const random = Math.round(Math.random() * 1e9);
-    const fileName = `${req.userId}/${timestamp}-${random}.${fileExt}`;
+    const fileName = `${sanitizedUserId}/${timestamp}-${random}.${sanitizedExt}`;
     
     // Determine bucket based on file type
     let bucketName = BUCKETS.IMAGES;

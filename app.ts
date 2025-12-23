@@ -9,6 +9,7 @@ import { dirname } from "path";
 import os from "os";
 import { checkMaintenanceMode } from "./middleware/maintenance.middleware";
 import { setupRoutes } from "./routes";
+import { setupSecurityHeaders } from "./middleware/security.middleware";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -17,6 +18,8 @@ export function createApp(): express.Application {
   const app = express();
 
   app.set("trust proxy", 1);
+
+  setupSecurityHeaders(app);
 
   // Enable HTTP compression (gzip/brotli) - CRITICAL for performance
   app.use(
